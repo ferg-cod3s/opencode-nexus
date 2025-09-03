@@ -1,0 +1,974 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus - Onboarding">
+  <main class="onboarding-container">
+    <h1 class="welcome-title">Welcome to OpenCode Nexus</h1>
+    <p class="welcome-description">
+      Let's get you set up with your local OpenCode server and secure remote access.
+    </p>
+    
+    <div id="onboarding-wizard" class="wizard-container">
+      <div class="wizard-steps">
+        <div class="step active" data-step="welcome">
+          <span class="step-number">1</span>
+          <span class="step-title">Welcome</span>
+        </div>
+        <div class="step" data-step="requirements">
+          <span class="step-number">2</span>
+          <span class="step-title">System Check</span>
+        </div>
+        <div class="step" data-step="server">
+          <span class="step-number">3</span>
+          <span class="step-title">OpenCode Server</span>
+        </div>
+        <div class="step" data-step="security">
+          <span class="step-number">4</span>
+          <span class="step-title">Security</span>
+        </div>
+        <div class="step" data-step="remote">
+          <span class="step-number">5</span>
+          <span class="step-title">Remote Access</span>
+        </div>
+        <div class="step" data-step="complete">
+          <span class="step-number">6</span>
+          <span class="step-title">Complete</span>
+        </div>
+      </div>
+
+      <div class="wizard-content">
+        <!-- Welcome Step -->
+        <div class="step-content active" data-step="welcome">
+          <h2>Welcome to OpenCode Nexus</h2>
+          <p>
+            OpenCode Nexus helps you run and manage your OpenCode server locally 
+            with secure remote access capabilities.
+          </p>
+          <ul>
+            <li>✓ Privacy-first: Your code stays on your machine</li>
+            <li>✓ High performance: Local processing for faster responses</li>
+            <li>✓ Secure remote access: Access from anywhere via encrypted tunnels</li>
+            <li>✓ Cross-platform: Works on macOS, Windows, and Linux</li>
+          </ul>
+          <button class="btn-primary" data-action="next">Get Started</button>
+        </div>
+
+        <!-- System Requirements Step -->
+        <div class="step-content" data-step="requirements">
+          <h2>System Requirements Check</h2>
+          <p>Let's verify your system meets the minimum requirements:</p>
+          
+          <div class="requirements-list">
+            <div class="requirement" data-check="os">
+              <div class="requirement-status">
+                <span class="status-icon pending">⏳</span>
+              </div>
+              <div class="requirement-info">
+                <h3>Operating System</h3>
+                <p>Compatible OS version detected</p>
+              </div>
+            </div>
+
+            <div class="requirement" data-check="memory">
+              <div class="requirement-status">
+                <span class="status-icon pending">⏳</span>
+              </div>
+              <div class="requirement-info">
+                <h3>Memory</h3>
+                <p>Minimum 4GB RAM required</p>
+              </div>
+            </div>
+
+            <div class="requirement" data-check="disk">
+              <div class="requirement-status">
+                <span class="status-icon pending">⏳</span>
+              </div>
+              <div class="requirement-info">
+                <h3>Disk Space</h3>
+                <p>Minimum 2GB free space required</p>
+              </div>
+            </div>
+
+            <div class="requirement" data-check="network">
+              <div class="requirement-status">
+                <span class="status-icon pending">⏳</span>
+              </div>
+              <div class="requirement-info">
+                <h3>Network Connection</h3>
+                <p>Internet connectivity for setup</p>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-primary" data-action="check-requirements" disabled>
+            Check System Requirements
+          </button>
+          <button class="btn-secondary" data-action="back">Back</button>
+        </div>
+
+        <!-- OpenCode Server Step -->
+        <div class="step-content" data-step="server">
+          <h2>OpenCode Server Setup</h2>
+          <p>Choose how you'd like to set up your OpenCode server:</p>
+          
+          <div class="server-options">
+            <div class="option" data-option="auto-download">
+              <input type="radio" name="server-setup" id="auto-download" value="auto-download">
+              <label for="auto-download">
+                <h3>Auto-Download (Recommended)</h3>
+                <p>Download the latest OpenCode server automatically</p>
+                <ul>
+                  <li>Latest stable version</li>
+                  <li>Automatic updates</li>
+                  <li>No manual configuration</li>
+                </ul>
+              </label>
+            </div>
+
+            <div class="option" data-option="existing">
+              <input type="radio" name="server-setup" id="existing-binary" value="existing">
+              <label for="existing-binary">
+                <h3>Use Existing Binary</h3>
+                <p>Use an OpenCode server you've already installed</p>
+                <ul>
+                  <li>Use your preferred version</li>
+                  <li>No additional download</li>
+                  <li>Manual path configuration</li>
+                </ul>
+              </label>
+            </div>
+          </div>
+
+          <div class="server-path-input" style="display: none;">
+            <label for="server-path">OpenCode Server Path:</label>
+            <input 
+              type="text" 
+              id="server-path" 
+              placeholder="/usr/local/bin/opencode"
+              aria-describedby="server-path-help"
+            >
+            <button class="btn-secondary" data-action="browse-server">Browse...</button>
+            <p id="server-path-help" class="help-text">
+              Enter the path to your OpenCode server binary
+            </p>
+          </div>
+
+          <button class="btn-primary" data-action="setup-server" disabled>
+            Continue
+          </button>
+          <button class="btn-secondary" data-action="back">Back</button>
+        </div>
+
+        <!-- Security Step -->
+        <div class="step-content" data-step="security">
+          <h2>Security Configuration</h2>
+          <p>Set up authentication to protect your OpenCode server:</p>
+          
+          <div class="auth-setup">
+            <div class="form-group">
+              <label for="auth-username">Username:</label>
+              <input 
+                type="text" 
+                id="auth-username" 
+                required
+                aria-describedby="username-help"
+              >
+              <p id="username-help" class="help-text">
+                Choose a username for accessing your server
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label for="auth-password">Password:</label>
+              <input 
+                type="password" 
+                id="auth-password" 
+                required
+                minlength="8"
+                aria-describedby="password-help"
+              >
+              <p id="password-help" class="help-text">
+                Password must be at least 8 characters long
+              </p>
+            </div>
+
+            <div class="form-group">
+              <label for="auth-confirm">Confirm Password:</label>
+              <input 
+                type="password" 
+                id="auth-confirm" 
+                required
+                minlength="8"
+                aria-describedby="confirm-help"
+              >
+              <p id="confirm-help" class="help-text">
+                Re-enter your password to confirm
+              </p>
+            </div>
+          </div>
+
+          <button class="btn-primary" data-action="setup-security" disabled>
+            Continue
+          </button>
+          <button class="btn-secondary" data-action="back">Back</button>
+        </div>
+
+        <!-- Remote Access Step -->
+        <div class="step-content" data-step="remote">
+          <h2>Remote Access Setup</h2>
+          <p>Enable secure remote access to your OpenCode server:</p>
+          
+          <div class="remote-options">
+            <div class="option" data-option="cloudflared">
+              <input type="radio" name="remote-setup" id="cloudflared" value="cloudflared">
+              <label for="cloudflared">
+                <h3>Cloudflared (Recommended)</h3>
+                <p>Zero-trust tunnel service by Cloudflare</p>
+                <ul>
+                  <li>Easy setup</li>
+                  <li>High reliability</li>
+                  <li>Built-in security</li>
+                </ul>
+              </label>
+            </div>
+
+            <div class="option" data-option="skip">
+              <input type="radio" name="remote-setup" id="skip-remote" value="skip">
+              <label for="skip-remote">
+                <h3>Skip for Now</h3>
+                <p>Set up remote access later</p>
+                <ul>
+                  <li>Local access only</li>
+                  <li>Can configure later</li>
+                  <li>Faster initial setup</li>
+                </ul>
+              </label>
+            </div>
+          </div>
+
+          <button class="btn-primary" data-action="setup-remote" disabled>
+            Continue
+          </button>
+          <button class="btn-secondary" data-action="back">Back</button>
+        </div>
+
+        <!-- Complete Step -->
+        <div class="step-content" data-step="complete">
+          <h2>Setup Complete!</h2>
+          <p>🎉 Your OpenCode Nexus is ready to use!</p>
+          
+          <div class="setup-summary">
+            <h3>Setup Summary:</h3>
+            <ul id="setup-summary-list">
+              <!-- Will be populated by JavaScript -->
+            </ul>
+          </div>
+
+          <div class="next-steps">
+            <h3>What's Next?</h3>
+            <ul>
+              <li>Start your OpenCode server from the dashboard</li>
+              <li>Access your server locally or remotely</li>
+              <li>Configure additional settings as needed</li>
+              <li>Explore the help documentation</li>
+            </ul>
+          </div>
+
+          <button class="btn-primary" data-action="complete-onboarding">
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .onboarding-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .welcome-title {
+    font-size: 2.5rem;
+    color: hsl(220, 90%, 25%);
+    text-align: center;
+    margin-bottom: 1rem;
+  }
+
+  .welcome-description {
+    font-size: 1.25rem;
+    text-align: center;
+    color: hsl(220, 20%, 40%);
+    margin-bottom: 2rem;
+  }
+
+  .wizard-container {
+    background: hsl(0, 0%, 98%);
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px hsla(0, 0%, 0%, 0.1);
+    overflow: hidden;
+  }
+
+  .wizard-steps {
+    display: flex;
+    background: hsl(220, 90%, 25%);
+    color: white;
+    padding: 1rem;
+    justify-content: space-between;
+  }
+
+  .step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0.6;
+    transition: opacity 0.3s ease;
+  }
+
+  .step.active {
+    opacity: 1;
+  }
+
+  .step-number {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: hsla(0, 0%, 100%, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
+
+  .step.active .step-number {
+    background: white;
+    color: hsl(220, 90%, 25%);
+  }
+
+  .step-title {
+    font-size: 0.875rem;
+    text-align: center;
+  }
+
+  .wizard-content {
+    padding: 2rem;
+  }
+
+  .step-content {
+    display: none;
+  }
+
+  .step-content.active {
+    display: block;
+  }
+
+  .step-content h2 {
+    color: hsl(220, 90%, 25%);
+    margin-bottom: 1rem;
+  }
+
+  .step-content p {
+    color: hsl(220, 20%, 40%);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+  }
+
+  .step-content ul {
+    list-style: none;
+    padding: 0;
+    margin-bottom: 2rem;
+  }
+
+  .step-content ul li {
+    padding: 0.5rem 0;
+    color: hsl(120, 50%, 40%);
+  }
+
+  .requirements-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .requirement {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: hsl(0, 0%, 100%);
+    border-radius: 0.5rem;
+    border: 1px solid hsl(0, 0%, 90%);
+  }
+
+  .requirement-status {
+    flex-shrink: 0;
+  }
+
+  .status-icon {
+    font-size: 1.5rem;
+  }
+
+  .status-icon.pending {
+    color: hsl(45, 100%, 50%);
+  }
+
+  .status-icon.success {
+    color: hsl(120, 50%, 50%);
+  }
+
+  .status-icon.error {
+    color: hsl(0, 70%, 50%);
+  }
+
+  .requirement-info h3 {
+    margin: 0 0 0.25rem 0;
+    color: hsl(220, 90%, 25%);
+  }
+
+  .requirement-info p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 60%);
+  }
+
+  .server-options,
+  .remote-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .option {
+    border: 1px solid hsl(0, 0%, 90%);
+    border-radius: 0.5rem;
+    background: hsl(0, 0%, 100%);
+    transition: border-color 0.3s ease;
+  }
+
+  .option:hover {
+    border-color: hsl(220, 90%, 60%);
+  }
+
+  .option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+  }
+
+  .option label {
+    display: block;
+    padding: 1.5rem;
+    cursor: pointer;
+  }
+
+  .option input[type="radio"]:checked + label {
+    background: hsl(220, 90%, 98%);
+    border-color: hsl(220, 90%, 60%);
+  }
+
+  .option label h3 {
+    margin: 0 0 0.5rem 0;
+    color: hsl(220, 90%, 25%);
+  }
+
+  .option label p {
+    margin: 0 0 1rem 0;
+    color: hsl(220, 20%, 40%);
+  }
+
+  .option label ul {
+    margin: 0;
+    list-style: disc;
+    padding-left: 1.5rem;
+  }
+
+  .option label ul li {
+    color: hsl(220, 20%, 60%);
+    font-size: 0.875rem;
+    padding: 0.25rem 0;
+  }
+
+  .server-path-input {
+    margin-bottom: 2rem;
+  }
+
+  .server-path-input label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: hsl(220, 90%, 25%);
+    font-weight: 500;
+  }
+
+  .server-path-input input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid hsl(0, 0%, 90%);
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .server-path-input input:focus {
+    outline: none;
+    border-color: hsl(220, 90%, 60%);
+    box-shadow: 0 0 0 2px hsla(220, 90%, 60%, 0.2);
+  }
+
+  .auth-setup {
+    margin-bottom: 2rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: hsl(220, 90%, 25%);
+    font-weight: 500;
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid hsl(0, 0%, 90%);
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .form-group input:focus {
+    outline: none;
+    border-color: hsl(220, 90%, 60%);
+    box-shadow: 0 0 0 2px hsla(220, 90%, 60%, 0.2);
+  }
+
+  .form-group input:invalid {
+    border-color: hsl(0, 70%, 50%);
+  }
+
+  .help-text {
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 60%);
+    margin: 0;
+  }
+
+  .setup-summary {
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background: hsl(120, 50%, 98%);
+    border-radius: 0.5rem;
+    border: 1px solid hsl(120, 50%, 90%);
+  }
+
+  .setup-summary h3 {
+    margin: 0 0 1rem 0;
+    color: hsl(120, 50%, 30%);
+  }
+
+  .setup-summary ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+    margin: 0;
+  }
+
+  .setup-summary li {
+    color: hsl(120, 50%, 25%);
+    padding: 0.25rem 0;
+  }
+
+  .next-steps {
+    margin-bottom: 2rem;
+  }
+
+  .next-steps h3 {
+    margin: 0 0 1rem 0;
+    color: hsl(220, 90%, 25%);
+  }
+
+  .next-steps ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+    margin: 0;
+  }
+
+  .next-steps li {
+    color: hsl(220, 20%, 40%);
+    padding: 0.25rem 0;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.25rem;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    margin-right: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary {
+    background: hsl(220, 90%, 60%);
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: hsl(220, 90%, 50%);
+  }
+
+  .btn-primary:disabled {
+    background: hsl(0, 0%, 80%);
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: hsl(0, 0%, 95%);
+    color: hsl(220, 20%, 40%);
+    border: 1px solid hsl(0, 0%, 80%);
+  }
+
+  .btn-secondary:hover {
+    background: hsl(0, 0%, 90%);
+  }
+
+  /* Accessibility improvements */
+  @media (prefers-reduced-motion: reduce) {
+    .step,
+    .btn-primary,
+    .btn-secondary {
+      transition: none;
+    }
+  }
+
+  /* High contrast mode */
+  @media (prefers-contrast: high) {
+    .wizard-container {
+      border: 2px solid hsl(0, 0%, 0%);
+    }
+    
+    .step.active .step-number {
+      background: hsl(0, 0%, 0%);
+      color: white;
+    }
+    
+    .btn-primary {
+      background: hsl(0, 0%, 0%);
+      border: 2px solid hsl(0, 0%, 0%);
+    }
+  }
+
+  /* Focus indicators */
+  .btn-primary:focus,
+  .btn-secondary:focus,
+  input:focus,
+  label:focus {
+    outline: 2px solid hsl(220, 90%, 60%);
+    outline-offset: 2px;
+  }
+</style>
+
+<script>
+  import { invoke } from '@tauri-apps/api/core';
+
+  class OnboardingWizard {
+    private currentStep: string = 'welcome';
+    private setupData: any = {};
+
+    constructor() {
+      this.init();
+    }
+
+    private init() {
+      this.bindEvents();
+      this.loadOnboardingState();
+    }
+
+    private bindEvents() {
+      // Navigation buttons
+      document.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const action = target.dataset.action;
+
+        switch (action) {
+          case 'next':
+            this.nextStep();
+            break;
+          case 'back':
+            this.previousStep();
+            break;
+          case 'check-requirements':
+            this.checkSystemRequirements();
+            break;
+          case 'setup-server':
+            this.setupServer();
+            break;
+          case 'setup-security':
+            this.setupSecurity();
+            break;
+          case 'setup-remote':
+            this.setupRemoteAccess();
+            break;
+          case 'complete-onboarding':
+            this.completeOnboarding();
+            break;
+          case 'browse-server':
+            this.browseServerPath();
+            break;
+        }
+      });
+
+      // Form change events
+      document.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        
+        if (target.name === 'server-setup') {
+          this.handleServerSetupChange(target.value);
+        }
+        
+        if (target.name === 'remote-setup') {
+          this.handleRemoteSetupChange(target.value);
+        }
+        
+        this.validateCurrentStep();
+      });
+
+      // Form input events for validation
+      document.addEventListener('input', () => {
+        this.validateCurrentStep();
+      });
+    }
+
+    private async loadOnboardingState() {
+      try {
+        const state = await invoke('get_onboarding_state');
+        console.log('Onboarding state:', state);
+        
+        // If already completed, redirect to dashboard
+        if (state.config?.is_completed) {
+          window.location.href = '/dashboard';
+        }
+      } catch (error) {
+        console.error('Failed to load onboarding state:', error);
+      }
+    }
+
+    private nextStep() {
+      const steps = ['welcome', 'requirements', 'server', 'security', 'remote', 'complete'];
+      const currentIndex = steps.indexOf(this.currentStep);
+      if (currentIndex < steps.length - 1) {
+        this.goToStep(steps[currentIndex + 1]);
+      }
+    }
+
+    private previousStep() {
+      const steps = ['welcome', 'requirements', 'server', 'security', 'remote', 'complete'];
+      const currentIndex = steps.indexOf(this.currentStep);
+      if (currentIndex > 0) {
+        this.goToStep(steps[currentIndex - 1]);
+      }
+    }
+
+    private goToStep(step: string) {
+      // Hide current step
+      document.querySelector(`.step-content.active`)?.classList.remove('active');
+      document.querySelector(`.step.active`)?.classList.remove('active');
+
+      // Show new step
+      document.querySelector(`.step-content[data-step="${step}"]`)?.classList.add('active');
+      document.querySelector(`.step[data-step="${step}"]`)?.classList.add('active');
+
+      this.currentStep = step;
+      this.validateCurrentStep();
+
+      // Focus management for accessibility
+      const newContent = document.querySelector(`.step-content[data-step="${step}"] h2`) as HTMLElement;
+      newContent?.focus();
+    }
+
+    private async checkSystemRequirements() {
+      const requirements = ['os', 'memory', 'disk', 'network'];
+      
+      for (const req of requirements) {
+        const element = document.querySelector(`[data-check="${req}"] .status-icon`);
+        if (element) {
+          element.textContent = '⏳';
+          element.className = 'status-icon pending';
+        }
+      }
+
+      // Simulate checking (in real implementation, call Tauri commands)
+      for (const req of requirements) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const element = document.querySelector(`[data-check="${req}"] .status-icon`);
+        if (element) {
+          element.textContent = '✓';
+          element.className = 'status-icon success';
+        }
+      }
+
+      // Enable continue button
+      const continueBtn = document.querySelector('[data-action="check-requirements"]') as HTMLButtonElement;
+      continueBtn.textContent = 'Continue';
+      continueBtn.dataset.action = 'next';
+      continueBtn.disabled = false;
+    }
+
+    private handleServerSetupChange(value: string) {
+      const pathInput = document.querySelector('.server-path-input') as HTMLElement;
+      
+      if (value === 'existing') {
+        pathInput.style.display = 'block';
+      } else {
+        pathInput.style.display = 'none';
+      }
+      
+      this.setupData.serverSetup = value;
+    }
+
+    private setupServer() {
+      // Store server setup data
+      const serverSetup = document.querySelector('input[name="server-setup"]:checked') as HTMLInputElement;
+      this.setupData.serverSetup = serverSetup?.value;
+      
+      if (serverSetup?.value === 'existing') {
+        const pathInput = document.querySelector('#server-path') as HTMLInputElement;
+        this.setupData.serverPath = pathInput.value;
+      }
+      
+      this.nextStep();
+    }
+
+    private setupSecurity() {
+      const username = (document.querySelector('#auth-username') as HTMLInputElement).value;
+      const password = (document.querySelector('#auth-password') as HTMLInputElement).value;
+      const confirm = (document.querySelector('#auth-confirm') as HTMLInputElement).value;
+      
+      if (password !== confirm) {
+        alert('Passwords do not match');
+        return;
+      }
+      
+      this.setupData.auth = { username, password };
+      this.nextStep();
+    }
+
+    private handleRemoteSetupChange(value: string) {
+      this.setupData.remoteSetup = value;
+    }
+
+    private setupRemoteAccess() {
+      const remoteSetup = document.querySelector('input[name="remote-setup"]:checked') as HTMLInputElement;
+      this.setupData.remoteSetup = remoteSetup?.value;
+      
+      this.nextStep();
+      this.generateSetupSummary();
+    }
+
+    private generateSetupSummary() {
+      const summaryList = document.querySelector('#setup-summary-list');
+      if (!summaryList) return;
+      
+      const items = [];
+      
+      if (this.setupData.serverSetup === 'auto-download') {
+        items.push('OpenCode server will be downloaded automatically');
+      } else if (this.setupData.serverSetup === 'existing') {
+        items.push(`Using existing OpenCode server at: ${this.setupData.serverPath}`);
+      }
+      
+      if (this.setupData.auth) {
+        items.push(`Authentication configured for user: ${this.setupData.auth.username}`);
+      }
+      
+      if (this.setupData.remoteSetup === 'cloudflared') {
+        items.push('Remote access enabled via Cloudflared');
+      } else {
+        items.push('Remote access skipped (local access only)');
+      }
+      
+      summaryList.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+    }
+
+    private async completeOnboarding() {
+      try {
+        await invoke('complete_onboarding', {
+          opencode_server_path: this.setupData.serverPath || null
+        });
+        
+        // Redirect to dashboard
+        window.location.href = '/dashboard';
+      } catch (error) {
+        console.error('Failed to complete onboarding:', error);
+        alert('Failed to complete onboarding. Please try again.');
+      }
+    }
+
+    private browseServerPath() {
+      // TODO: Implement file browser using Tauri dialog
+      console.log('Browse server path');
+    }
+
+    private validateCurrentStep(): boolean {
+      let isValid = true;
+      
+      switch (this.currentStep) {
+        case 'welcome':
+          isValid = true;
+          break;
+          
+        case 'requirements':
+          const checkBtn = document.querySelector('[data-action="check-requirements"]') as HTMLButtonElement;
+          isValid = !checkBtn.disabled;
+          break;
+          
+        case 'server':
+          const serverSetup = document.querySelector('input[name="server-setup"]:checked') as HTMLInputElement;
+          isValid = !!serverSetup;
+          
+          if (serverSetup?.value === 'existing') {
+            const pathInput = document.querySelector('#server-path') as HTMLInputElement;
+            isValid = isValid && !!pathInput.value.trim();
+          }
+          break;
+          
+        case 'security':
+          const username = (document.querySelector('#auth-username') as HTMLInputElement)?.value;
+          const password = (document.querySelector('#auth-password') as HTMLInputElement)?.value;
+          const confirm = (document.querySelector('#auth-confirm') as HTMLInputElement)?.value;
+          
+          isValid = !!username && !!password && password === confirm && password.length >= 8;
+          break;
+          
+        case 'remote':
+          const remoteSetup = document.querySelector('input[name="remote-setup"]:checked') as HTMLInputElement;
+          isValid = !!remoteSetup;
+          break;
+          
+        case 'complete':
+          isValid = true;
+          break;
+      }
+      
+      // Update continue button state
+      const continueBtn = document.querySelector('.step-content.active .btn-primary') as HTMLButtonElement;
+      if (continueBtn && !continueBtn.dataset.action?.includes('check')) {
+        continueBtn.disabled = !isValid;
+      }
+      
+      return isValid;
+    }
+  }
+
+  // Initialize the wizard when the page loads
+  document.addEventListener('DOMContentLoaded', () => {
+    new OnboardingWizard();
+  });
+</script>
+</Layout>

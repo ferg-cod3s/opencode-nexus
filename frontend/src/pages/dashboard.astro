@@ -1,0 +1,781 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus - Dashboard">
+  <main class="dashboard-container">
+    <header class="dashboard-header">
+      <div class="header-content">
+        <h1>OpenCode Nexus</h1>
+        <nav class="dashboard-nav">
+          <a href="/dashboard" class="nav-link active">Dashboard</a>
+          <a href="/settings" class="nav-link">Settings</a>
+          <a href="/logs" class="nav-link">Logs</a>
+          <a href="/help" class="nav-link">Help</a>
+        </nav>
+      </div>
+    </header>
+
+    <div class="dashboard-content">
+      <div class="status-grid">
+        <!-- Server Status Card -->
+        <div class="status-card" id="server-status-card">
+          <div class="card-header">
+            <h2>OpenCode Server</h2>
+            <div class="status-indicator" id="server-status">
+              <span class="status-dot stopped"></span>
+              <span class="status-text">Stopped</span>
+            </div>
+          </div>
+          <div class="card-content">
+            <div class="server-info">
+              <p class="server-path" id="server-path">Path: Not configured</p>
+              <p class="server-uptime" id="server-uptime">Uptime: --</p>
+            </div>
+            <div class="server-controls">
+              <button class="btn-primary" id="start-server-btn" disabled>
+                Start Server
+              </button>
+              <button class="btn-secondary" id="stop-server-btn" disabled>
+                Stop Server
+              </button>
+              <button class="btn-secondary" id="restart-server-btn" disabled>
+                Restart
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Remote Access Card -->
+        <div class="status-card" id="remote-access-card">
+          <div class="card-header">
+            <h2>Remote Access</h2>
+            <div class="status-indicator" id="tunnel-status">
+              <span class="status-dot stopped"></span>
+              <span class="status-text">Disabled</span>
+            </div>
+          </div>
+          <div class="card-content">
+            <div class="tunnel-info">
+              <p class="tunnel-url" id="tunnel-url">URL: Not available</p>
+              <p class="tunnel-type" id="tunnel-type">Provider: Not configured</p>
+            </div>
+            <div class="tunnel-controls">
+              <button class="btn-primary" id="enable-tunnel-btn">
+                Enable Remote Access
+              </button>
+              <button class="btn-secondary" id="disable-tunnel-btn" disabled>
+                Disable
+              </button>
+              <button class="btn-secondary" id="copy-url-btn" disabled>
+                Copy URL
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Resources Card -->
+        <div class="status-card" id="system-resources-card">
+          <div class="card-header">
+            <h2>System Resources</h2>
+          </div>
+          <div class="card-content">
+            <div class="resource-metrics">
+              <div class="metric">
+                <label>CPU Usage</label>
+                <div class="metric-bar">
+                  <div class="metric-fill" id="cpu-usage" style="width: 0%"></div>
+                </div>
+                <span class="metric-value" id="cpu-value">0%</span>
+              </div>
+              <div class="metric">
+                <label>Memory Usage</label>
+                <div class="metric-bar">
+                  <div class="metric-fill" id="memory-usage" style="width: 0%"></div>
+                </div>
+                <span class="metric-value" id="memory-value">0%</span>
+              </div>
+              <div class="metric">
+                <label>Disk Usage</label>
+                <div class="metric-bar">
+                  <div class="metric-fill" id="disk-usage" style="width: 0%"></div>
+                </div>
+                <span class="metric-value" id="disk-value">0%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity Card -->
+        <div class="status-card" id="activity-card">
+          <div class="card-header">
+            <h2>Recent Activity</h2>
+          </div>
+          <div class="card-content">
+            <div class="activity-list" id="activity-list">
+              <div class="activity-item">
+                <span class="activity-time">--:--</span>
+                <span class="activity-message">Waiting for server to start...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-actions">
+        <h3>Quick Actions</h3>
+        <div class="action-buttons">
+          <button class="action-btn" id="open-local-btn">
+            <span class="action-icon">🌐</span>
+            <span class="action-text">Open Local</span>
+          </button>
+          <button class="action-btn" id="open-remote-btn" disabled>
+            <span class="action-icon">🔗</span>
+            <span class="action-text">Open Remote</span>
+          </button>
+          <button class="action-btn" id="view-logs-btn">
+            <span class="action-icon">📋</span>
+            <span class="action-text">View Logs</span>
+          </button>
+          <button class="action-btn" id="settings-btn">
+            <span class="action-icon">⚙️</span>
+            <span class="action-text">Settings</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .dashboard-container {
+    min-height: 100vh;
+    background: hsl(220, 15%, 97%);
+  }
+
+  .dashboard-header {
+    background: hsl(220, 90%, 25%);
+    color: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 4px hsla(0, 0%, 0%, 0.1);
+  }
+
+  .header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .header-content h1 {
+    font-size: 1.5rem;
+    font-weight: 300;
+    margin: 0;
+  }
+
+  .dashboard-nav {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .nav-link {
+    color: hsla(0, 0%, 100%, 0.8);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    transition: all 0.3s ease;
+  }
+
+  .nav-link:hover,
+  .nav-link.active {
+    color: white;
+    background: hsla(0, 0%, 100%, 0.1);
+  }
+
+  .dashboard-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 2rem;
+    margin-bottom: 3rem;
+  }
+
+  .status-card {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px hsla(0, 0%, 0%, 0.1);
+    border: 1px solid hsl(0, 0%, 90%);
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid hsl(0, 0%, 90%);
+  }
+
+  .card-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: hsl(220, 90%, 25%);
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .status-dot.running {
+    background: hsl(120, 50%, 50%);
+    box-shadow: 0 0 8px hsla(120, 50%, 50%, 0.3);
+  }
+
+  .status-dot.stopped {
+    background: hsl(0, 0%, 60%);
+  }
+
+  .status-dot.error {
+    background: hsl(0, 70%, 50%);
+  }
+
+  .status-dot.warning {
+    background: hsl(45, 100%, 50%);
+  }
+
+  .status-text {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: hsl(220, 20%, 40%);
+  }
+
+  .card-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .server-info,
+  .tunnel-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .server-info p,
+  .tunnel-info p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 60%);
+  }
+
+  .server-controls,
+  .tunnel-controls {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary {
+    background: hsl(220, 90%, 60%);
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: hsl(220, 90%, 50%);
+  }
+
+  .btn-primary:disabled {
+    background: hsl(0, 0%, 80%);
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: hsl(0, 0%, 95%);
+    color: hsl(220, 20%, 40%);
+    border: 1px solid hsl(0, 0%, 80%);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background: hsl(0, 0%, 90%);
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .resource-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .metric {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .metric label {
+    min-width: 100px;
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 60%);
+    font-weight: 500;
+  }
+
+  .metric-bar {
+    flex: 1;
+    height: 8px;
+    background: hsl(0, 0%, 90%);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .metric-fill {
+    height: 100%;
+    background: hsl(220, 90%, 60%);
+    transition: width 0.3s ease;
+  }
+
+  .metric-value {
+    min-width: 40px;
+    text-align: right;
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 40%);
+    font-weight: 500;
+  }
+
+  .activity-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+  }
+
+  .activity-item {
+    display: flex;
+    gap: 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid hsl(0, 0%, 95%);
+  }
+
+  .activity-item:last-child {
+    border-bottom: none;
+  }
+
+  .activity-time {
+    min-width: 60px;
+    font-size: 0.75rem;
+    color: hsl(220, 20%, 60%);
+    font-family: monospace;
+  }
+
+  .activity-message {
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 40%);
+  }
+
+  .quick-actions {
+    background: white;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    box-shadow: 0 4px 6px hsla(0, 0%, 0%, 0.1);
+    border: 1px solid hsl(0, 0%, 90%);
+  }
+
+  .quick-actions h3 {
+    margin: 0 0 1.5rem 0;
+    color: hsl(220, 90%, 25%);
+  }
+
+  .action-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+
+  .action-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: hsl(0, 0%, 98%);
+    border: 1px solid hsl(0, 0%, 90%);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .action-btn:hover:not(:disabled) {
+    background: hsl(220, 90%, 98%);
+    border-color: hsl(220, 90%, 60%);
+  }
+
+  .action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .action-icon {
+    font-size: 1.5rem;
+  }
+
+  .action-text {
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 40%);
+    font-weight: 500;
+  }
+
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .header-content {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .dashboard-nav {
+      gap: 1rem;
+    }
+
+    .dashboard-content {
+      padding: 1rem;
+    }
+
+    .status-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .server-controls,
+    .tunnel-controls {
+      justify-content: center;
+    }
+
+    .action-buttons {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  /* Focus indicators */
+  .btn-primary:focus,
+  .btn-secondary:focus,
+  .action-btn:focus,
+  .nav-link:focus {
+    outline: 2px solid hsl(220, 90%, 60%);
+    outline-offset: 2px;
+  }
+
+  /* High contrast mode */
+  @media (prefers-contrast: high) {
+    .status-card {
+      border: 2px solid hsl(0, 0%, 0%);
+    }
+
+    .btn-primary {
+      background: hsl(0, 0%, 0%);
+      border: 2px solid hsl(0, 0%, 0%);
+    }
+  }
+</style>
+
+<script>
+  import { invoke } from '@tauri-apps/api/core';
+
+  class Dashboard {
+    constructor() {
+      this.serverRunning = false;
+      this.tunnelEnabled = false;
+      this.init();
+    }
+
+    async init() {
+      this.bindEvents();
+      await this.loadInitialState();
+      this.startPeriodicUpdates();
+    }
+
+    bindEvents() {
+      // Server controls
+      document.getElementById('start-server-btn')?.addEventListener('click', () => this.startServer());
+      document.getElementById('stop-server-btn')?.addEventListener('click', () => this.stopServer());
+      document.getElementById('restart-server-btn')?.addEventListener('click', () => this.restartServer());
+
+      // Tunnel controls
+      document.getElementById('enable-tunnel-btn')?.addEventListener('click', () => this.enableTunnel());
+      document.getElementById('disable-tunnel-btn')?.addEventListener('click', () => this.disableTunnel());
+      document.getElementById('copy-url-btn')?.addEventListener('click', () => this.copyTunnelUrl());
+
+      // Quick actions
+      document.getElementById('open-local-btn')?.addEventListener('click', () => this.openLocal());
+      document.getElementById('open-remote-btn')?.addEventListener('click', () => this.openRemote());
+      document.getElementById('view-logs-btn')?.addEventListener('click', () => this.viewLogs());
+      document.getElementById('settings-btn')?.addEventListener('click', () => this.openSettings());
+    }
+
+    async loadInitialState() {
+      try {
+        const state = await invoke('get_onboarding_state');
+        this.updateServerInfo(state);
+        this.addActivity('Dashboard initialized');
+      } catch (error) {
+        console.error('Failed to load initial state:', error);
+        this.addActivity('Failed to load server state');
+      }
+    }
+
+    updateServerInfo(state) {
+      const serverPath = document.getElementById('server-path');
+      const serverStatus = document.getElementById('server-status');
+      const startBtn = document.getElementById('start-server-btn');
+      const stopBtn = document.getElementById('stop-server-btn');
+      const restartBtn = document.getElementById('restart-server-btn');
+
+      if (state.config?.opencode_server_path) {
+        serverPath.textContent = `Path: ${state.config.opencode_server_path}`;
+        startBtn.disabled = false;
+      } else {
+        serverPath.textContent = 'Path: Not configured';
+        startBtn.disabled = true;
+      }
+
+      // Update status indicator
+      const statusDot = serverStatus.querySelector('.status-dot');
+      const statusText = serverStatus.querySelector('.status-text');
+      
+      if (this.serverRunning) {
+        statusDot.className = 'status-dot running';
+        statusText.textContent = 'Running';
+        stopBtn.disabled = false;
+        restartBtn.disabled = false;
+      } else {
+        statusDot.className = 'status-dot stopped';
+        statusText.textContent = 'Stopped';
+        stopBtn.disabled = true;
+        restartBtn.disabled = true;
+      }
+    }
+
+    async startServer() {
+      try {
+        this.addActivity('Starting OpenCode server...');
+        // TODO: Implement start server command
+        // await invoke('start_opencode_server');
+        this.serverRunning = true;
+        this.addActivity('OpenCode server started successfully');
+        this.updateServerControls();
+      } catch (error) {
+        console.error('Failed to start server:', error);
+        this.addActivity('Failed to start server: ' + error.message);
+      }
+    }
+
+    async stopServer() {
+      try {
+        this.addActivity('Stopping OpenCode server...');
+        // TODO: Implement stop server command
+        // await invoke('stop_opencode_server');
+        this.serverRunning = false;
+        this.addActivity('OpenCode server stopped');
+        this.updateServerControls();
+      } catch (error) {
+        console.error('Failed to stop server:', error);
+        this.addActivity('Failed to stop server: ' + error.message);
+      }
+    }
+
+    async restartServer() {
+      try {
+        this.addActivity('Restarting OpenCode server...');
+        await this.stopServer();
+        setTimeout(() => this.startServer(), 1000);
+      } catch (error) {
+        console.error('Failed to restart server:', error);
+        this.addActivity('Failed to restart server: ' + error.message);
+      }
+    }
+
+    updateServerControls() {
+      const serverStatus = document.getElementById('server-status');
+      const startBtn = document.getElementById('start-server-btn');
+      const stopBtn = document.getElementById('stop-server-btn');
+      const restartBtn = document.getElementById('restart-server-btn');
+      const openLocalBtn = document.getElementById('open-local-btn');
+
+      const statusDot = serverStatus.querySelector('.status-dot');
+      const statusText = serverStatus.querySelector('.status-text');
+
+      if (this.serverRunning) {
+        statusDot.className = 'status-dot running';
+        statusText.textContent = 'Running';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        restartBtn.disabled = false;
+        openLocalBtn.disabled = false;
+      } else {
+        statusDot.className = 'status-dot stopped';
+        statusText.textContent = 'Stopped';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        restartBtn.disabled = true;
+        openLocalBtn.disabled = true;
+      }
+    }
+
+    async enableTunnel() {
+      try {
+        this.addActivity('Enabling remote access...');
+        // TODO: Implement tunnel commands
+        this.tunnelEnabled = true;
+        this.addActivity('Remote access enabled');
+        this.updateTunnelControls();
+      } catch (error) {
+        console.error('Failed to enable tunnel:', error);
+        this.addActivity('Failed to enable remote access: ' + error.message);
+      }
+    }
+
+    async disableTunnel() {
+      try {
+        this.addActivity('Disabling remote access...');
+        // TODO: Implement disable tunnel command
+        this.tunnelEnabled = false;
+        this.addActivity('Remote access disabled');
+        this.updateTunnelControls();
+      } catch (error) {
+        console.error('Failed to disable tunnel:', error);
+        this.addActivity('Failed to disable remote access: ' + error.message);
+      }
+    }
+
+    updateTunnelControls() {
+      const tunnelStatus = document.getElementById('tunnel-status');
+      const tunnelUrl = document.getElementById('tunnel-url');
+      const enableBtn = document.getElementById('enable-tunnel-btn');
+      const disableBtn = document.getElementById('disable-tunnel-btn');
+      const copyBtn = document.getElementById('copy-url-btn');
+      const openRemoteBtn = document.getElementById('open-remote-btn');
+
+      const statusDot = tunnelStatus.querySelector('.status-dot');
+      const statusText = tunnelStatus.querySelector('.status-text');
+
+      if (this.tunnelEnabled) {
+        statusDot.className = 'status-dot running';
+        statusText.textContent = 'Active';
+        tunnelUrl.textContent = 'URL: https://example.tunnel.com';
+        enableBtn.disabled = true;
+        disableBtn.disabled = false;
+        copyBtn.disabled = false;
+        openRemoteBtn.disabled = false;
+      } else {
+        statusDot.className = 'status-dot stopped';
+        statusText.textContent = 'Disabled';
+        tunnelUrl.textContent = 'URL: Not available';
+        enableBtn.disabled = false;
+        disableBtn.disabled = true;
+        copyBtn.disabled = true;
+        openRemoteBtn.disabled = true;
+      }
+    }
+
+    copyTunnelUrl() {
+      // TODO: Copy actual tunnel URL to clipboard
+      navigator.clipboard.writeText('https://example.tunnel.com');
+      this.addActivity('Tunnel URL copied to clipboard');
+    }
+
+    openLocal() {
+      // TODO: Open local server URL
+      this.addActivity('Opening local server...');
+    }
+
+    openRemote() {
+      // TODO: Open remote tunnel URL
+      this.addActivity('Opening remote access...');
+    }
+
+    viewLogs() {
+      window.location.href = '/logs';
+    }
+
+    openSettings() {
+      window.location.href = '/settings';
+    }
+
+    addActivity(message) {
+      const activityList = document.getElementById('activity-list');
+      const now = new Date();
+      const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      const activityItem = document.createElement('div');
+      activityItem.className = 'activity-item';
+      activityItem.innerHTML = `
+        <span class="activity-time">${time}</span>
+        <span class="activity-message">${message}</span>
+      `;
+
+      // Insert at the beginning
+      activityList.insertBefore(activityItem, activityList.firstChild);
+
+      // Keep only the last 10 items
+      while (activityList.children.length > 10) {
+        activityList.removeChild(activityList.lastChild);
+      }
+    }
+
+    startPeriodicUpdates() {
+      setInterval(() => {
+        this.updateResourceMetrics();
+      }, 5000);
+    }
+
+    updateResourceMetrics() {
+      // Simulate resource usage (in a real app, get from system)
+      const cpu = Math.random() * 100;
+      const memory = Math.random() * 100;
+      const disk = Math.random() * 100;
+
+      document.getElementById('cpu-usage').style.width = `${cpu}%`;
+      document.getElementById('cpu-value').textContent = `${cpu.toFixed(1)}%`;
+
+      document.getElementById('memory-usage').style.width = `${memory}%`;
+      document.getElementById('memory-value').textContent = `${memory.toFixed(1)}%`;
+
+      document.getElementById('disk-usage').style.width = `${disk}%`;
+      document.getElementById('disk-value').textContent = `${disk.toFixed(1)}%`;
+    }
+  }
+
+  // Initialize dashboard when page loads
+  document.addEventListener('DOMContentLoaded', () => {
+    new Dashboard();
+  });
+</script>
+</Layout>

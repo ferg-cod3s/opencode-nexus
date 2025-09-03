@@ -1,0 +1,101 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus">
+  <main class="loading-container">
+    <div class="loading-content">
+      <div class="logo">
+        <h1>OpenCode Nexus</h1>
+      </div>
+      <div class="loading-message">
+        <p>Checking system status...</p>
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .loading-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, hsl(220, 90%, 25%) 0%, hsl(220, 90%, 35%) 100%);
+    color: white;
+  }
+
+  .loading-content {
+    text-align: center;
+    max-width: 600px;
+    padding: 2rem;
+  }
+
+  .logo h1 {
+    font-size: 3rem;
+    margin-bottom: 2rem;
+    font-weight: 300;
+    letter-spacing: -0.02em;
+  }
+
+  .loading-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .loading-message p {
+    font-size: 1.25rem;
+    opacity: 0.9;
+    margin: 0;
+  }
+
+  .spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid hsla(0, 0%, 100%, 0.3);
+    border-top: 3px solid white;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .spinner {
+      animation: none;
+      border: 3px solid white;
+    }
+  }
+</style>
+
+<script>
+  import { invoke } from '@tauri-apps/api/core';
+
+  async function initializeApp() {
+    try {
+      // Check onboarding status
+      const state = await invoke('get_onboarding_state');
+      
+      if (!state.config || !state.config.is_completed) {
+        // Redirect to onboarding
+        window.location.href = '/onboarding';
+      } else {
+        // Redirect to dashboard
+        window.location.href = '/dashboard';
+      }
+    } catch (error) {
+      console.error('Failed to initialize app:', error);
+      // If we can't check onboarding status, assume first time and go to onboarding
+      window.location.href = '/onboarding';
+    }
+  }
+
+  // Initialize when page loads
+  document.addEventListener('DOMContentLoaded', initializeApp);
+</script>
