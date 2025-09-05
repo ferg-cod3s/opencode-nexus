@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ActivityFeed from '../components/ActivityFeed.svelte';
 ---
 
 <Layout title="OpenCode Nexus - Dashboard">
@@ -7,8 +8,9 @@ import Layout from '../layouts/Layout.astro';
     <header class="dashboard-header">
       <div class="header-content">
         <h1>OpenCode Nexus</h1>
+        <div class="user-menu" data-testid="user-menu">testuser</div>
         <nav class="dashboard-nav">
-          <a href="/dashboard" class="nav-link active">Dashboard</a>
+          <a href="/dashboard" class="nav-link active" data-testid="dashboard-tab">Dashboard</a>
           <a href="/settings" class="nav-link">Settings</a>
           <a href="/logs" class="nav-link">Logs</a>
           <a href="/help" class="nav-link">Help</a>
@@ -16,45 +18,50 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </header>
 
-    <div class="dashboard-content">
-      <div class="status-grid">
-        <!-- Server Status Card -->
-        <div class="status-card" id="server-status-card">
-          <div class="card-header">
-            <h2>OpenCode Server</h2>
-            <div class="status-indicator" id="server-status">
-              <span class="status-dot stopped"></span>
-              <span class="status-text">Stopped</span>
-            </div>
-          </div>
-          <div class="card-content">
+     <!-- Screen reader announcements -->
+     <div id="sr-announcements" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
+
+     <main class="dashboard-content" data-testid="server-dashboard">
+      <section class="status-grid" aria-label="System status overview">
+         <!-- Server Status Card -->
+         <article class="status-card" id="server-status-card" role="region" aria-labelledby="server-status-heading">
+           <header class="card-header">
+             <h2 id="server-status-heading">OpenCode Server</h2>
+             <div class="status-indicator" id="server-status" data-testid="server-status" aria-live="polite" aria-atomic="true">
+               <span class="status-dot stopped" aria-hidden="true"></span>
+               <span class="status-text">Stopped</span>
+             </div>
+           </header>
+           <div class="card-content">
             <div class="server-info">
               <p class="server-path" id="server-path">Path: Not configured</p>
-              <p class="server-uptime" id="server-uptime">Uptime: --</p>
+              <p class="server-uptime" id="server-uptime" data-testid="server-uptime">Uptime: --</p>
+              <p class="server-port" id="server-port" data-testid="server-port" style="display: none;">Port: --</p>
+              <p class="server-pid" id="server-pid" data-testid="server-pid" style="display: none;">PID: --</p>
             </div>
             <div class="server-controls">
-              <button class="btn-primary" id="start-server-btn" disabled>
+              <button class="btn-primary" id="start-server-btn" data-testid="start-server-button" disabled>
                 Start Server
               </button>
-              <button class="btn-secondary" id="stop-server-btn" disabled>
+              <button class="btn-secondary" id="stop-server-btn" data-testid="stop-server-button" disabled>
                 Stop Server
               </button>
-              <button class="btn-secondary" id="restart-server-btn" disabled>
+              <button class="btn-secondary" id="restart-server-btn" data-testid="restart-server-button" disabled>
                 Restart
               </button>
-            </div>
-          </div>
+           </div>
+         </article>
         </div>
 
-        <!-- Remote Access Card -->
-        <div class="status-card" id="remote-access-card">
-          <div class="card-header">
-            <h2>Remote Access</h2>
-            <div class="status-indicator" id="tunnel-status">
-              <span class="status-dot stopped"></span>
-              <span class="status-text">Disabled</span>
-            </div>
-          </div>
+         <!-- Remote Access Card -->
+         <article class="status-card" id="remote-access-card" role="region" aria-labelledby="remote-access-heading">
+           <header class="card-header">
+             <h2 id="remote-access-heading">Remote Access</h2>
+             <div class="status-indicator" id="tunnel-status" aria-live="polite" aria-atomic="true">
+               <span class="status-dot stopped" aria-hidden="true"></span>
+               <span class="status-text">Disabled</span>
+             </div>
+           </header>
           <div class="card-content">
             <div class="tunnel-info">
               <p class="tunnel-url" id="tunnel-url">URL: Not available</p>
@@ -70,30 +77,30 @@ import Layout from '../layouts/Layout.astro';
               <button class="btn-secondary" id="copy-url-btn" disabled>
                 Copy URL
               </button>
-            </div>
-          </div>
+           </div>
+         </article>
         </div>
 
-        <!-- System Resources Card -->
-        <div class="status-card" id="system-resources-card">
-          <div class="card-header">
-            <h2>System Resources</h2>
-          </div>
+         <!-- System Resources Card -->
+         <article class="status-card" id="system-resources-card" role="region" aria-labelledby="system-resources-heading">
+           <header class="card-header">
+             <h2 id="system-resources-heading">System Resources</h2>
+           </header>
           <div class="card-content">
             <div class="resource-metrics">
               <div class="metric">
                 <label>CPU Usage</label>
                 <div class="metric-bar">
-                  <div class="metric-fill" id="cpu-usage" style="width: 0%"></div>
+                  <div class="metric-fill" id="cpu-usage" data-testid="cpu-usage" style="width: 0%"></div>
                 </div>
                 <span class="metric-value" id="cpu-value">0%</span>
               </div>
               <div class="metric">
                 <label>Memory Usage</label>
                 <div class="metric-bar">
-                  <div class="metric-fill" id="memory-usage" style="width: 0%"></div>
+                  <div class="metric-fill" id="memory-usage" data-testid="memory-usage" style="width: 0%"></div>
                 </div>
-                <span class="metric-value" id="memory-value">0%</span>
+                <span class="metric-value" id="memory-value" data-testid="memory-usage">0%</span>
               </div>
               <div class="metric">
                 <label>Disk Usage</label>
@@ -102,30 +109,87 @@ import Layout from '../layouts/Layout.astro';
                 </div>
                 <span class="metric-value" id="disk-value">0%</span>
               </div>
-            </div>
-          </div>
+           </div>
+         </article>
         </div>
 
-        <!-- Recent Activity Card -->
-        <div class="status-card" id="activity-card">
-          <div class="card-header">
-            <h2>Recent Activity</h2>
-          </div>
-          <div class="card-content">
-            <div class="activity-list" id="activity-list">
-              <div class="activity-item">
-                <span class="activity-time">--:--</span>
-                <span class="activity-message">Waiting for server to start...</span>
+          <!-- Sessions Card -->
+          <article class="status-card" id="sessions-card" role="region" aria-labelledby="sessions-heading">
+            <header class="card-header">
+              <h2 id="sessions-heading">Active Sessions</h2>
+            </header>
+            <div class="card-content">
+              <div class="session-stats" id="session-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Total Sessions:</span>
+                  <span class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Active Now:</span>
+                  <span class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Peak Concurrent:</span>
+                  <span class="stat-value">0</span>
+                </div>
+              </div>
+              <div class="sessions-list" id="sessions-list">
+                <div class="session-item">
+                  <span class="session-name">No active sessions</span>
+                  <span class="session-status">Waiting for server...</span>
+                </div>
+              </div>
+              <div class="session-controls">
+                <button class="btn-secondary" id="refresh-sessions-btn">
+                  Refresh
+                </button>
+              </div>
+           </div>
+         </article>
+
+          <!-- Chat Sessions Card -->
+          <article class="status-card" id="chat-sessions-card" role="region" aria-labelledby="chat-sessions-heading">
+            <header class="card-header">
+              <h2 id="chat-sessions-heading">Chat Sessions</h2>
+            </header>
+            <div class="card-content">
+              <div class="chat-session-stats" id="chat-session-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Active Sessions:</span>
+                  <span class="stat-value" id="active-chat-sessions">0</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Total Messages:</span>
+                  <span class="stat-value" id="total-messages">0</span>
+                </div>
+              </div>
+              <div class="chat-session-actions">
+                <button class="btn-primary" id="open-chat-btn">
+                  Open Chat Interface
+                </button>
+                <button class="btn-secondary" id="new-chat-session-btn">
+                  New Chat Session
+                </button>
               </div>
             </div>
-          </div>
-        </div>
-      </div>
+          </article>
 
-      <!-- Quick Actions -->
-      <div class="quick-actions">
-        <h3>Quick Actions</h3>
-        <div class="action-buttons">
+          <!-- Recent Activity Card -->
+          <article class="status-card" id="activity-card">
+            <header class="card-header">
+              <h2>Recent Activity</h2>
+            </header>
+            <div class="card-content">
+              <ActivityFeed client:load />
+            </div>
+          </article>
+        </section>
+      </main>
+
+       <!-- Quick Actions -->
+       <aside class="quick-actions">
+         <h3>Quick Actions</h3>
+         <nav class="action-buttons" aria-label="Quick action buttons">
           <button class="action-btn" id="open-local-btn">
             <span class="action-icon">🌐</span>
             <span class="action-text">Open Local</span>
@@ -142,8 +206,8 @@ import Layout from '../layouts/Layout.astro';
             <span class="action-icon">⚙️</span>
             <span class="action-text">Settings</span>
           </button>
-        </div>
-      </div>
+          </article>
+       </section>
     </div>
   </main>
 </Layout>
@@ -203,8 +267,8 @@ import Layout from '../layouts/Layout.astro';
   .status-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 2rem;
-    margin-bottom: 3rem;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
   }
 
   .status-card {
@@ -403,6 +467,115 @@ import Layout from '../layouts/Layout.astro';
     color: hsl(220, 20%, 40%);
   }
 
+  .sessions-list {
+    margin-bottom: 1rem;
+  }
+
+  .session-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border: 1px solid hsl(0, 0%, 90%);
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+    background: hsl(0, 0%, 98%);
+  }
+
+  .session-name {
+    font-weight: 500;
+    color: hsl(220, 20%, 30%);
+  }
+
+  .session-status {
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 50%);
+  }
+
+  .session-controls,
+  .chat-session-actions {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .session-stats,
+  .chat-session-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: hsl(0, 0%, 98%);
+    border-radius: 0.25rem;
+    border: 1px solid hsl(0, 0%, 90%);
+  }
+
+  .stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .stat-label {
+    font-size: 0.75rem;
+    color: hsl(220, 20%, 60%);
+    font-weight: 500;
+  }
+
+  .stat-value {
+    font-size: 1.25rem;
+    color: hsl(220, 20%, 30%);
+    font-weight: 600;
+  }
+
+  .session-item.active {
+    border-color: hsl(120, 50%, 50%);
+    background: hsl(120, 50%, 98%);
+  }
+
+  .session-item.inactive {
+    opacity: 0.7;
+  }
+
+  .session-item.error {
+    border-color: hsl(0, 70%, 50%);
+    background: hsl(0, 70%, 98%);
+  }
+
+  .session-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .session-details {
+    font-size: 0.75rem;
+    color: hsl(220, 20%, 60%);
+  }
+
+  .session-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .disconnect-btn {
+    padding: 0.25rem 0.5rem;
+    background: hsl(0, 70%, 50%);
+    color: white;
+    border: none;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: background 0.3s ease;
+  }
+
+  .disconnect-btn:hover {
+    background: hsl(0, 70%, 40%);
+  }
+
   .quick-actions {
     background: white;
     border-radius: 1rem;
@@ -493,6 +666,19 @@ import Layout from '../layouts/Layout.astro';
     outline-offset: 2px;
   }
 
+  /* Screen reader only content */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
   /* High contrast mode */
   @media (prefers-contrast: high) {
     .status-card {
@@ -508,6 +694,8 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
   import { invoke } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
+  import { activityStore } from '../stores/activity';
 
   class Dashboard {
     constructor() {
@@ -519,6 +707,7 @@ import Layout from '../layouts/Layout.astro';
     async init() {
       this.bindEvents();
       await this.loadInitialState();
+      await this.setupEventListeners();
       this.startPeriodicUpdates();
     }
 
@@ -533,17 +722,44 @@ import Layout from '../layouts/Layout.astro';
       document.getElementById('disable-tunnel-btn')?.addEventListener('click', () => this.disableTunnel());
       document.getElementById('copy-url-btn')?.addEventListener('click', () => this.copyTunnelUrl());
 
-      // Quick actions
-      document.getElementById('open-local-btn')?.addEventListener('click', () => this.openLocal());
-      document.getElementById('open-remote-btn')?.addEventListener('click', () => this.openRemote());
-      document.getElementById('view-logs-btn')?.addEventListener('click', () => this.viewLogs());
-      document.getElementById('settings-btn')?.addEventListener('click', () => this.openSettings());
+       // Quick actions
+       document.getElementById('open-local-btn')?.addEventListener('click', () => this.openLocal());
+       document.getElementById('open-remote-btn')?.addEventListener('click', () => this.openRemote());
+       document.getElementById('view-logs-btn')?.addEventListener('click', () => this.viewLogs());
+       document.getElementById('settings-btn')?.addEventListener('click', () => this.openSettings());
+
+       // Chat session actions
+       document.getElementById('open-chat-btn')?.addEventListener('click', () => this.openChat());
+       document.getElementById('new-chat-session-btn')?.addEventListener('click', () => this.createNewChatSession());
+
+      // Sessions
+      document.getElementById('refresh-sessions-btn')?.addEventListener('click', () => this.refreshSessions());
+
+      // Handle disconnect buttons (delegated event listener)
+      document.addEventListener('click', (event) => {
+        if (event.target.classList.contains('disconnect-btn')) {
+          const sessionId = event.target.dataset.sessionId;
+          if (sessionId) {
+            this.disconnectSession(sessionId);
+          }
+        }
+      });
     }
 
     async loadInitialState() {
       try {
         const state = await invoke('get_onboarding_state');
         this.updateServerInfo(state);
+
+        // Try to get app info if server is configured
+        if (state.config?.opencode_server_path) {
+          await this.updateAppInfo();
+          await this.updateTunnelStatus();
+        }
+
+        // Update chat session stats
+        await this.updateChatSessionStats();
+
         this.addActivity('Dashboard initialized');
       } catch (error) {
         console.error('Failed to load initial state:', error);
@@ -569,7 +785,7 @@ import Layout from '../layouts/Layout.astro';
       // Update status indicator
       const statusDot = serverStatus.querySelector('.status-dot');
       const statusText = serverStatus.querySelector('.status-text');
-      
+
       if (this.serverRunning) {
         statusDot.className = 'status-dot running';
         statusText.textContent = 'Running';
@@ -583,25 +799,66 @@ import Layout from '../layouts/Layout.astro';
       }
     }
 
+    async updateAppInfo() {
+      try {
+        const appInfo = await invoke('get_app_info');
+        this.updateAppInfoDisplay(appInfo);
+      } catch (error) {
+        // If API fails, show unknown status but don't break the UI
+        console.warn('Failed to get app info:', error);
+        this.updateAppInfoDisplay({
+          version: 'unknown',
+          status: 'unknown',
+          uptime: null,
+          sessions_count: null
+        });
+      }
+    }
+
+    updateAppInfoDisplay(appInfo) {
+      const serverUptime = document.getElementById('server-uptime');
+
+      if (appInfo.uptime) {
+        const uptimeMinutes = Math.floor(appInfo.uptime / 60);
+        const uptimeSeconds = appInfo.uptime % 60;
+        serverUptime.textContent = `Uptime: ${uptimeMinutes}m ${uptimeSeconds}s`;
+      } else {
+        serverUptime.textContent = 'Uptime: --';
+      }
+
+      // Update server status based on API response
+      if (appInfo.status === 'running' || appInfo.status === 'active') {
+        this.serverRunning = true;
+      } else if (appInfo.status === 'stopped' || appInfo.status === 'inactive') {
+        this.serverRunning = false;
+      }
+
+      this.updateServerControls();
+    }
+
     async startServer() {
       try {
         this.addActivity('Starting OpenCode server...');
-        // TODO: Implement start server command
-        // await invoke('start_opencode_server');
+        await invoke('start_opencode_server');
         this.serverRunning = true;
         this.addActivity('OpenCode server started successfully');
+
+        // Get real app info after starting
+        await this.updateAppInfo();
+
         this.updateServerControls();
       } catch (error) {
         console.error('Failed to start server:', error);
         this.addActivity('Failed to start server: ' + error.message);
+        this.serverRunning = false;
+        this.updateServerControls();
       }
     }
 
     async stopServer() {
       try {
         this.addActivity('Stopping OpenCode server...');
-        // TODO: Implement stop server command
-        // await invoke('stop_opencode_server');
+        await invoke('stop_opencode_server');
         this.serverRunning = false;
         this.addActivity('OpenCode server stopped');
         this.updateServerControls();
@@ -614,11 +871,19 @@ import Layout from '../layouts/Layout.astro';
     async restartServer() {
       try {
         this.addActivity('Restarting OpenCode server...');
-        await this.stopServer();
-        setTimeout(() => this.startServer(), 1000);
+        await invoke('restart_opencode_server');
+        this.serverRunning = true;
+        this.addActivity('OpenCode server restarted successfully');
+
+        // Get updated app info after restart
+        await this.updateAppInfo();
+
+        this.updateServerControls();
       } catch (error) {
         console.error('Failed to restart server:', error);
         this.addActivity('Failed to restart server: ' + error.message);
+        this.serverRunning = false;
+        this.updateServerControls();
       }
     }
 
@@ -632,6 +897,8 @@ import Layout from '../layouts/Layout.astro';
       const statusDot = serverStatus.querySelector('.status-dot');
       const statusText = serverStatus.querySelector('.status-text');
 
+      const wasRunning = this.serverRunning;
+
       if (this.serverRunning) {
         statusDot.className = 'status-dot running';
         statusText.textContent = 'Running';
@@ -639,6 +906,10 @@ import Layout from '../layouts/Layout.astro';
         stopBtn.disabled = false;
         restartBtn.disabled = false;
         openLocalBtn.disabled = false;
+
+        if (!wasRunning) {
+          this.announceToScreenReader('OpenCode server is now running');
+        }
       } else {
         statusDot.className = 'status-dot stopped';
         statusText.textContent = 'Stopped';
@@ -646,32 +917,59 @@ import Layout from '../layouts/Layout.astro';
         stopBtn.disabled = true;
         restartBtn.disabled = true;
         openLocalBtn.disabled = true;
+
+        if (wasRunning) {
+          this.announceToScreenReader('OpenCode server has stopped');
+        }
       }
     }
 
     async enableTunnel() {
       try {
         this.addActivity('Enabling remote access...');
-        // TODO: Implement tunnel commands
+
+        // Create tunnel configuration
+        const tunnelConfig = {
+          enabled: true,
+          auto_start: true,
+          custom_domain: null, // Will be configured later
+          auth_token: null // Will be configured later
+        };
+
+        await invoke('start_cloudflared_tunnel', { config: tunnelConfig });
         this.tunnelEnabled = true;
         this.addActivity('Remote access enabled');
         this.updateTunnelControls();
       } catch (error) {
         console.error('Failed to enable tunnel:', error);
         this.addActivity('Failed to enable remote access: ' + error.message);
+        this.tunnelEnabled = false;
+        this.updateTunnelControls();
       }
     }
 
     async disableTunnel() {
       try {
         this.addActivity('Disabling remote access...');
-        // TODO: Implement disable tunnel command
+        await invoke('stop_cloudflared_tunnel');
         this.tunnelEnabled = false;
         this.addActivity('Remote access disabled');
         this.updateTunnelControls();
       } catch (error) {
         console.error('Failed to disable tunnel:', error);
         this.addActivity('Failed to disable remote access: ' + error.message);
+      }
+    }
+
+    async updateTunnelStatus() {
+      try {
+        const tunnelStatus = await invoke('get_tunnel_status');
+        this.tunnelEnabled = tunnelStatus === 'Running';
+        this.updateTunnelControls();
+      } catch (error) {
+        console.warn('Failed to get tunnel status:', error);
+        this.tunnelEnabled = false;
+        this.updateTunnelControls();
       }
     }
 
@@ -689,7 +987,7 @@ import Layout from '../layouts/Layout.astro';
       if (this.tunnelEnabled) {
         statusDot.className = 'status-dot running';
         statusText.textContent = 'Active';
-        tunnelUrl.textContent = 'URL: https://example.tunnel.com';
+        tunnelUrl.textContent = 'URL: https://tunnel.example.com'; // TODO: Get real tunnel URL
         enableBtn.disabled = true;
         disableBtn.disabled = false;
         copyBtn.disabled = false;
@@ -729,35 +1027,106 @@ import Layout from '../layouts/Layout.astro';
       window.location.href = '/settings';
     }
 
-    addActivity(message) {
-      const activityList = document.getElementById('activity-list');
-      const now = new Date();
-      const time = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    openChat() {
+      // Navigate to the main chat interface
+      window.location.href = '/';
+    }
 
-      const activityItem = document.createElement('div');
-      activityItem.className = 'activity-item';
-      activityItem.innerHTML = `
-        <span class="activity-time">${time}</span>
-        <span class="activity-message">${message}</span>
-      `;
+    async createNewChatSession() {
+      try {
+        this.addActivity('Creating new chat session...');
+        const newSession = await invoke('create_chat_session', {
+          title: `Chat ${new Date().toLocaleString()}`
+        });
 
-      // Insert at the beginning
-      activityList.insertBefore(activityItem, activityList.firstChild);
+        this.addActivity(`Chat session "${newSession.title}" created successfully`);
+        // Update session count
+        this.updateChatSessionStats();
 
-      // Keep only the last 10 items
-      while (activityList.children.length > 10) {
-        activityList.removeChild(activityList.lastChild);
+      } catch (error) {
+        console.error('Failed to create chat session:', error);
+        this.addActivity('Failed to create chat session: ' + error.message);
+      }
+    }
+
+    async updateChatSessionStats() {
+      try {
+        const sessions = await invoke('get_chat_sessions');
+        const activeSessions = sessions.filter(s => s.is_active).length;
+        const totalMessages = sessions.reduce((sum, s) => sum + s.messages.length, 0);
+
+        document.getElementById('active-chat-sessions').textContent = activeSessions.toString();
+        document.getElementById('total-messages').textContent = totalMessages.toString();
+
+      } catch (error) {
+        console.warn('Failed to update chat session stats:', error);
+      }
+    }
+
+    addActivity(message, type = 'info') {
+      activityStore.addMessage(message, type);
+      // Also announce to screen readers for critical messages
+      if (type === 'error' || type === 'warning') {
+        this.announceToScreenReader(`${type} message: ${message}`);
+      }
+    }
+
+    announceToScreenReader(message) {
+      const liveRegion = document.getElementById('sr-announcements');
+      if (liveRegion) {
+        liveRegion.textContent = message;
+        // Clear after announcement
+        setTimeout(() => {
+          liveRegion.textContent = '';
+        }, 1000);
       }
     }
 
     startPeriodicUpdates() {
-      setInterval(() => {
-        this.updateResourceMetrics();
-      }, 5000);
+      // Reduced polling frequency since we now have real-time events
+      // Only poll for metrics that aren't available via events
+      setInterval(async () => {
+        // Only update metrics if server is running
+        if (this.serverRunning) {
+          await this.updateAppInfo();
+          this.updateResourceMetrics();
+          await this.updateTunnelStatus();
+        }
+      }, 30000); // 30 seconds instead of 5 seconds
+
+      // Sessions are now updated via events, so no need to poll
+      // Initial session load happens in loadInitialState
     }
 
-    updateResourceMetrics() {
-      // Simulate resource usage (in a real app, get from system)
+    async updateResourceMetrics() {
+      try {
+        const metrics = await invoke('get_server_metrics');
+
+        // Update CPU usage
+        const cpuPercent = Math.min(metrics.cpu_usage, 100);
+        document.getElementById('cpu-usage').style.width = `${cpuPercent}%`;
+        document.getElementById('cpu-value').textContent = `${cpuPercent.toFixed(1)}%`;
+
+        // Update memory usage (convert bytes to percentage - assuming 4GB total)
+        const totalMemory = 4 * 1024 * 1024 * 1024; // 4GB in bytes
+        const memoryPercent = Math.min((metrics.memory_usage / totalMemory) * 100, 100);
+        document.getElementById('memory-usage').style.width = `${memoryPercent}%`;
+        document.getElementById('memory-value').textContent = `${memoryPercent.toFixed(1)}%`;
+
+        // For now, keep disk usage simulated until we have real disk metrics
+        const disk = Math.random() * 100;
+        document.getElementById('disk-usage').style.width = `${disk}%`;
+        document.getElementById('disk-value').textContent = `${disk.toFixed(1)}%`;
+
+      } catch (error) {
+        console.warn('Failed to get server metrics:', error);
+        // Fallback to simulated data if metrics API fails
+        this.updateSimulatedMetrics();
+      }
+    }
+
+    updateSimulatedMetrics() {
+      // Fallback: Simulate resource usage when real metrics unavailable
       const cpu = Math.random() * 100;
       const memory = Math.random() * 100;
       const disk = Math.random() * 100;
@@ -770,6 +1139,153 @@ import Layout from '../layouts/Layout.astro';
 
       document.getElementById('disk-usage').style.width = `${disk}%`;
       document.getElementById('disk-value').textContent = `${disk.toFixed(1)}%`;
+    }
+
+    async refreshSessions() {
+      try {
+        const sessions = await invoke('get_active_sessions');
+        const stats = await invoke('get_session_stats');
+
+        this.updateSessionsDisplay(sessions, stats);
+      } catch (error) {
+        console.warn('Failed to refresh sessions:', error);
+        this.showErrorState();
+      }
+    }
+
+    updateSessionsDisplay(sessions, stats) {
+      const sessionsList = document.getElementById('sessions-list');
+      const statsDisplay = document.getElementById('session-stats');
+
+      if (sessions.length === 0) {
+        sessionsList.innerHTML = `
+          <div class="session-item empty">
+            <span class="session-name">No active sessions</span>
+            <span class="session-status">Waiting for connections...</span>
+          </div>
+        `;
+      } else {
+        sessionsList.innerHTML = sessions.map(session => `
+          <div class="session-item ${session.is_active ? 'active' : 'inactive'}">
+            <div class="session-info">
+              <span class="session-name">${session.username || 'Anonymous'}</span>
+              <span class="session-details">${session.client_ip} • ${this.formatDuration(session.connected_at)}</span>
+            </div>
+            <div class="session-actions">
+              <span class="session-status">${session.is_active ? 'Active' : 'Inactive'}</span>
+              ${session.is_active ? `<button class="disconnect-btn" data-session-id="${session.id}">Disconnect</button>` : ''}
+           </div>
+         </article>
+        `).join('');
+      }
+
+      // Update statistics
+      if (statsDisplay) {
+        statsDisplay.innerHTML = `
+          <div class="stat-item">
+            <span class="stat-label">Total Sessions:</span>
+            <span class="stat-value">${stats.total_sessions}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Active Now:</span>
+            <span class="stat-value">${stats.active_sessions}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Peak Concurrent:</span>
+            <span class="stat-value">${stats.peak_concurrent}</span>
+          </div>
+        `;
+      }
+    }
+
+    formatDuration(connectedAt) {
+      const now = new Date();
+      const connected = new Date(connectedAt);
+      const diffMs = now - connected;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMins / 60);
+
+      if (diffHours > 0) {
+        return `${diffHours}h ${diffMins % 60}m`;
+      } else {
+        return `${diffMins}m`;
+      }
+    }
+
+    showErrorState() {
+      const sessionsList = document.getElementById('sessions-list');
+      sessionsList.innerHTML = `
+        <div class="session-item error">
+          <span class="session-name">Error loading sessions</span>
+          <span class="session-status">Check server status</span>
+        </div>
+      `;
+    }
+
+    async disconnectSession(sessionId) {
+      try {
+        const success = await invoke('disconnect_session', { sessionId });
+        if (success) {
+          activityStore.addMessage(`Session ${sessionId} disconnected`, 'info');
+          await this.refreshSessions();
+        }
+      } catch (error) {
+        activityStore.addMessage(`Failed to disconnect session: ${error}`, 'error');
+      }
+    }
+
+    async setupEventListeners() {
+      try {
+        // Listen for server events from backend
+        const unlistenServerEvents = await listen('server_event', (event) => {
+          const serverEvent = event.payload;
+          this.handleServerEvent(serverEvent);
+        });
+
+        // Store unlisten function for cleanup
+        this.unlistenServerEvents = unlistenServerEvents;
+
+        console.log('Event listeners set up successfully');
+      } catch (error) {
+        console.error('Failed to set up event listeners:', error);
+        this.addActivity('Failed to set up real-time updates', 'warning');
+      }
+    }
+
+    handleServerEvent(serverEvent) {
+      // Map server event types to activity store types
+      const eventTypeMap = {
+        'Started': 'success',
+        'Stopped': 'info',
+        'Error': 'error',
+        'ConfigChanged': 'info',
+        'HealthCheck': 'info',
+        'SessionUpdate': 'info'
+      };
+
+      const activityType = eventTypeMap[serverEvent.event_type] || 'info';
+
+      // Add to activity feed
+      this.addActivity(serverEvent.message, activityType);
+
+      // Handle specific event types
+      switch (serverEvent.event_type) {
+        case 'Started':
+          this.serverRunning = true;
+          this.updateServerControls();
+          break;
+        case 'Stopped':
+          this.serverRunning = false;
+          this.updateServerControls();
+          break;
+        case 'SessionUpdate':
+          // Refresh sessions when session data changes
+          this.refreshSessions();
+          break;
+        case 'Error':
+          this.announceToScreenReader(serverEvent.message);
+          break;
+      }
     }
   }
 

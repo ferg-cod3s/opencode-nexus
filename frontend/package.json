@@ -8,15 +8,24 @@
     "preview": "astro preview",
     "astro": "astro",
     "test": "bun test",
-    "test:watch": "bun test --watch"
+    "test:watch": "bun test --watch",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
-    "astro": "^5.13.5"
+    "astro": "^5.13.5",
+    "svelte": "^5.14.3"
   },
   "devDependencies": {
+    "@astrojs/svelte": "^7.0.0",
+    "@playwright/test": "^1.55.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/user-event": "^14.5.2",
-    "jsdom": "^24.1.0",
-    "@types/jest": "^29.5.12"
+    "@types/jest": "^29.5.12",
+    "@types/jsdom": "^21.1.7",
+    "jsdom": "^24.1.0"
   }
 }

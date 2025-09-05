@@ -15,7 +15,7 @@ import Layout from '../layouts/Layout.astro';
         </p>
       </header>
 
-      <form class="login-form" id="login-form" novalidate>
+      <form class="login-form" id="login-form" data-testid="login-form" novalidate>
         <div class="form-group">
           <label for="username" class="form-label">
             Username
@@ -26,6 +26,7 @@ import Layout from '../layouts/Layout.astro';
             id="username" 
             name="username"
             class="form-input"
+            data-testid="username-input"
             required 
             autocomplete="username"
             aria-describedby="username-error username-help"
@@ -34,7 +35,7 @@ import Layout from '../layouts/Layout.astro';
           <p id="username-help" class="help-text">
             Enter the username you created during setup
           </p>
-          <div id="username-error" class="error-message" role="alert" aria-live="polite">
+          <div id="username-error" class="error-message" data-testid="username-required" role="alert" aria-live="polite">
             <!-- Error message will be populated by JavaScript -->
           </div>
         </div>
@@ -50,6 +51,7 @@ import Layout from '../layouts/Layout.astro';
               id="password" 
               name="password"
               class="form-input"
+              data-testid="password-input"
               required 
               autocomplete="current-password"
               aria-describedby="password-error password-help"
@@ -68,7 +70,7 @@ import Layout from '../layouts/Layout.astro';
           <p id="password-help" class="help-text">
             Enter your secure password
           </p>
-          <div id="password-error" class="error-message" role="alert" aria-live="polite">
+          <div id="password-error" class="error-message" data-testid="password-required" role="alert" aria-live="polite">
             <!-- Error message will be populated by JavaScript -->
           </div>
         </div>
@@ -78,6 +80,7 @@ import Layout from '../layouts/Layout.astro';
             type="submit" 
             class="btn-primary btn-login"
             id="login-button"
+            data-testid="login-button"
             aria-describedby="login-help"
           >
             <span class="button-text">Sign In</span>
@@ -87,6 +90,10 @@ import Layout from '../layouts/Layout.astro';
           <p id="login-help" class="help-text">
             Click to authenticate and access your dashboard
           </p>
+          
+          <div id="login-error" class="error-message" data-testid="login-error" role="alert" aria-live="polite" style="display: none;">
+            <!-- Login error message will be populated by JavaScript -->
+          </div>
         </div>
 
         <div class="form-footer">

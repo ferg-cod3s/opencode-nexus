@@ -1,101 +1,452 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import SessionGrid from '../components/SessionGrid.svelte';
+import ChatInterface from '../components/ChatInterface.svelte';
 ---
 
 <Layout title="OpenCode Nexus">
-  <main class="loading-container">
-    <div class="loading-content">
-      <div class="logo">
-        <h1>OpenCode Nexus</h1>
-      </div>
-      <div class="loading-message">
-        <p>Checking system status...</p>
-        <div class="spinner"></div>
-      </div>
+  <main class="main-container">
+    <div class="app-layout">
+        <!-- Session Grid Sidebar -->
+        <aside class="sessions-sidebar" id="sessions-sidebar">
+          <!-- SessionGrid component will be mounted here by JavaScript -->
+        </aside>
+
+        <!-- Chat Interface -->
+        <section class="chat-section" id="chat-section" data-testid="chat-messages">
+          <!-- ChatInterface or welcome screen will be mounted here by JavaScript -->
+          <div class="welcome-screen" id="welcome-screen">
+            <div class="welcome-content">
+              <h1 class="welcome-title">Welcome to OpenCode Nexus</h1>
+              <p class="welcome-description">
+                Start a conversation with your local OpenCode AI assistant.
+                Create a new session to begin chatting.
+              </p>
+                <button
+                  class="start-btn"
+                  id="start-chat-btn"
+                  data-testid="new-session-button"
+                  disabled
+                >
+                  Start Your First Chat
+                </button>
+            </div>
+          </div>
+        </section>
     </div>
   </main>
 </Layout>
 
 <style>
-  .loading-container {
-    min-height: 100vh;
+  .main-container {
+    height: 100vh;
+    background: hsl(220, 20%, 98%);
+  }
+
+  .app-layout {
+    display: flex;
+    height: 100%;
+    gap: 1rem;
+    padding: 1rem;
+  }
+
+  .sessions-sidebar {
+    width: 350px;
+    flex-shrink: 0;
+  }
+
+  .chat-section {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .welcome-screen {
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, hsl(220, 90%, 25%) 0%, hsl(220, 90%, 35%) 100%);
-    color: white;
+    background: hsl(0, 0%, 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px hsla(220, 20%, 20%, 0.1);
   }
 
-  .loading-content {
+  .welcome-content {
     text-align: center;
-    max-width: 600px;
+    max-width: 400px;
     padding: 2rem;
   }
 
-  .logo h1 {
-    font-size: 3rem;
-    margin-bottom: 2rem;
-    font-weight: 300;
-    letter-spacing: -0.02em;
+  .welcome-title {
+    font-size: 2rem;
+    font-weight: 600;
+    color: hsl(220, 20%, 20%);
+    margin: 0 0 1rem 0;
   }
 
-  .loading-message {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 1rem;
+  .welcome-description {
+    font-size: 1.125rem;
+    color: hsl(220, 10%, 60%);
+    margin: 0 0 2rem 0;
+    line-height: 1.6;
   }
 
-  .loading-message p {
-    font-size: 1.25rem;
-    opacity: 0.9;
-    margin: 0;
+  .start-btn {
+    padding: 0.875rem 2rem;
+    background: hsl(220, 90%, 60%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
   }
 
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 3px solid hsla(0, 0%, 100%, 0.3);
-    border-top: 3px solid white;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+  .start-btn:hover:not(:disabled) {
+    background: hsl(220, 80%, 50%);
+    transform: translateY(-1px);
   }
 
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+  .start-btn:active:not(:disabled) {
+    transform: translateY(0);
   }
 
+  .start-btn:disabled {
+    background: hsl(220, 20%, 80%);
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .start-btn:focus {
+    outline: 2px solid hsl(220, 90%, 60%);
+    outline-offset: 2px;
+  }
+
+  /* High contrast mode support */
+  @media (prefers-contrast: high) {
+    .welcome-screen {
+      background: hsl(0, 0%, 100%);
+      border: 2px solid hsl(0, 0%, 0%);
+    }
+
+    .start-btn {
+      background: hsl(0, 0%, 0%);
+      border: 2px solid hsl(0, 0%, 100%);
+      color: hsl(0, 0%, 100%);
+    }
+
+    .start-btn:hover:not(:disabled) {
+      background: hsl(0, 0%, 20%);
+    }
+
+    .start-btn:focus {
+      outline: 3px solid hsl(0, 0%, 0%);
+    }
+  }
+
+  /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
-    .spinner {
-      animation: none;
-      border: 3px solid white;
+    .start-btn {
+      transition: none;
+    }
+
+    .start-btn:hover:not(:disabled) {
+      transform: none;
+    }
+
+    .start-btn:active:not(:disabled) {
+      transform: none;
+    }
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 1024px) {
+    .app-layout {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .sessions-sidebar {
+      width: 100%;
+      max-height: 300px;
+    }
+
+    .chat-section {
+      flex: 1;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .app-layout {
+      padding: 0.5rem;
+      gap: 0.5rem;
+    }
+
+    .welcome-content {
+      padding: 1.5rem;
+    }
+
+    .welcome-title {
+      font-size: 1.5rem;
+    }
+
+    .welcome-description {
+      font-size: 1rem;
+    }
+
+    .start-btn {
+      padding: 0.75rem 1.5rem;
+      font-size: 0.875rem;
     }
   }
 </style>
 
 <script>
   import { invoke } from '@tauri-apps/api/core';
+  import type { ChatSession } from '../types/chat';
+  import SessionGrid from '../components/SessionGrid.svelte';
+  import ChatInterface from '../components/ChatInterface.svelte';
+
+  // State management
+  let sessions: ChatSession[] = [];
+  let activeSessionId: string | null = null;
+  let loading = true;
+  let currentSession: ChatSession | null = null;
+
+  // Svelte component instances
+  let sessionGridComponent: any = null;
+  let chatInterfaceComponent: any = null;
 
   async function initializeApp() {
     try {
       // Check onboarding status
       const state = await invoke('get_onboarding_state');
-      
+
       if (!state.config || !state.config.is_completed) {
         // Redirect to onboarding
         window.location.href = '/onboarding';
-      } else {
-        // Redirect to dashboard
-        window.location.href = '/dashboard';
+        return;
       }
+
+      // Load existing sessions
+      await loadSessions();
+
+      // Mount Svelte components
+      mountComponents();
+
+      loading = false;
+
     } catch (error) {
       console.error('Failed to initialize app:', error);
-      // If we can't check onboarding status, assume first time and go to onboarding
       window.location.href = '/onboarding';
     }
   }
 
+  function mountComponents() {
+    // Mount SessionGrid component
+    const sessionsSidebar = document.getElementById('sessions-sidebar');
+    if (sessionsSidebar && !sessionGridComponent) {
+      sessionGridComponent = new SessionGrid({
+        target: sessionsSidebar,
+        props: {
+          sessions,
+          activeSessionId,
+          loading
+        }
+      });
+
+      // Set up event listeners
+      sessionGridComponent.$on('createSession', handleCreateSession);
+      sessionGridComponent.$on('selectSession', handleSelectSession);
+      sessionGridComponent.$on('deleteSession', handleDeleteSession);
+    }
+
+    // Mount ChatInterface if we have an active session
+    updateChatInterface();
+  }
+
+  function updateChatInterface() {
+    const chatSection = document.getElementById('chat-section');
+    const welcomeScreen = document.getElementById('welcome-screen');
+
+    if (currentSession) {
+      // Hide welcome screen
+      if (welcomeScreen) welcomeScreen.style.display = 'none';
+
+      // Mount or update ChatInterface
+      if (!chatInterfaceComponent) {
+        // Clear chat section
+        chatSection.innerHTML = '';
+
+        chatInterfaceComponent = new ChatInterface({
+          target: chatSection,
+          props: {
+            session: currentSession,
+            loading
+          }
+        });
+
+        // Set up event listeners
+        chatInterfaceComponent.$on('sendMessage', handleSendMessage);
+        chatInterfaceComponent.$on('close', handleCloseChat);
+      } else {
+        // Update existing component
+        chatInterfaceComponent.$set({
+          session: currentSession,
+          loading
+        });
+      }
+    } else {
+      // Show welcome screen
+      if (welcomeScreen) welcomeScreen.style.display = 'flex';
+
+      // Destroy ChatInterface if it exists
+      if (chatInterfaceComponent) {
+        chatInterfaceComponent.$destroy();
+        chatInterfaceComponent = null;
+      }
+    }
+  }
+
+  function handleCloseChat() {
+    activeSessionId = null;
+    currentSession = null;
+    updateChatInterface();
+  }
+
+  async function loadSessions() {
+    try {
+      sessions = await invoke('get_chat_sessions');
+      if (sessions.length > 0 && !activeSessionId) {
+        activeSessionId = sessions[0].id;
+        await loadActiveSession();
+      }
+    } catch (error) {
+      console.error('Failed to load sessions:', error);
+      sessions = [];
+    }
+  }
+
+  async function loadActiveSession() {
+    if (!activeSessionId) return;
+
+    try {
+      const sessionData = await invoke('get_chat_session_history', { sessionId: activeSessionId });
+      currentSession = sessions.find(s => s.id === activeSessionId) || null;
+      if (currentSession) {
+        currentSession.messages = sessionData;
+      }
+    } catch (error) {
+      console.error('Failed to load session history:', error);
+    }
+  }
+
+  async function handleCreateSession() {
+    try {
+      setLoading(true);
+
+      const newSession = await invoke('create_chat_session', {
+        title: `Chat ${new Date().toLocaleString()}`
+      });
+
+      sessions = [newSession, ...sessions];
+      activeSessionId = newSession.id;
+      currentSession = newSession;
+
+      // Update components
+      updateComponents();
+
+    } catch (error) {
+      console.error('Failed to create session:', error);
+      // Show user-friendly error message
+      alert('Failed to create chat session. Please check that the OpenCode server is running.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleSelectSession(event: CustomEvent) {
+    const session = event.detail.session;
+    activeSessionId = session.id;
+    loadActiveSession();
+  }
+
+  function handleDeleteSession(event: CustomEvent) {
+    const sessionId = event.detail.sessionId;
+    // Note: We might need to add a delete session command to the backend
+    sessions = sessions.filter(s => s.id !== sessionId);
+    if (activeSessionId === sessionId) {
+      activeSessionId = sessions.length > 0 ? sessions[0].id : null;
+      loadActiveSession();
+    }
+    updateComponents();
+  }
+
+  async function handleSendMessage(event: CustomEvent) {
+    if (!currentSession) return;
+
+    const content = event.detail.content;
+
+    try {
+      setLoading(true);
+
+      const message = await invoke('send_chat_message', {
+        sessionId: currentSession.id,
+        content
+      });
+
+      // Add the sent message to the session
+      currentSession.messages = [...currentSession.messages, message];
+
+      // Update the chat interface
+      updateChatInterface();
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      // Show user-friendly error message
+      alert('Failed to send message. Please check your connection and try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function setLoading(isLoading: boolean) {
+    loading = isLoading;
+    updateComponents();
+  }
+
+  function updateComponents() {
+    // Update SessionGrid component
+    if (sessionGridComponent) {
+      sessionGridComponent.$set({
+        sessions,
+        activeSessionId,
+        loading
+      });
+    }
+
+    // Update ChatInterface component
+    updateChatInterface();
+  }
+
   // Initialize when page loads
-  document.addEventListener('DOMContentLoaded', initializeApp);
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeApp();
+
+    // Add event listener for the start chat button
+    const startBtn = document.getElementById('start-chat-btn');
+    if (startBtn) {
+      startBtn.addEventListener('click', () => handleCreateSession());
+    }
+  });
+
+  // Cleanup function for when the page unloads
+  window.addEventListener('beforeunload', () => {
+    if (sessionGridComponent) {
+      sessionGridComponent.$destroy();
+    }
+    if (chatInterfaceComponent) {
+      chatInterfaceComponent.$destroy();
+    }
+  });
 </script>

@@ -3,8 +3,12 @@ import { JSDOM } from 'jsdom';
 
 // Mock Tauri API
 const mockInvoke = mock(() => Promise.resolve());
-global.window = {} as any;
-global.document = {} as any;
+
+// Extend global types for testing
+declare global {
+  var window: any;
+  var document: any;
+}
 
 describe('Onboarding Wizard', () => {
   let dom: JSDOM;
@@ -100,11 +104,11 @@ describe('Onboarding Wizard', () => {
     });
 
     document = dom.window.document;
-    window = dom.window as any;
+    window = dom.window;
 
     // Set up global variables
-    global.document = document;
-    global.window = window;
+    (global as any).document = document;
+    (global as any).window = window;
 
     // Reset mocks
     mockInvoke.mockClear();
@@ -233,9 +237,9 @@ describe('Onboarding Wizard', () => {
       // Initially hidden
       expect(pathInput.style.display).toBe('none');
       
-      // Select existing binary option
-      existingOption.checked = true;
-      existingOption.dispatchEvent(new window.Event('change'));
+       // Select existing binary option
+       existingOption.checked = true;
+       existingOption.dispatchEvent(new (window as any).Event('change'));
       
       // Path input should be shown (would be handled by OnboardingWizard class)
       // For this test, we just verify the elements exist
@@ -330,9 +334,9 @@ describe('Onboarding Wizard', () => {
       // For this test, we just verify the mock can reject
       try {
         await mockInvoke('get_onboarding_state');
-      } catch (error) {
-        expect(error.message).toBe('Failed to load onboarding state');
-      }
+       } catch (error) {
+         expect((error as Error).message).toBe('Failed to load onboarding state');
+       }
     });
 
     test('should handle completion failure gracefully', async () => {
@@ -341,9 +345,9 @@ describe('Onboarding Wizard', () => {
       // OnboardingWizard should show error message and not redirect
       try {
         await mockInvoke('complete_onboarding', { opencode_server_path: null });
-      } catch (error) {
-        expect(error.message).toBe('Failed to complete onboarding');
-      }
+       } catch (error) {
+         expect((error as Error).message).toBe('Failed to complete onboarding');
+       }
     });
   });
 

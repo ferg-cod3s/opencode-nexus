@@ -749,9 +749,9 @@ import Layout from '../layouts/Layout.astro';
         const state = await invoke('get_onboarding_state');
         console.log('Onboarding state:', state);
         
-        // If already completed, redirect to dashboard
+        // If already completed, redirect to main chat interface
         if (state.config?.is_completed) {
-          window.location.href = '/dashboard';
+          window.location.href = '/';
         }
       } catch (error) {
         console.error('Failed to load onboarding state:', error);
@@ -793,7 +793,8 @@ import Layout from '../layouts/Layout.astro';
 
     private async checkSystemRequirements() {
       const requirements = ['os', 'memory', 'disk', 'network'];
-      
+
+      // Reset all status icons to pending
       for (const req of requirements) {
         const element = document.querySelector(`[data-check="${req}"] .status-icon`);
         if (element) {
@@ -802,22 +803,59 @@ import Layout from '../layouts/Layout.astro';
         }
       }
 
-      // Simulate checking (in real implementation, call Tauri commands)
-      for (const req of requirements) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const element = document.querySelector(`[data-check="${req}"] .status-icon`);
-        if (element) {
-          element.textContent = '✓';
-          element.className = 'status-icon success';
-        }
-      }
+      try {
+        // Call the actual backend command
+        const result = await invoke('check_system_requirements');
 
-      // Enable continue button
-      const continueBtn = document.querySelector('[data-action="check-requirements"]') as HTMLButtonElement;
-      continueBtn.textContent = 'Continue';
-      continueBtn.dataset.action = 'next';
-      continueBtn.disabled = false;
+        // Update UI based on actual results
+        const statusMap = {
+          os: result.os_compatible,
+          memory: result.memory_sufficient,
+          disk: result.disk_space_sufficient,
+          network: result.network_connected
+        };
+
+        for (const req of requirements) {
+          const element = document.querySelector(`[data-check="${req}"] .status-icon`);
+          if (element) {
+            if (statusMap[req]) {
+              element.textContent = '✓';
+              element.className = 'status-icon success';
+            } else {
+              element.textContent = '✗';
+              element.className = 'status-icon error';
+            }
+          }
+        }
+
+        // Check if all requirements are met
+        const allMet = Object.values(statusMap).every(Boolean);
+
+        if (allMet) {
+          // Enable continue button
+          const continueBtn = document.querySelector('[data-action="check-requirements"]') as HTMLButtonElement;
+          continueBtn.textContent = 'Continue';
+          continueBtn.dataset.action = 'next';
+          continueBtn.disabled = false;
+        } else {
+          // Show error message
+          alert('Some system requirements are not met. Please check the requirements and try again.');
+        }
+
+      } catch (error) {
+        console.error('Failed to check system requirements:', error);
+
+        // Show error state for all requirements
+        for (const req of requirements) {
+          const element = document.querySelector(`[data-check="${req}"] .status-icon`);
+          if (element) {
+            element.textContent = '✗';
+            element.className = 'status-icon error';
+          }
+        }
+
+        alert('Failed to check system requirements. Please try again.');
+      }
     }
 
     private handleServerSetupChange(value: string) {
