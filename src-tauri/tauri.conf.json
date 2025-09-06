@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.agentic-codeflow.opencode-nexus",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "cd frontend && bun run dev",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "cd frontend && bun run build",
     "frontendDist": "../frontend/dist"
   },
   "app": {

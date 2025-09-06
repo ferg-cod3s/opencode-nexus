@@ -1,6 +1,7 @@
 use crate::api_client::ApiClient;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use tokio::sync::broadcast;
 use chrono::{DateTime, Utc};
 
@@ -40,16 +41,18 @@ pub struct ChatManager {
     api_client: Option<ApiClient>,
     sessions: HashMap<String, ChatSession>,
     pub event_sender: broadcast::Sender<ChatEvent>,
+    config_dir: PathBuf,
 }
 
 impl ChatManager {
-    pub fn new() -> Self {
+    pub fn new(config_dir: PathBuf) -> Self {
         let (event_sender, _) = broadcast::channel(100);
 
         Self {
             api_client: None,
             sessions: HashMap::new(),
             event_sender,
+            config_dir,
         }
     }
 
@@ -82,6 +85,11 @@ impl ChatManager {
 
         // Store session locally
         self.sessions.insert(session.id.clone(), session.clone());
+
+        // Persist to disk
+        if let Err(e) = self.save_sessions() {
+            eprintln!("Warning: Failed to persist session: {}", e);
+        }
 
         // Emit event
         let _ = self.event_sender.send(ChatEvent::SessionCreated {
@@ -117,6 +125,11 @@ impl ChatManager {
         // Add message to session
         session.messages.push(message.clone());
 
+        // Persist updated session to disk
+        if let Err(e) = self.save_sessions() {
+            eprintln!("Warning: Failed to persist session after message: {}", e);
+        }
+
         // Emit event
         let _ = self.event_sender.send(ChatEvent::MessageReceived {
             session_id: session_id.to_string(),
@@ -132,6 +145,14 @@ impl ChatManager {
 
     pub fn get_all_sessions(&self) -> Vec<&ChatSession> {
         self.sessions.values().collect()
+    }
+
+    pub fn get_sessions(&self) -> &HashMap<String, ChatSession> {
+        &self.sessions
+    }
+
+    pub fn get_sessions_mut(&mut self) -> &mut HashMap<String, ChatSession> {
+        &mut self.sessions
     }
 
     pub fn delete_session(&mut self, session_id: &str) -> Result<(), String> {
@@ -165,6 +186,47 @@ impl ChatManager {
 
         Ok(messages)
     }
+
+    fn get_sessions_file_path(&self) -> PathBuf {
+        self.config_dir.join("chat_sessions.json")
+    }
+
+    pub fn save_sessions(&self) -> Result<(), String> {
+        let sessions_vec: Vec<&ChatSession> = self.sessions.values().collect();
+        let json = serde_json::to_string_pretty(&sessions_vec)
+            .map_err(|e| format!("Failed to serialize sessions: {}", e))?;
+
+        std::fs::write(self.get_sessions_file_path(), json)
+            .map_err(|e| format!("Failed to write sessions file: {}", e))?;
+
+        Ok(())
+    }
+
+    pub fn load_sessions(&mut self) -> Result<(), String> {
+        let file_path = self.get_sessions_file_path();
+
+        if !file_path.exists() {
+            return Ok(()); // No sessions file yet, that's fine
+        }
+
+        let json = std::fs::read_to_string(&file_path)
+            .map_err(|e| format!("Failed to read sessions file: {}", e))?;
+
+        let sessions_vec: Vec<ChatSession> = serde_json::from_str(&json)
+            .map_err(|e| format!("Failed to deserialize sessions: {}", e))?;
+
+        self.sessions.clear();
+        for session in sessions_vec {
+            self.sessions.insert(session.id.clone(), session);
+        }
+
+        Ok(())
+    }
+
+    pub fn persist_session(&mut self, session: &ChatSession) -> Result<(), String> {
+        self.sessions.insert(session.id.clone(), session.clone());
+        self.save_sessions()
+    }
 }
 
 #[cfg(test)]
@@ -173,24 +235,16 @@ mod tests {
 
     #[test]
     fn test_chat_manager_creation() {
-        let manager = ChatManager::new();
+        let temp_dir = std::env::temp_dir().join("test_chat_manager");
+        let manager = ChatManager::new(temp_dir);
         assert!(manager.api_client.is_none());
         assert!(manager.sessions.is_empty());
     }
 
     #[test]
-    fn test_session_operations() {
-        let mut manager = ChatManager::new();
-
-        // Test session creation (without API client)
-        let result = futures::executor::block_on(manager.create_session(Some("Test Session")));
-        assert!(result.is_err()); // Should fail without API client
-        assert!(result.unwrap_err().contains("API client not available"));
-    }
-
-    #[test]
     fn test_message_operations() {
-        let mut manager = ChatManager::new();
+        let temp_dir = std::env::temp_dir().join("test_chat_manager");
+        let mut manager = ChatManager::new(temp_dir);
 
         // Test message sending (without API client)
         let result = futures::executor::block_on(manager.send_message("test-session", "Hello"));
@@ -200,7 +254,8 @@ mod tests {
 
     #[test]
     fn test_session_operations() {
-        let mut manager = ChatManager::new();
+        let temp_dir = std::env::temp_dir().join("test_chat_manager");
+        let mut manager = ChatManager::new(temp_dir);
 
         // Test session creation (without API client)
         let result = futures::executor::block_on(manager.create_session(Some("Test Session")));

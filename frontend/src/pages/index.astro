@@ -202,7 +202,7 @@ import ChatInterface from '../components/ChatInterface.svelte';
 </style>
 
 <script>
-  import { invoke } from '@tauri-apps/api/core';
+  import { invoke, checkEnvironment } from '../utils/tauri-api.ts';
   import type { ChatSession } from '../types/chat';
   import SessionGrid from '../components/SessionGrid.svelte';
   import ChatInterface from '../components/ChatInterface.svelte';

@@ -18,10 +18,8 @@ export enum MessageRole {
 }
 
 export interface ChatEvent {
-  type: 'session_created' | 'message_received' | 'message_chunk' | 'error';
-  session_id?: string;
-  session?: ChatSession;
-  message?: ChatMessage;
-  chunk?: string;
-  error?: string;
+  SessionCreated?: { session: ChatSession };
+  MessageReceived?: { session_id: string; message: ChatMessage };
+  MessageChunk?: { session_id: string; chunk: string };
+  Error?: { message: string };
 }

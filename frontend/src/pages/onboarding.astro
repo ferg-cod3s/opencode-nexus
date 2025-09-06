@@ -101,9 +101,9 @@ import Layout from '../layouts/Layout.astro';
             </div>
           </div>
 
-          <button class="btn-primary" data-action="check-requirements" disabled>
-            Check System Requirements
-          </button>
+           <button class="btn-primary" data-action="check-requirements">
+             Check System Requirements
+           </button>
           <button class="btn-secondary" data-action="back">Back</button>
         </div>
 
@@ -188,9 +188,9 @@ import Layout from '../layouts/Layout.astro';
                 minlength="8"
                 aria-describedby="password-help"
               >
-              <p id="password-help" class="help-text">
-                Password must be at least 8 characters long
-              </p>
+               <p id="password-help" class="help-text">
+                 Password must be at least 8 characters with uppercase, lowercase, and numbers
+               </p>
             </div>
 
             <div class="form-group">
@@ -674,7 +674,7 @@ import Layout from '../layouts/Layout.astro';
 </style>
 
 <script>
-  import { invoke } from '@tauri-apps/api/core';
+  import { invoke, checkEnvironment } from '../utils/tauri-api.ts';
 
   class OnboardingWizard {
     private currentStep: string = 'welcome';
@@ -786,6 +786,11 @@ import Layout from '../layouts/Layout.astro';
       this.currentStep = step;
       this.validateCurrentStep();
 
+      // Auto-check system requirements when entering requirements step
+      if (step === 'requirements') {
+        this.checkSystemRequirements();
+      }
+
       // Focus management for accessibility
       const newContent = document.querySelector(`.step-content[data-step="${step}"] h2`) as HTMLElement;
       newContent?.focus();
@@ -806,13 +811,14 @@ import Layout from '../layouts/Layout.astro';
       try {
         // Call the actual backend command
         const result = await invoke('check_system_requirements');
+        console.log('System requirements check result:', result);
 
         // Update UI based on actual results
         const statusMap = {
           os: result.os_compatible,
           memory: result.memory_sufficient,
           disk: result.disk_space_sufficient,
-          network: result.network_connected
+          network: result.network_available
         };
 
         for (const req of requirements) {
@@ -830,13 +836,17 @@ import Layout from '../layouts/Layout.astro';
 
         // Check if all requirements are met
         const allMet = Object.values(statusMap).every(Boolean);
+        console.log('All requirements met:', allMet);
 
         if (allMet) {
           // Enable continue button
           const continueBtn = document.querySelector('[data-action="check-requirements"]') as HTMLButtonElement;
-          continueBtn.textContent = 'Continue';
-          continueBtn.dataset.action = 'next';
-          continueBtn.disabled = false;
+          if (continueBtn) {
+            continueBtn.textContent = 'Continue';
+            continueBtn.dataset.action = 'next';
+            continueBtn.disabled = false;
+            console.log('Continue button enabled');
+          }
         } else {
           // Show error message
           alert('Some system requirements are not met. Please check the requirements and try again.');
@@ -887,12 +897,30 @@ import Layout from '../layouts/Layout.astro';
       const username = (document.querySelector('#auth-username') as HTMLInputElement).value;
       const password = (document.querySelector('#auth-password') as HTMLInputElement).value;
       const confirm = (document.querySelector('#auth-confirm') as HTMLInputElement).value;
-      
+
       if (password !== confirm) {
         alert('Passwords do not match');
         return;
       }
-      
+
+      // Validate password strength to match backend requirements
+      if (password.length < 8) {
+        alert('Password must be at least 8 characters long');
+        return;
+      }
+      if (!/[A-Z]/.test(password)) {
+        alert('Password must contain at least one uppercase letter');
+        return;
+      }
+      if (!/[a-z]/.test(password)) {
+        alert('Password must contain at least one lowercase letter');
+        return;
+      }
+      if (!/\d/.test(password)) {
+        alert('Password must contain at least one number');
+        return;
+      }
+
       this.setupData.auth = { username, password };
       this.nextStep();
     }
@@ -936,10 +964,25 @@ import Layout from '../layouts/Layout.astro';
 
     private async completeOnboarding() {
       try {
+        // First create the owner account if auth data is provided
+        if (this.setupData.auth) {
+          console.log('Creating owner account for:', this.setupData.auth.username);
+          await invoke('create_owner_account', {
+            username: this.setupData.auth.username,
+            password: this.setupData.auth.password
+          });
+
+          // Set session storage to keep user logged in
+          sessionStorage.setItem('authenticated', 'true');
+          sessionStorage.setItem('username', this.setupData.auth.username);
+        }
+
+        // Then complete the onboarding
         await invoke('complete_onboarding', {
           opencode_server_path: this.setupData.serverPath || null
         });
-        
+
+        console.log('Onboarding completed successfully');
         // Redirect to dashboard
         window.location.href = '/dashboard';
       } catch (error) {
@@ -962,8 +1005,9 @@ import Layout from '../layouts/Layout.astro';
           break;
           
         case 'requirements':
+          // Requirements step is valid once we've checked (button becomes "Continue")
           const checkBtn = document.querySelector('[data-action="check-requirements"]') as HTMLButtonElement;
-          isValid = !checkBtn.disabled;
+          isValid = checkBtn && checkBtn.dataset.action === 'next';
           break;
           
         case 'server':
@@ -980,8 +1024,15 @@ import Layout from '../layouts/Layout.astro';
           const username = (document.querySelector('#auth-username') as HTMLInputElement)?.value;
           const password = (document.querySelector('#auth-password') as HTMLInputElement)?.value;
           const confirm = (document.querySelector('#auth-confirm') as HTMLInputElement)?.value;
-          
-          isValid = !!username && !!password && password === confirm && password.length >= 8;
+
+          // Match backend password requirements: 8+ chars, uppercase, lowercase, number
+          const hasMinLength = password && password.length >= 8;
+          const hasUppercase = password && /[A-Z]/.test(password);
+          const hasLowercase = password && /[a-z]/.test(password);
+          const hasNumber = password && /\d/.test(password);
+
+          isValid = !!username && !!password && password === confirm &&
+                   hasMinLength && hasUppercase && hasLowercase && hasNumber;
           break;
           
         case 'remote':

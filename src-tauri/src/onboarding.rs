@@ -16,6 +16,8 @@ pub struct SystemRequirements {
 pub struct OnboardingConfig {
     pub is_completed: bool,
     pub opencode_server_path: Option<PathBuf>,
+    pub owner_account_created: bool,
+    pub owner_username: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
@@ -313,9 +315,44 @@ impl OnboardingManager {
         let config = OnboardingConfig {
             is_completed: true,
             opencode_server_path,
+            owner_account_created: false, // Will be set to true when owner creates account
+            owner_username: None, // Will be set when owner creates account
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
+        self.save_config(&config)
+    }
+
+    /// Creates secure owner account during initial setup - DESKTOP SECURITY MODEL
+    /// This should only be called once during onboarding to create the single owner account
+    pub fn create_owner_account(&self, username: &str, password: &str) -> Result<()> {
+        use crate::auth::AuthManager;
+        
+        // Ensure onboarding is not yet completed with owner account
+        if let Ok(Some(config)) = self.load_config() {
+            if config.owner_account_created {
+                return Err(anyhow!("Owner account already exists - security violation attempted"));
+            }
+        }
+        
+        // Create the secure owner account
+        let auth_manager = AuthManager::new(self.config_dir.clone())?;
+        auth_manager.create_user(username, password)?;
+        
+        // Update onboarding config to mark owner account as created
+        let mut config = self.load_config()?.unwrap_or(OnboardingConfig {
+            is_completed: false,
+            opencode_server_path: None,
+            owner_account_created: false,
+            owner_username: None,
+            created_at: chrono::Utc::now(),
+            updated_at: chrono::Utc::now(),
+        });
+        
+        config.owner_account_created = true;
+        config.owner_username = Some(username.to_string());
+        config.updated_at = chrono::Utc::now();
+        
         self.save_config(&config)
     }
 

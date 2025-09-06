@@ -29,6 +29,7 @@ import Layout from '../layouts/Layout.astro';
             data-testid="username-input"
             required 
             autocomplete="username"
+            aria-label="Username"
             aria-describedby="username-error username-help"
             aria-invalid="false"
           >
@@ -54,6 +55,7 @@ import Layout from '../layouts/Layout.astro';
               data-testid="password-input"
               required 
               autocomplete="current-password"
+              aria-label="Password"
               aria-describedby="password-error password-help"
               aria-invalid="false"
             >
@@ -605,7 +607,7 @@ import Layout from '../layouts/Layout.astro';
 </style>
 
 <script>
-  import { invoke } from '@tauri-apps/api/core';
+  import { invoke, checkEnvironment } from '../utils/tauri-api.ts';
 
   class LoginManager {
     private form: HTMLFormElement;
@@ -653,6 +655,14 @@ import Layout from '../layouts/Layout.astro';
 
     private async checkAuthConfiguration() {
       try {
+        const env = checkEnvironment();
+        console.log('Environment check:', env);
+        
+        if (!env.canAuthenticate) {
+          this.updateSystemStatus('⚠️', 'Running in unsupported environment', 'error');
+          return;
+        }
+        
         const isConfigured = await invoke('is_auth_configured');
         
         if (!isConfigured) {

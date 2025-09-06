@@ -136,12 +136,69 @@ src/
 ## Task Management and Workflow
 
 ### Development Process
-1. **Read Implementation Plan**: Check `thoughts/plans/` for current phase requirements
-2. **Write Tests First**: Create failing tests before any implementation
-3. **Implement Feature**: Write minimal code to pass tests
-4. **Update TODO.md**: Mark completed tasks and add new ones discovered
-5. **Commit Completed Work**: Make commits for each completed feature
-6. **Document Changes**: Update relevant documentation
+1. **Read Implementation Plan**: Check [thoughts/plans/opencode-nexus-mvp-implementation.md](thoughts/plans/opencode-nexus-mvp-implementation.md) for current phase requirements
+2. **Consult Architecture Docs**: Review [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/SECURITY.md](docs/SECURITY.md), and [docs/TESTING.md](docs/TESTING.md)
+3. **Write Tests First**: Create failing tests before any implementation (TDD mandatory per [docs/TESTING.md](docs/TESTING.md))
+4. **Implement Feature**: Write minimal code to pass tests following established patterns in [src-tauri/src/](src-tauri/src/)
+5. **Update Progress**: Mark completed tasks in [TODO.md](TODO.md) and add new ones discovered using TodoWrite tool
+6. **Document & Commit**: Follow comprehensive documentation and commit workflow (see below)
+7. **Validate Quality**: Run accessibility checks, security validation, and cross-platform testing
+
+### MANDATORY Documentation & Commit Workflow
+**This process MUST be followed after completing each major feature or phase:**
+
+#### Step 1: Document Current Progress
+Write detailed progress summary including:
+- ✅ **What was completed**: Specific features, functions, files modified
+- 📊 **Metrics**: Line counts, test coverage, files changed
+- 📍 **Current vs Plan**: Implementation status against original plan
+- 🔄 **Issues Resolved**: Compilation errors, async safety issues, etc.
+- ➡️ **Next Requirements**: What's needed for the next phase
+
+#### Step 2: Update TODO.md
+- Mark all completed tasks as finished immediately
+- Add newly discovered tasks that emerged during implementation
+- Update project progress percentages and milestones
+- Note any scope or timeline changes
+
+#### Step 3: Create Comprehensive Commit
+**Use this exact format:**
+
+```bash
+git add .
+git commit -m "$(cat <<'EOF'
+[type]: [concise description]
+
+[Detailed implementation summary with checkmarks:]
+
+- ✅ [Major feature 1 implemented]
+- ✅ [Major feature 2 implemented]
+- ✅ [Testing/security/accessibility completed]
+
+Files changed:
+- [file1.rs (XXX lines)] - [purpose/functionality]
+- [file2.astro] - [purpose/functionality]  
+- [config files] - [dependencies/setup changes]
+
+[Any critical issues resolved]
+[Test status and coverage info]
+[What's ready for next phase]
+
+Next: [Upcoming phase/feature]
+
+🤖 Generated with [Claude Code](https://claude.ai/code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+EOF
+)"
+```
+
+#### Step 4: Status Communication
+After commit, provide user with:
+- Clear summary of what phase/feature was completed
+- Current progress percentage vs overall plan  
+- What's ready for next development phase
+- Any blockers or user input needed
 
 ### Quality Gates (Pre-Commit)
 - [ ] All tests passing (`cargo test` + `bun test`)
@@ -240,22 +297,25 @@ let config_path = config_dir()
 
 ## Current Implementation Status
 
-### ✅ Completed Features
-- Onboarding system with cross-platform system detection
-- Password authentication with Argon2 hashing and account lockout
-- Dashboard UI with server status display
-- Accessibility compliance (WCAG 2.2 AA)
-- Test-driven development workflow with comprehensive test suites
+### ✅ Completed Features (60% Complete)
+- **Onboarding System**: 6-step wizard with cross-platform detection ([src-tauri/src/onboarding.rs](src-tauri/src/onboarding.rs))
+- **Authentication**: Argon2 hashing, session management, account lockout ([src-tauri/src/auth.rs](src-tauri/src/auth.rs))
+- **Server Management**: Complete lifecycle with real-time event streaming ([src-tauri/src/server_manager.rs](src-tauri/src/server_manager.rs))
+- **Dashboard UI**: Responsive interface with WCAG 2.2 AA compliance ([frontend/src/pages/dashboard.astro](frontend/src/pages/dashboard.astro))
+- **API Integration**: OpenCode server communication ([src-tauri/src/api_client.rs](src-tauri/src/api_client.rs))
+- **Testing**: TDD approach with 29 comprehensive tests
 
-### 🔄 In Progress
-- OpenCode server process management (fixing async safety issues)
-- Server lifecycle controls (start/stop/restart)
-- Health monitoring and metrics collection
+### 🚨 CRITICAL MVP GAP
+- **Chat Interface**: **COMPLETELY MISSING** - No AI conversation functionality
+- **Message Streaming**: No real-time message streaming from AI
+- **Session Management**: No chat session creation or history
+- **File Context Sharing**: No code context sharing with AI
 
-### ⏳ Upcoming
-- Cloudflared tunnel integration
-- Real-time server status updates
-- Log viewing and system monitoring
+### 🔄 Ready for Implementation  
+- **Cloudflared Integration**: Tunnel management system (stubbed, architecture complete)
+- **Advanced Features**: Real-time metrics, logging, auto-restart (planned)
+
+**Current Status**: Core infrastructure complete but missing primary chat functionality that defines the product's value proposition. See [thoughts/plans/opencode-nexus-mvp-implementation.md](thoughts/plans/opencode-nexus-mvp-implementation.md) for chat interface implementation plan.
 
 ## Emergency Procedures
 
@@ -295,4 +355,29 @@ let config_path = config_dir()
 
 ---
 
-**Remember**: Security and accessibility are non-negotiable. Always follow TDD principles and maintain comprehensive test coverage. Update TODO.md and commit completed work promptly.
+## Documentation References
+
+### Essential Reading (Required)
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and Tauri patterns
+- **[docs/SECURITY.md](docs/SECURITY.md)** - Security model, Argon2 authentication, threat assessment  
+- **[docs/TESTING.md](docs/TESTING.md)** - TDD approach (mandatory), test patterns, quality assurance
+- **[docs/PRD.md](docs/PRD.md)** - Product requirements and feature specifications
+
+### Current Implementation Status
+- **[TODO.md](TODO.md)** - Current progress (60% complete), task tracking, critical chat interface gap
+- **[thoughts/plans/opencode-nexus-mvp-implementation.md](thoughts/plans/opencode-nexus-mvp-implementation.md)** - Phase 0 chat interface implementation plan
+- **[thoughts/research/2025-09-03_claude-agents-documentation-best-practices.md](thoughts/research/2025-09-03_claude-agents-documentation-best-practices.md)** - Documentation standards
+
+### Key Implementation Files
+- **[src-tauri/src/server_manager.rs](src-tauri/src/server_manager.rs)** - Server lifecycle management patterns
+- **[src-tauri/src/auth.rs](src-tauri/src/auth.rs)** - Authentication system implementation
+- **[frontend/src/pages/dashboard.astro](frontend/src/pages/dashboard.astro)** - UI patterns and accessibility implementation
+
+---
+
+**Critical Reminders**: 
+- 🚨 **Chat interface implementation is highest priority** - blocks MVP completion
+- Security and accessibility are non-negotiable (WCAG 2.2 AA compliance verified)
+- Always follow TDD principles per [docs/TESTING.md](docs/TESTING.md) 
+- Update [TODO.md](TODO.md) and commit completed work following documentation workflow
+- Consult [docs/](docs/) for all architectural and security decisions

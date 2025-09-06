@@ -20,6 +20,24 @@ pub struct AuthConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthSession {
+    pub username: String,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+    pub is_valid: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PersistentSession {
+    pub session_id: String,
+    pub username: String,
+    pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+    pub is_valid: bool,
+    pub device_info: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoginAttempt {
     pub username: String,
     pub timestamp: DateTime<Utc>,
@@ -27,13 +45,7 @@ pub struct LoginAttempt {
     pub ip_address: Option<String>,
 }
 
-#[derive(Debug, Clone)]
-pub struct AuthSession {
-    pub username: String,
-    pub created_at: DateTime<Utc>,
-    pub expires_at: DateTime<Utc>,
-    pub is_valid: bool,
-}
+
 
 pub struct AuthManager {
     config_dir: PathBuf,
@@ -287,6 +299,90 @@ impl AuthManager {
         let config_json = serde_json::to_string_pretty(config)?;
         std::fs::write(self.get_auth_config_path(), config_json)?;
         Ok(())
+    }
+
+    fn get_sessions_path(&self) -> PathBuf {
+        self.config_dir.join("sessions.json")
+    }
+
+    pub fn create_persistent_session(&self, username: &str) -> Result<PersistentSession> {
+        let session = PersistentSession {
+            session_id: uuid::Uuid::new_v4().to_string(),
+            username: username.to_string(),
+            created_at: Utc::now(),
+            expires_at: Utc::now() + chrono::Duration::days(30), // 30-day persistent sessions
+            is_valid: true,
+            device_info: None,
+        };
+
+        self.save_session(&session)?;
+        Ok(session)
+    }
+
+    pub fn validate_persistent_session(&self, session_id: &str) -> Result<Option<String>> {
+        match self.load_session(session_id)? {
+            Some(session) if session.is_valid && session.expires_at > Utc::now() => {
+                Ok(Some(session.username))
+            }
+            _ => Ok(None)
+        }
+    }
+
+    pub fn invalidate_session(&self, session_id: &str) -> Result<()> {
+        if let Some(mut session) = self.load_session(session_id)? {
+            session.is_valid = false;
+            self.save_session(&session)?;
+        }
+        Ok(())
+    }
+
+    pub fn cleanup_expired_sessions(&self) -> Result<usize> {
+        let sessions = self.load_all_sessions()?;
+        let mut cleaned = 0;
+
+        for session in sessions {
+            if session.expires_at <= Utc::now() || !session.is_valid {
+                self.delete_session(&session.session_id)?;
+                cleaned += 1;
+            }
+        }
+
+        Ok(cleaned)
+    }
+
+    fn load_session(&self, session_id: &str) -> Result<Option<PersistentSession>> {
+        let sessions = self.load_all_sessions()?;
+        Ok(sessions.into_iter().find(|s| s.session_id == session_id))
+    }
+
+    fn save_session(&self, session: &PersistentSession) -> Result<()> {
+        let mut sessions = self.load_all_sessions()?;
+        sessions.retain(|s| s.session_id != session.session_id);
+        sessions.push(session.clone());
+
+        let sessions_json = serde_json::to_string_pretty(&sessions)?;
+        std::fs::write(self.get_sessions_path(), sessions_json)?;
+        Ok(())
+    }
+
+    fn delete_session(&self, session_id: &str) -> Result<()> {
+        let mut sessions = self.load_all_sessions()?;
+        sessions.retain(|s| s.session_id != session_id);
+
+        let sessions_json = serde_json::to_string_pretty(&sessions)?;
+        std::fs::write(self.get_sessions_path(), sessions_json)?;
+        Ok(())
+    }
+
+    fn load_all_sessions(&self) -> Result<Vec<PersistentSession>> {
+        let sessions_path = self.get_sessions_path();
+        if !sessions_path.exists() {
+            return Ok(Vec::new());
+        }
+
+        let sessions_json = std::fs::read_to_string(sessions_path)?;
+        let sessions: Vec<PersistentSession> = serde_json::from_str(&sessions_json)?;
+        Ok(sessions)
     }
 }
 

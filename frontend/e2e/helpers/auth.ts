@@ -38,34 +38,18 @@ export class AuthHelper {
     await expect(this.page.locator('[data-testid="login-form"]')).toBeVisible();
   }
 
+  // SECURITY: Account creation removed - desktop app uses owner-only authentication
   async createAccount(credentials: {
     username: string;
     password: string;
     confirmPassword: string;
   }) {
-    await this.page.goto('/register');
-    
-    await this.page.fill('[data-testid="username-input"]', credentials.username);
-    await this.page.fill('[data-testid="password-input"]', credentials.password);
-    await this.page.fill('[data-testid="confirm-password-input"]', credentials.confirmPassword);
-    
-    await this.page.click('[data-testid="create-account-button"]');
-    
-    // Should redirect to dashboard after successful registration
-    await expect(this.page).toHaveURL('/dashboard');
+    throw new Error('Account creation disabled for security - desktop app uses owner-only authentication');
   }
 
+  // SECURITY: Password strength testing removed - no public registration allowed
   async testPasswordStrength(password: string): Promise<string> {
-    await this.navigateToLogin();
-    await this.page.click('[data-testid="register-link"]');
-    
-    await this.page.fill('[data-testid="password-input"]', password);
-    
-    // Get password strength indicator
-    const strengthIndicator = this.page.locator('[data-testid="password-strength"]');
-    await expect(strengthIndicator).toBeVisible();
-    
-    return await strengthIndicator.textContent() || '';
+    throw new Error('Password strength testing disabled - no public registration in desktop app');
   }
 
   async triggerAccountLockout(username: string) {
@@ -112,31 +96,13 @@ export class AuthHelper {
     await expect(this.page).toHaveURL('/login');
   }
 
+  // SECURITY: Username validation removed - no public registration allowed
   async testInvalidUsernameFormat(invalidUsername: string) {
-    await this.navigateToLogin();
-    await this.page.click('[data-testid="register-link"]');
-    
-    await this.page.fill('[data-testid="username-input"]', invalidUsername);
-    await this.page.fill('[data-testid="password-input"]', 'ValidPass123!');
-    await this.page.fill('[data-testid="confirm-password-input"]', 'ValidPass123!');
-    
-    await this.page.click('[data-testid="create-account-button"]');
-    
-    // Should show validation error
-    await expect(this.page.locator('[data-testid="username-error"]')).toBeVisible();
+    throw new Error('Username format testing disabled - no public registration in desktop app');
   }
 
+  // SECURITY: Password mismatch testing removed - no public registration allowed  
   async testPasswordMismatch() {
-    await this.navigateToLogin();
-    await this.page.click('[data-testid="register-link"]');
-    
-    await this.page.fill('[data-testid="username-input"]', 'testuser');
-    await this.page.fill('[data-testid="password-input"]', 'Password123!');
-    await this.page.fill('[data-testid="confirm-password-input"]', 'DifferentPass123!');
-    
-    await this.page.click('[data-testid="create-account-button"]');
-    
-    // Should show password mismatch error
-    await expect(this.page.locator('[data-testid="password-mismatch-error"]')).toBeVisible();
+    throw new Error('Password mismatch testing disabled - no public registration in desktop app');
   }
 }

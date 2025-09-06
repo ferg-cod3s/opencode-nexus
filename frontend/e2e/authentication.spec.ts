@@ -65,65 +65,54 @@ test.describe('Authentication Flow', () => {
     });
   });
 
-  test.describe('User Registration', () => {
-    test('successful registration creates account and logs in', async ({ page }) => {
-      const newCredentials = {
-        username: 'newuser' + Date.now(), // Unique username
-        password: 'NewUserPass123!',
-        confirmPassword: 'NewUserPass123!'
-      };
-      
-      await auth.createAccount(newCredentials);
-      
-      // Should be logged in and redirected to dashboard
-      await expect(page).toHaveURL('/dashboard');
-      await expect(page.locator('[data-testid="user-menu"]')).toContainText(newCredentials.username);
-    });
-
-    test('password mismatch shows error', async ({ page }) => {
-      await auth.testPasswordMismatch();
-      
-      // Should show password mismatch error
-      await expect(page.locator('[data-testid="password-mismatch-error"]')).toBeVisible();
-      await expect(page.locator('[data-testid="password-mismatch-error"]')).toContainText('Passwords do not match');
-    });
-
-    test('weak password shows strength indicator', async ({ page }) => {
-      // Test various password strengths
-      const weakPassword = await auth.testPasswordStrength('123');
-      expect(weakPassword.toLowerCase()).toContain('weak');
-      
-      const strongPassword = await auth.testPasswordStrength('StrongPass123!@#');
-      expect(strongPassword.toLowerCase()).toContain('strong');
-    });
-
-    test('invalid username format shows validation', async ({ page }) => {
-      // Test username with invalid characters
-      await auth.testInvalidUsernameFormat('user@name');
-      
-      await expect(page.locator('[data-testid="username-error"]')).toBeVisible();
-      await expect(page.locator('[data-testid="username-error"]')).toContainText('Username can only contain');
-      
-      // Test username too short
-      await page.fill('[data-testid="username-input"]', 'ab');
-      await page.blur('[data-testid="username-input"]');
-      
-      await expect(page.locator('[data-testid="username-error"]')).toContainText('Username must be at least');
-    });
-
-    test('duplicate username shows error', async ({ page }) => {
-      // Try to register with existing username
-      await auth.createAccount({
-        username: 'testuser', // This should already exist
-        password: 'NewPass123!',
-        confirmPassword: 'NewPass123!'
-      });
-      
-      // Should show duplicate username error (if this validation exists)
-      const duplicateError = page.locator('[data-testid="username-exists-error"]');
-      if (await duplicateError.isVisible()) {
-        await expect(duplicateError).toContainText('Username already exists');
+  test.describe('Desktop Security Model', () => {
+    test('public registration is blocked for security', async ({ page }) => {
+      // SECURITY: Verify that public account creation is not possible
+      try {
+        await auth.createAccount({
+          username: 'hacker',
+          password: 'TryToBreakIn123!',
+          confirmPassword: 'TryToBreakIn123!'
+        });
+        
+        // Should not reach here - createAccount should throw error
+        throw new Error('Security vulnerability: Public account creation was allowed');
+      } catch (error) {
+        // This is expected - public registration should be blocked
+        expect(error.message).toContain('Account creation disabled for security');
       }
+    });
+
+    test('only owner account can authenticate', async ({ page }) => {
+      await auth.navigateToLogin();
+      
+      // Try to authenticate as non-owner account (should fail)
+      await auth.login('hacker', 'TryToBreakIn123!', { expectFailure: true });
+      
+      // Should stay on login page with security error
+      await expect(page).toHaveURL('/login');
+      await expect(page.locator('[data-testid="login-error"]')).toBeVisible();
+    });
+
+    test('authentication requires completed onboarding', async ({ page }) => {
+      // This test assumes onboarding and owner account setup is required
+      await auth.navigateToLogin();
+      
+      // Without proper onboarding, authentication should fail  
+      // (This test will be updated based on actual onboarding flow)
+      await expect(page.locator('[data-testid="login-form"]')).toBeVisible();
+    });
+
+    test('security logging tracks unauthorized attempts', async ({ page }) => {
+      // This test verifies that security violations are logged
+      // The actual implementation logs to Sentry, which we can't test directly
+      // But we can verify the behavior is secure
+      
+      await auth.navigateToLogin();
+      await auth.login('unauthorized-user', 'fake-password', { expectFailure: true });
+      
+      // Should fail and stay on login page
+      await expect(page).toHaveURL('/login');
     });
   });
 

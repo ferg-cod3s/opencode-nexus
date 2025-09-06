@@ -1,0 +1,517 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus - Chat">
+  <main class="chat-container">
+    <!-- Chat interface will be mounted here by JavaScript -->
+    <div id="chat-root" class="chat-root">
+      <div class="loading-state" id="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Starting chat session...</p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .chat-container {
+    height: 100vh;
+    background: hsl(220, 20%, 98%);
+    display: flex;
+    overflow: hidden;
+  }
+
+  .chat-root {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 1rem;
+    color: hsl(220, 10%, 60%);
+  }
+
+  .loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid hsl(220, 10%, 20%, 0.1);
+    border-top: 2px solid hsl(220, 90%, 60%);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-state p {
+    font-size: 1.125rem;
+    font-weight: 500;
+  }
+
+  /* Hide loading state when chat is active */
+  .chat-root.loaded .loading-state {
+    display: none;
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    .chat-container {
+      height: 100vh;
+      height: 100dvh; /* Use dynamic viewport height on mobile */
+    }
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .loading-spinner {
+      animation: none;
+    }
+  }
+</style>
+
+<script>
+  import { invoke, listen, checkEnvironment } from '../utils/tauri-api.ts';
+  import ChatInterface from '../components/ChatInterface.svelte';
+  import SessionGrid from '../components/SessionGrid.svelte';
+  import type { ChatSession, ChatMessage, ChatEvent } from '../types/chat';
+
+  // State management
+  let chatInterfaceComponent: ChatInterface | null = null;
+  let sessionGridComponent: SessionGrid | null = null;
+  let currentSession: ChatSession | null = null;
+  let sessions: ChatSession[] = [];
+  let loading = false;
+  let error: string | null = null;
+
+  // DOM elements
+  const chatRoot = document.getElementById('chat-root')!;
+  const loadingState = document.getElementById('loading-state')!;
+
+  async function initializeChat() {
+    try {
+      loading = true;
+      
+      // Check authentication
+      const isAuthenticated = await invoke('is_authenticated');
+      if (!isAuthenticated) {
+        window.location.href = '/login';
+        return;
+      }
+
+      // Check onboarding completion
+      const onboardingState = await invoke('get_onboarding_state');
+      if (!onboardingState.config?.is_completed) {
+        window.location.href = '/onboarding';
+        return;
+      }
+
+      // Load existing chat sessions
+      await loadSessions();
+
+      // Set up event listeners for real-time updates
+      await setupEventListeners();
+
+      // Start message streaming for real-time AI responses
+      await startMessageStreaming();
+
+      // Mount components
+      mountComponents();
+
+      // Hide loading state
+      chatRoot.classList.add('loaded');
+
+    } catch (e) {
+      console.error('Failed to initialize chat:', e);
+      error = `Failed to initialize chat: ${e}`;
+      showError(error);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function loadSessions() {
+    try {
+      sessions = await invoke('get_chat_sessions') || [];
+      console.log(`Loaded ${sessions.length} chat sessions`);
+      
+      // If no sessions exist, create a default one
+      if (sessions.length === 0) {
+        await createNewSession();
+      } else {
+        // Load the most recent session
+        currentSession = sessions[0];
+        await loadSessionHistory(currentSession.id);
+      }
+    } catch (e) {
+      console.error('Failed to load sessions:', e);
+      throw new Error(`Failed to load sessions: ${e}`);
+    }
+  }
+
+  async function createNewSession(title?: string) {
+    try {
+      const newSession = await invoke('create_chat_session', {
+        title: title || `Chat ${new Date().toLocaleDateString()}`
+      });
+      
+      sessions = [newSession, ...sessions];
+      currentSession = newSession;
+      
+      console.log('Created new session:', newSession.id);
+      updateComponents();
+      
+      return newSession;
+    } catch (e) {
+      console.error('Failed to create session:', e);
+      throw new Error(`Failed to create session: ${e}`);
+    }
+  }
+
+  async function loadSessionHistory(sessionId: string) {
+    try {
+      if (!currentSession) return;
+      
+      const messages = await invoke('get_chat_session_history', { session_id: sessionId });
+      if (messages) {
+        currentSession.messages = messages || [];
+        updateComponents();
+      }
+    } catch (e) {
+      console.error('Failed to load session history:', e);
+      // Don't throw here - we can work with empty messages
+      if (currentSession) {
+        currentSession.messages = [];
+      }
+    }
+  }
+
+  async function setupEventListeners() {
+    try {
+      // Listen for chat events from backend
+      await listen('chat-event', (event) => {
+        const chatEvent = event.payload as ChatEvent;
+        handleChatEvent(chatEvent);
+      });
+
+      console.log('Chat event listeners set up successfully');
+    } catch (e) {
+      console.error('Failed to setup event listeners:', e);
+      // Don't throw - chat can work without real-time events
+    }
+  }
+
+  async function startMessageStreaming() {
+    try {
+      await invoke('start_message_stream');
+      console.log('Message streaming started');
+    } catch (e) {
+      console.error('Failed to start message streaming:', e);
+      // Don't throw - chat can work without streaming
+    }
+  }
+
+  function handleChatEvent(event: ChatEvent) {
+    console.log('Received chat event:', event);
+
+    if (event.SessionCreated) {
+      const newSession = event.SessionCreated.session;
+      sessions = [newSession, ...sessions.filter(s => s.id !== newSession.id)];
+      updateComponents();
+    } else if (event.MessageReceived) {
+      const { session_id, message } = event.MessageReceived;
+      if (currentSession && currentSession.id === session_id) {
+        currentSession.messages = [...currentSession.messages, message];
+        updateComponents();
+      }
+    } else if (event.MessageChunk) {
+      const { session_id, chunk } = event.MessageChunk;
+      if (currentSession && currentSession.id === session_id) {
+        handleStreamingChunk(chunk);
+      }
+    } else if (event.Error) {
+      error = event.Error.message;
+      showError(error);
+    }
+  }
+
+  function handleStreamingChunk(chunk: string) {
+    if (!currentSession) return;
+
+    const messages = currentSession.messages;
+    const lastMessage = messages[messages.length - 1];
+
+    if (lastMessage && lastMessage.role === 'assistant') {
+      // Append to existing assistant message
+      lastMessage.content += chunk;
+    } else {
+      // Create new streaming message
+      const streamingMessage: ChatMessage = {
+        id: `streaming-${Date.now()}`,
+        role: 'assistant',
+        content: chunk,
+        timestamp: new Date().toISOString()
+      };
+      currentSession.messages = [...messages, streamingMessage];
+    }
+
+    updateComponents();
+  }
+
+  function mountComponents() {
+    // Clear loading state
+    chatRoot.innerHTML = '';
+
+    // Create layout structure
+    const appLayout = document.createElement('div');
+    appLayout.className = 'app-layout';
+
+    // Sessions sidebar
+    const sessionsSidebar = document.createElement('aside');
+    sessionsSidebar.className = 'sessions-sidebar';
+    sessionsSidebar.setAttribute('aria-label', 'Chat Sessions');
+
+    // Chat main area
+    const chatMain = document.createElement('main');
+    chatMain.className = 'chat-main';
+    chatMain.setAttribute('role', 'main');
+    chatMain.setAttribute('aria-label', 'Chat Interface');
+
+    appLayout.appendChild(sessionsSidebar);
+    appLayout.appendChild(chatMain);
+    chatRoot.appendChild(appLayout);
+
+    // Mount SessionGrid
+    sessionGridComponent = new SessionGrid({
+      target: sessionsSidebar,
+      props: {
+        sessions,
+        activeSessionId: currentSession?.id || null,
+        loading
+      }
+    });
+
+    // Mount ChatInterface
+    if (currentSession) {
+      chatInterfaceComponent = new ChatInterface({
+        target: chatMain,
+        props: {
+          session: currentSession,
+          loading
+        }
+      });
+
+      // Set up event handlers
+      chatInterfaceComponent.$on('sendMessage', handleSendMessage);
+      chatInterfaceComponent.$on('close', handleCloseChat);
+    }
+
+    // Set up SessionGrid event handlers
+    sessionGridComponent.$on('createSession', () => createNewSession());
+    sessionGridComponent.$on('selectSession', handleSelectSession);
+    sessionGridComponent.$on('deleteSession', handleDeleteSession);
+  }
+
+  function updateComponents() {
+    if (sessionGridComponent) {
+      sessionGridComponent.$set({
+        sessions,
+        activeSessionId: currentSession?.id || null,
+        loading
+      });
+    }
+
+    if (chatInterfaceComponent && currentSession) {
+      chatInterfaceComponent.$set({
+        session: currentSession,
+        loading
+      });
+    }
+  }
+
+  async function handleSendMessage(event: CustomEvent<{ content: string }>) {
+    if (!currentSession) return;
+
+    try {
+      loading = true;
+      
+      const userMessage: ChatMessage = {
+        id: `temp-${Date.now()}`,
+        role: 'user',
+        content: event.detail.content,
+        timestamp: new Date().toISOString()
+      };
+
+      // Add user message immediately
+      currentSession.messages = [...currentSession.messages, userMessage];
+      updateComponents();
+
+      // Send to backend
+      await invoke('send_chat_message', {
+        session_id: currentSession.id,
+        content: event.detail.content
+      });
+
+      // Response will come via event stream
+      
+    } catch (e) {
+      console.error('Failed to send message:', e);
+      error = `Failed to send message: ${e}`;
+      showError(error);
+    } finally {
+      loading = false;
+      updateComponents();
+    }
+  }
+
+  function handleSelectSession(event: CustomEvent<{ session: ChatSession }>) {
+    const session = event.detail.session;
+    currentSession = session;
+    loadSessionHistory(session.id);
+  }
+
+  function handleDeleteSession(event: CustomEvent<{ sessionId: string }>) {
+    const sessionId = event.detail.sessionId;
+    sessions = sessions.filter(s => s.id !== sessionId);
+    
+    if (currentSession && currentSession.id === sessionId) {
+      currentSession = sessions[0] || null;
+      if (currentSession) {
+        loadSessionHistory(currentSession.id);
+      }
+    }
+    
+    updateComponents();
+  }
+
+  function handleCloseChat() {
+    // Navigate back to dashboard
+    window.location.href = '/dashboard';
+  }
+
+  function showError(errorMessage: string) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-banner';
+    errorDiv.innerHTML = `
+      <span class="error-icon">⚠️</span>
+      <span class="error-message">${errorMessage}</span>
+      <button class="error-dismiss" onclick="this.parentElement.remove()">×</button>
+    `;
+    
+    chatRoot.insertBefore(errorDiv, chatRoot.firstChild);
+  }
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    if (chatInterfaceComponent) {
+      chatInterfaceComponent.$destroy();
+    }
+    if (sessionGridComponent) {
+      sessionGridComponent.$destroy();
+    }
+  });
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeChat);
+  } else {
+    initializeChat();
+  }
+</script>
+
+<style is:global>
+  .app-layout {
+    display: flex;
+    height: 100vh;
+    gap: 0;
+  }
+
+  .sessions-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    border-right: 1px solid hsl(220, 10%, 20%, 0.1);
+    background: white;
+    overflow-y: auto;
+  }
+
+  .chat-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .error-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.5rem;
+    background: hsl(0, 70%, 50%, 0.1);
+    border-bottom: 1px solid hsl(0, 70%, 50%, 0.2);
+    color: hsl(0, 70%, 40%);
+    position: relative;
+    z-index: 10;
+  }
+
+  .error-icon {
+    font-size: 1.125rem;
+  }
+
+  .error-message {
+    flex: 1;
+    font-weight: 500;
+  }
+
+  .error-dismiss {
+    background: none;
+    border: none;
+    color: hsl(0, 70%, 40%);
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 1rem;
+    line-height: 1;
+  }
+
+  .error-dismiss:hover {
+    background: hsl(0, 70%, 50%, 0.1);
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    .app-layout {
+      flex-direction: column;
+    }
+
+    .sessions-sidebar {
+      width: 100%;
+      max-height: 200px;
+      border-right: none;
+      border-bottom: 1px solid hsl(220, 10%, 20%, 0.1);
+    }
+
+    .error-banner {
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+    }
+  }
+
+  /* High Contrast Mode */
+  @media (prefers-contrast: high) {
+    .sessions-sidebar {
+      border-right: 2px solid hsl(220, 30%, 18%);
+    }
+
+    .error-banner {
+      border-bottom: 2px solid hsl(0, 70%, 50%);
+    }
+  }
+</style>
