@@ -217,10 +217,22 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          cache: 'npm'
           
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v3
+        with:
+          path: |  
+            ~/.bun/install/cache
+            node_modules
+            frontend/node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
         
       - name: Install dependencies
         run: |
@@ -263,10 +275,22 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          cache: 'npm'
           
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v3
+        with:
+          path: |  
+            ~/.bun/install/cache
+            node_modules
+            frontend/node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
         
       - name: Install dependencies
         run: |
@@ -387,10 +411,35 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          cache: 'npm'
           
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v3
+        with:
+          path: |  
+            ~/.bun/install/cache
+            node_modules
+            frontend/node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v3
+        with:
+          path: |  
+            ~/.bun/install/cache
+            node_modules
+            frontend/node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
         
       - name: Install dependencies
         run: |
@@ -440,10 +489,22 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-          cache: 'npm'
           
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Cache Bun dependencies
+        uses: actions/cache@v3
+        with:
+          path: |  
+            ~/.bun/install/cache
+            node_modules
+            frontend/node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
         
       - name: Install dependencies
         run: |
@@ -542,11 +603,10 @@ impl Config {
 #### 6.1.1 Docker Configuration
 ```dockerfile
 # Dockerfile
-FROM node:20-alpine AS frontend-builder
+FROM oven/bun:latest AS frontend-builder
 
 WORKDIR /app
 COPY frontend/package*.json ./
-RUN npm install -g bun
 RUN bun install
 
 COPY frontend/ ./
