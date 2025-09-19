@@ -219,25 +219,68 @@ import ChatInterface from '../components/ChatInterface.svelte';
 
   async function initializeApp() {
     try {
+      console.log('🔍 Index page: Starting initialization...');
+
       // Check onboarding status
       const state = await invoke('get_onboarding_state');
+      console.log('🔍 Index page: Onboarding state:', state);
 
       if (!state.config || !state.config.is_completed) {
+        console.log('🔍 Index page: Onboarding not completed, redirecting to /onboarding');
         // Redirect to onboarding
         window.location.href = '/onboarding';
         return;
       }
 
-      // Load existing sessions
-      await loadSessions();
+      console.log('🔍 Index page: Onboarding completed, checking authentication...');
 
-      // Mount Svelte components
-      mountComponents();
+      // Check authentication status
+      const isAuthenticated = await invoke('is_authenticated');
+      console.log('🔍 Index page: Authentication status:', isAuthenticated);
 
-      loading = false;
+      if (!isAuthenticated) {
+        console.log('🔍 Index page: Not authenticated, redirecting to /login');
+        window.location.href = '/login';
+        return;
+      }
+
+      console.log('🔍 Index page: Backend authentication passed, checking session...');
+
+      // Check if we have valid session data in sessionStorage
+      const sessionAuthenticated = sessionStorage.getItem('authenticated');
+      const sessionUsername = sessionStorage.getItem('username');
+
+      if (!sessionAuthenticated || !sessionUsername) {
+        console.log('🔍 Index page: Session data missing, need to establish session');
+
+        // Try to get user info from backend to establish session
+        try {
+          const userInfo = await invoke('get_user_info');
+          if (userInfo && userInfo[0]) {
+            console.log('🔍 Index page: Got user info from backend, setting session:', userInfo[0]);
+            sessionStorage.setItem('authenticated', 'true');
+            sessionStorage.setItem('username', userInfo[0]);
+          } else {
+            console.log('🔍 Index page: No user info available, redirecting to /login');
+            window.location.href = '/login';
+            return;
+          }
+        } catch (error) {
+          console.error('❌ Index page: Failed to get user info:', error);
+          console.log('🔍 Index page: Redirecting to /login due to session error');
+          window.location.href = '/login';
+          return;
+        }
+      }
+
+      console.log('🔍 Index page: All checks passed, redirecting to /dashboard');
+
+      // All checks passed, redirect to dashboard
+      window.location.href = '/dashboard';
 
     } catch (error) {
-      console.error('Failed to initialize app:', error);
+      console.error('❌ Index page: Failed to initialize app:', error);
+      console.log('🔍 Index page: Error occurred, redirecting to /onboarding');
       window.location.href = '/onboarding';
     }
   }

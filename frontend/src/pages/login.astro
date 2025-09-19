@@ -655,23 +655,28 @@ import Layout from '../layouts/Layout.astro';
 
     private async checkAuthConfiguration() {
       try {
+        console.log('🔍 Login page: Checking environment...');
         const env = checkEnvironment();
-        console.log('Environment check:', env);
-        
+        console.log('🔍 Login page: Environment check:', env);
+
         if (!env.canAuthenticate) {
+          console.log('🔍 Login page: Unsupported environment detected');
           this.updateSystemStatus('⚠️', 'Running in unsupported environment', 'error');
           return;
         }
-        
+
+        console.log('🔍 Login page: Checking auth configuration...');
         const isConfigured = await invoke('is_auth_configured');
-        
+        console.log('🔍 Login page: Auth configured:', isConfigured);
+
         if (!isConfigured) {
+          console.log('🔍 Login page: Auth not configured, redirecting to /onboarding');
           this.showAlert(
             'Authentication not configured. Please complete the setup wizard first.',
             'warning',
             '⚠️'
           );
-          
+
           // Redirect to onboarding after a delay
           setTimeout(() => {
             window.location.href = '/onboarding';
@@ -679,9 +684,10 @@ import Layout from '../layouts/Layout.astro';
           return;
         }
 
+        console.log('🔍 Login page: Auth configured successfully');
         this.updateSystemStatus('✓', 'Authentication configured', 'success');
       } catch (error) {
-        console.error('Failed to check auth configuration:', error);
+        console.error('❌ Login page: Failed to check auth configuration:', error);
         this.updateSystemStatus('⚠️', 'Unable to check authentication status', 'error');
       }
     }
@@ -706,17 +712,20 @@ import Layout from '../layouts/Layout.astro';
         });
 
         if (isAuthenticated) {
+          console.log('🔍 Login page: Authentication successful for user:', username);
           this.showAlert('Login successful! Redirecting to dashboard...', 'success', '✅');
-          
+
           // Store authentication state (you might want to use a more secure method in production)
           sessionStorage.setItem('authenticated', 'true');
           sessionStorage.setItem('username', username);
-          
+
           // Redirect to dashboard
           setTimeout(() => {
+            console.log('🔍 Login page: Redirecting to /dashboard');
             window.location.href = '/dashboard';
           }, 1500);
         } else {
+          console.log('🔍 Login page: Authentication failed - invalid credentials');
           this.showAlert(
             'Invalid credentials. Please check your username and password.',
             'error',

@@ -1,15 +1,16 @@
+use crate::api_client::ApiClient;
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use tokio::sync::broadcast;
+use sysinfo::{Pid, System};
 use tauri::Emitter;
-use sysinfo::{System, Pid};
-use crate::api_client::ApiClient;
+use tokio::sync::broadcast;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ServerStatus {
@@ -99,7 +100,10 @@ impl TunnelConfig {
     pub fn validate(&self) -> Result<()> {
         // Very basic domain validation for now
         if let Some(domain) = &self.custom_domain {
-            if !domain.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
+            if !domain
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
+            {
                 return Err(anyhow!("Invalid custom domain format"));
             }
         }
@@ -122,7 +126,7 @@ pub struct ServerManager {
     event_sender: broadcast::Sender<ServerEvent>,
     metrics_history: Arc<Mutex<Vec<ServerMetrics>>>,
     pub(crate) api_client: Option<ApiClient>, // Optional to handle cases where server isn't running
-    app_handle: Option<tauri::AppHandle>, // For emitting events to frontend
+    app_handle: Option<tauri::AppHandle>,     // For emitting events to frontend
     // Tunnel management
     tunnel_process: Arc<Mutex<Option<Child>>>,
     tunnel_config: Arc<Mutex<Option<TunnelConfig>>>,
@@ -130,14 +134,16 @@ pub struct ServerManager {
 }
 
 impl ServerManager {
-
     // Tunnel management implementation
     pub async fn start_cloudflared_tunnel(&mut self, config: &TunnelConfig) -> Result<()> {
         // Validate configuration
         config.validate()?;
 
         // Check if tunnel is already running
-        if matches!(self.get_tunnel_status(), TunnelStatus::Running | TunnelStatus::Starting) {
+        if matches!(
+            self.get_tunnel_status(),
+            TunnelStatus::Running | TunnelStatus::Starting
+        ) {
             return Err(anyhow!("Tunnel is already running or starting"));
         }
 
@@ -154,7 +160,9 @@ impl ServerManager {
         let target_url = format!("http://{}:{}", host, port);
 
         // Start tunnel process and capture URL
-        let (child, tunnel_url) = self.spawn_tunnel_process_with_url_capture(config, &target_url).await?;
+        let (child, tunnel_url) = self
+            .spawn_tunnel_process_with_url_capture(config, &target_url)
+            .await?;
 
         // Store tunnel process, config, and URL
         *self.tunnel_process.lock().unwrap() = Some(child);
@@ -208,8 +216,8 @@ impl ServerManager {
         if let Some(child) = tunnel_process.as_mut() {
             match child.try_wait() {
                 Ok(Some(_)) => TunnelStatus::Stopped, // Process has exited
-                Ok(None) => TunnelStatus::Running,     // Process is still running
-                Err(_) => TunnelStatus::Error,         // Error checking status
+                Ok(None) => TunnelStatus::Running,    // Process is still running
+                Err(_) => TunnelStatus::Error,        // Error checking status
             }
         } else {
             TunnelStatus::Stopped
@@ -221,8 +229,13 @@ impl ServerManager {
         config.validate()?;
 
         // Don't allow config changes while tunnel is running
-        if matches!(self.get_tunnel_status(), TunnelStatus::Running | TunnelStatus::Starting) {
-            return Err(anyhow!("Cannot change tunnel configuration while tunnel is running"));
+        if matches!(
+            self.get_tunnel_status(),
+            TunnelStatus::Running | TunnelStatus::Starting
+        ) {
+            return Err(anyhow!(
+                "Cannot change tunnel configuration while tunnel is running"
+            ));
         }
 
         *self.tunnel_config.lock().unwrap() = Some(config);
@@ -244,11 +257,15 @@ impl ServerManager {
         self.tunnel_url.lock().unwrap().clone()
     }
 
-    pub fn new(config_dir: PathBuf, binary_path: PathBuf, app_handle: Option<tauri::AppHandle>) -> Result<Self> {
+    pub fn new(
+        config_dir: PathBuf,
+        binary_path: PathBuf,
+        app_handle: Option<tauri::AppHandle>,
+    ) -> Result<Self> {
         std::fs::create_dir_all(&config_dir)?;
-        
+
         let (event_sender, _) = broadcast::channel(100);
-        
+
         let server_info = ServerInfo {
             status: ServerStatus::Stopped,
             pid: None,
@@ -283,12 +300,15 @@ impl ServerManager {
     }
 
     pub async fn start_server(&mut self) -> Result<()> {
-        // Check if already running and validate binary in a separate scope
+        // Extract data from mutex before any async operations
         let (binary_path, port) = {
             let mut server_info = self.server_info.lock().unwrap();
-            
+
             // Check if already running
-            if matches!(server_info.status, ServerStatus::Running | ServerStatus::Starting) {
+            if matches!(
+                server_info.status,
+                ServerStatus::Running | ServerStatus::Starting
+            ) {
                 return Err(anyhow!("Server is already running or starting"));
             }
 
@@ -302,20 +322,50 @@ impl ServerManager {
 
             let binary_path = server_info.binary_path.clone();
             let port = server_info.port;
-
-            // Check if port is available
-            if !self.is_port_available(port)? {
-                let error = format!("Port {} is already in use", port);
-                server_info.status = ServerStatus::Error;
-                server_info.last_error = Some(error.clone());
-                return Err(anyhow!(error));
-            }
-
-            server_info.status = ServerStatus::Starting;
-            server_info.last_error = None;
-            
             (binary_path, port)
         };
+
+        // Check if port is available or if there's an existing OpenCode server
+        if !self.is_port_available(port)? {
+            // Port is in use - check if it's an OpenCode server we can connect to
+            if let Ok(api_client) = self.try_connect_to_existing_server(port).await {
+                // Successfully connected to existing OpenCode server
+                self.api_client = Some(api_client);
+
+                // Update server info in a new scope
+                {
+                    let mut server_info = self.server_info.lock().unwrap();
+                    server_info.status = ServerStatus::Running;
+                    server_info.started_at =
+                        Some(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs());
+                    server_info.last_error = None;
+                }
+
+                // Send connected event
+                let _ = self.event_sender.send(ServerEvent {
+                    timestamp: SystemTime::now(),
+                    event_type: ServerEventType::Started,
+                    message: "Connected to existing OpenCode server".to_string(),
+                });
+
+                return Ok(());
+            } else {
+                let error = format!("Port {} is already in use by another application", port);
+                {
+                    let mut server_info = self.server_info.lock().unwrap();
+                    server_info.status = ServerStatus::Error;
+                    server_info.last_error = Some(error.clone());
+                }
+                return Err(anyhow!(error));
+            }
+        }
+
+        // Set starting status
+        {
+            let mut server_info = self.server_info.lock().unwrap();
+            server_info.status = ServerStatus::Starting;
+            server_info.last_error = None;
+        }
 
         // Send starting event
         let _ = self.event_sender.send(ServerEvent {
@@ -326,22 +376,66 @@ impl ServerManager {
 
         // Start the process
         match self.spawn_server_process().await {
-            Ok(child) => {
+            Ok(mut child) => {
                 let pid = child.id();
-                
+                eprintln!(
+                    "🚀 [SERVER] Process spawned with PID {}, checking if it stays alive...",
+                    pid
+                );
+
+                // Give the process a moment to start
+                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+                // Check if the process is still alive
+                match child.try_wait() {
+                    Ok(Some(exit_status)) => {
+                        eprintln!(
+                            "❌ [SERVER] Process exited immediately with status: {}",
+                            exit_status
+                        );
+
+                        // Try to read stderr for error details
+                        if let Some(mut stderr) = child.stderr.take() {
+                            let mut error_output = String::new();
+                            if let Err(read_err) = stderr.read_to_string(&mut error_output) {
+                                eprintln!("Failed to read stderr: {}", read_err);
+                            } else if !error_output.is_empty() {
+                                eprintln!("❌ [SERVER] Error output: {}", error_output.trim());
+                            }
+                        }
+
+                        {
+                            let mut server_info = self.server_info.lock().unwrap();
+                            server_info.status = ServerStatus::Error;
+                            server_info.last_error = Some(format!(
+                                "Server process exited immediately with status: {}",
+                                exit_status
+                            ));
+                        }
+
+                        return Err(anyhow!(
+                            "OpenCode server process exited immediately with status: {}",
+                            exit_status
+                        ));
+                    }
+                    Ok(None) => {
+                        eprintln!("✅ [SERVER] Process is running normally");
+                    }
+                    Err(e) => {
+                        eprintln!("❌ [SERVER] Error checking process status: {}", e);
+                    }
+                }
+
                 // Store the process
                 *self.current_process.lock().unwrap() = Some(child);
-                
+
                 // Update server info
                 {
                     let mut server_info = self.server_info.lock().unwrap();
                     server_info.status = ServerStatus::Running;
                     server_info.pid = Some(pid);
-                    server_info.started_at = Some(
-                        SystemTime::now()
-                            .duration_since(UNIX_EPOCH)?
-                            .as_secs()
-                    );
+                    server_info.started_at =
+                        Some(SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs());
                 } // MutexGuard is dropped here
 
                 // Send started event
@@ -417,7 +511,10 @@ impl ServerManager {
         self.ensure_api_client()?;
 
         if let Some(client) = &self.api_client {
-            match client.delete::<bool>(&format!("/api/sessions/{}", session_id)).await {
+            match client
+                .delete::<bool>(&format!("/api/sessions/{}", session_id))
+                .await
+            {
                 Ok(success) => {
                     // Emit session disconnected event
                     let _ = self.event_sender.send(ServerEvent {
@@ -450,7 +547,8 @@ impl ServerManager {
 
         // Calculate average session duration
         let now = Utc::now();
-        let total_duration: i64 = sessions.iter()
+        let total_duration: i64 = sessions
+            .iter()
             .filter(|s| s.is_active)
             .map(|s| (now - s.connected_at).num_seconds())
             .sum();
@@ -464,7 +562,11 @@ impl ServerManager {
         Ok(SessionStats {
             total_sessions,
             active_sessions,
-            peak_concurrent: self.metrics_history.lock().unwrap().iter()
+            peak_concurrent: self
+                .metrics_history
+                .lock()
+                .unwrap()
+                .iter()
                 .map(|m| m.request_count)
                 .max()
                 .unwrap_or(0) as u32,
@@ -474,8 +576,11 @@ impl ServerManager {
 
     pub async fn stop_server(&self) -> Result<()> {
         let mut server_info = self.server_info.lock().unwrap();
-        
-        if matches!(server_info.status, ServerStatus::Stopped | ServerStatus::Stopping) {
+
+        if matches!(
+            server_info.status,
+            ServerStatus::Stopped | ServerStatus::Stopping
+        ) {
             return Ok(());
         }
 
@@ -505,7 +610,7 @@ impl ServerManager {
         server_info.status = ServerStatus::Stopped;
         server_info.pid = None;
         server_info.started_at = None;
-        
+
         let _ = self.event_sender.send(ServerEvent {
             timestamp: SystemTime::now(),
             event_type: ServerEventType::Stopped,
@@ -517,24 +622,22 @@ impl ServerManager {
 
     pub async fn restart_server(&mut self) -> Result<()> {
         self.stop_server().await?;
-        
+
         // Wait a moment for cleanup
         thread::sleep(Duration::from_millis(1000));
-        
+
         self.start_server().await
     }
 
     pub fn get_server_version(&self) -> Result<String> {
         let server_info = self.server_info.lock().unwrap();
-        
+
         let output = Command::new(&server_info.binary_path)
             .arg("--version")
             .output()?;
 
         if output.status.success() {
-            let version = String::from_utf8(output.stdout)?
-                .trim()
-                .to_string();
+            let version = String::from_utf8(output.stdout)?.trim().to_string();
             Ok(version)
         } else {
             Err(anyhow!("Failed to get server version"))
@@ -543,10 +646,15 @@ impl ServerManager {
 
     pub fn update_server_config(&self, port: Option<u16>, host: Option<String>) -> Result<()> {
         let mut server_info = self.server_info.lock().unwrap();
-        
+
         // Don't allow config changes while running
-        if matches!(server_info.status, ServerStatus::Running | ServerStatus::Starting) {
-            return Err(anyhow!("Cannot change configuration while server is running"));
+        if matches!(
+            server_info.status,
+            ServerStatus::Running | ServerStatus::Starting
+        ) {
+            return Err(anyhow!(
+                "Cannot change configuration while server is running"
+            ));
         }
 
         if let Some(new_port) = port {
@@ -571,35 +679,35 @@ impl ServerManager {
 
     pub fn get_metrics(&self) -> Option<ServerMetrics> {
         let server_info = self.server_info.lock().unwrap();
-        
+
         if let (Some(pid), Some(started_at)) = (server_info.pid, server_info.started_at) {
             // Collect real metrics from the system
             let mut system = System::new_all();
             system.refresh_all();
-            
-            let (cpu_usage, memory_usage) = if let Some(process) = system.process(Pid::from(pid as usize)) {
-                (
-                    process.cpu_usage() as f64,
-                    process.memory() / 1024 / 1024 // Convert bytes to MB
-                )
-            } else {
-                // Process not found, use fallback values
-                (0.0, 0)
-            };
-            
+
+            let (cpu_usage, memory_usage) =
+                if let Some(process) = system.process(Pid::from(pid as usize)) {
+                    (
+                        process.cpu_usage() as f64,
+                        process.memory() / 1024 / 1024, // Convert bytes to MB
+                    )
+                } else {
+                    // Process not found, use fallback values
+                    (0.0, 0)
+                };
+
             // Get request count from server stats API if available
             let request_count = if let Some(api_client) = &self.api_client {
                 // Try to get stats from OpenCode server
                 match tokio::runtime::Handle::try_current() {
-                    Ok(handle) => {
-                        handle.block_on(async {
-                            api_client.get::<serde_json::Value>("/app/stats")
-                                .await
-                                .ok()
-                                .and_then(|stats| stats.get("request_count")?.as_u64())
-                                .unwrap_or(0)
-                        })
-                    },
+                    Ok(handle) => handle.block_on(async {
+                        api_client
+                            .get::<serde_json::Value>("/app/stats")
+                            .await
+                            .ok()
+                            .and_then(|stats| stats.get("request_count")?.as_u64())
+                            .unwrap_or(0)
+                    }),
                     Err(_) => 0, // No async runtime available
                 }
             } else {
@@ -613,21 +721,21 @@ impl ServerManager {
                     SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .unwrap_or_default()
-                        .as_secs() - started_at
+                        .as_secs()
+                        - started_at,
                 ),
                 request_count,
                 error_count: if let Some(api_client) = &self.api_client {
                     // Try to get error count from OpenCode server stats
                     match tokio::runtime::Handle::try_current() {
-                        Ok(handle) => {
-                            handle.block_on(async {
-                                api_client.get::<serde_json::Value>("/app/stats")
-                                    .await
-                                    .ok()
-                                    .and_then(|stats| stats.get("error_count")?.as_u64())
-                                    .unwrap_or(0)
-                            })
-                        },
+                        Ok(handle) => handle.block_on(async {
+                            api_client
+                                .get::<serde_json::Value>("/app/stats")
+                                .await
+                                .ok()
+                                .and_then(|stats| stats.get("error_count")?.as_u64())
+                                .unwrap_or(0)
+                        }),
                         Err(_) => 0, // No async runtime available
                     }
                 } else {
@@ -662,11 +770,17 @@ impl ServerManager {
             Some(client) => {
                 // Check if the URL has changed (e.g., port changed)
                 if client.base_url != base_url {
-                    self.api_client = Some(ApiClient::new(&base_url).map_err(|e| anyhow!("Failed to create API client: {}", e))?);
+                    self.api_client = Some(
+                        ApiClient::new(&base_url)
+                            .map_err(|e| anyhow!("Failed to create API client: {}", e))?,
+                    );
                 }
             }
             None => {
-                self.api_client = Some(ApiClient::new(&base_url).map_err(|e| anyhow!("Failed to create API client: {}", e))?);
+                self.api_client = Some(
+                    ApiClient::new(&base_url)
+                        .map_err(|e| anyhow!("Failed to create API client: {}", e))?,
+                );
             }
         }
 
@@ -683,19 +797,33 @@ impl ServerManager {
         self.ensure_api_client()?;
 
         if let Some(client) = &self.api_client {
-            match client.get::<AppInfo>("/app").await {
-                Ok(app_info) => {
-                    // Update server info with real data
-                    let mut server_info = self.server_info.lock().unwrap();
-                    server_info.version = Some(app_info.version.clone());
-                    Ok(app_info)
+            // First try basic connectivity check instead of /app endpoint
+            match self.check_server_connectivity().await {
+                Ok(_) => {
+                    // Server is reachable, return enhanced app info
+                    {
+                        let mut server_info = self.server_info.lock().unwrap();
+                        server_info.version = Some("connected".to_string());
+                    } // Drop the lock here
+
+                    let sessions_count = self
+                        .get_active_sessions()
+                        .await
+                        .ok()
+                        .map(|s| s.len() as u32);
+                    Ok(AppInfo {
+                        version: "connected".to_string(),
+                        status: "running".to_string(),
+                        uptime: Some(self.get_server_uptime()),
+                        sessions_count,
+                    })
                 }
                 Err(e) => {
-                    // Fallback: return stubbed data if API fails
-                    eprintln!("Failed to get app info from API: {}", e);
+                    // Fallback to stub data with connectivity error context
+                    eprintln!("Server connectivity check failed: {}", e);
                     Ok(AppInfo {
                         version: "unknown".to_string(),
-                        status: "unknown".to_string(),
+                        status: "disconnected".to_string(),
                         uptime: None,
                         sessions_count: None,
                     })
@@ -703,6 +831,51 @@ impl ServerManager {
             }
         } else {
             Err(anyhow!("API client not available"))
+        }
+    }
+
+    /// Checks basic server connectivity using working endpoints
+    ///
+    /// Design Decision: Uses working endpoint pattern from chat_manager.rs
+    /// Tries multiple known working endpoints to detect server presence
+    async fn check_server_connectivity(&self) -> Result<()> {
+        if let Some(client) = &self.api_client {
+            // Try known working endpoints from the codebase
+            let endpoints = vec!["/session", "/api/sessions", "/app/stats"];
+            
+            for endpoint in endpoints {
+                let test_url = format!("{}{}", client.base_url, endpoint);
+                match reqwest::get(&test_url).await {
+                    Ok(response) => {
+                        // Accept any response that's not 404 as server presence
+                        if response.status() != reqwest::StatusCode::NOT_FOUND {
+                            return Ok(());
+                        }
+                    }
+                    Err(_) => continue, // Try next endpoint
+                }
+            }
+            
+            Err(anyhow!("No working endpoints found on server"))
+        } else {
+            Err(anyhow!("No API client available"))
+        }
+    }
+
+    /// Gets server uptime in seconds
+    ///
+    /// Design Decision: Returns uptime based on server start time
+    /// Falls back to 0 if server start time is not available
+    fn get_server_uptime(&self) -> u64 {
+        let server_info = self.server_info.lock().unwrap();
+        if let Some(started_at) = server_info.started_at {
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs();
+            now.saturating_sub(started_at)
+        } else {
+            0
         }
     }
 
@@ -745,7 +918,7 @@ impl ServerManager {
 
     fn is_port_available(&self, port: u16) -> Result<bool> {
         use std::net::{TcpListener, ToSocketAddrs};
-        
+
         let addr = format!("127.0.0.1:{}", port);
         match addr.to_socket_addrs() {
             Ok(mut addrs) => {
@@ -762,19 +935,75 @@ impl ServerManager {
         }
     }
 
-    async fn spawn_server_process(&self) -> Result<Child> {
-        let server_info = self.server_info.lock().unwrap();
-        
-        let child = Command::new(&server_info.binary_path)
-            .arg("--host")
-            .arg(&server_info.host)
-            .arg("--port")
-            .arg(server_info.port.to_string())
-            .arg("--headless") // Run without GUI
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
+    async fn try_connect_to_existing_server(&self, port: u16) -> Result<ApiClient> {
+        let base_url = format!("http://127.0.0.1:{}", port);
+        let api_client = ApiClient::new(&base_url).map_err(|e| anyhow!(e))?;
 
+        // Try known working endpoints to detect OpenCode server
+        let endpoints = vec!["/session", "/api/sessions", "/app/stats"];
+        
+        for endpoint in endpoints {
+            let test_url = format!("{}{}", base_url, endpoint);
+            match reqwest::get(&test_url).await {
+                Ok(response) => {
+                    // Any response that's not 404 indicates server presence
+                    if response.status() != reqwest::StatusCode::NOT_FOUND {
+                        return Ok(api_client);
+                    }
+                }
+                Err(_) => continue,
+            }
+        }
+
+        Err(anyhow!("No OpenCode server detected on port {}", port))
+    }
+
+    async fn spawn_server_process(&self) -> Result<Child> {
+        let (binary_path, host, port) = {
+            let server_info = self.server_info.lock().unwrap();
+            (
+                server_info.binary_path.clone(),
+                server_info.host.clone(),
+                server_info.port,
+            )
+        };
+
+        // Debug logging
+        eprintln!("🚀 [SERVER] Attempting to spawn OpenCode server:");
+        eprintln!("   Binary: {}", binary_path.display());
+        eprintln!("   Host: {}", host);
+        eprintln!("   Port: {}", port);
+        eprintln!(
+            "   Command: {} serve --hostname {} --port {}",
+            binary_path.display(),
+            host,
+            port
+        );
+
+        // Check if binary exists before spawning
+        if !binary_path.exists() {
+            return Err(anyhow!(
+                "OpenCode binary not found at: {}",
+                binary_path.display()
+            ));
+        }
+
+        let mut cmd = Command::new(&binary_path);
+        cmd.arg("serve")
+            .arg("--hostname")
+            .arg(&host)
+            .arg("--port")
+            .arg(port.to_string())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        eprintln!("🚀 [SERVER] Spawning process...");
+        let child = cmd.spawn().map_err(|e| {
+            eprintln!("❌ [SERVER] Failed to spawn process: {}", e);
+            anyhow!("Failed to spawn OpenCode server: {}", e)
+        })?;
+
+        eprintln!("✅ [SERVER] Process spawned with PID: {}", child.id());
         Ok(child)
     }
 
@@ -814,7 +1043,8 @@ impl ServerManager {
                     // Process died unexpectedly
                     let mut server_info = server_info_clone.lock().unwrap();
                     server_info.status = ServerStatus::Error;
-                    server_info.last_error = Some("Server process terminated unexpectedly".to_string());
+                    server_info.last_error =
+                        Some("Server process terminated unexpectedly".to_string());
                     server_info.pid = None;
                     drop(server_info);
 
@@ -838,9 +1068,7 @@ impl ServerManager {
     }
 
     fn is_cloudflared_available(&self) -> Result<bool> {
-        let output = Command::new("cloudflared")
-            .arg("--version")
-            .output();
+        let output = Command::new("cloudflared").arg("--version").output();
 
         match output {
             Ok(result) => Ok(result.status.success()),
@@ -848,10 +1076,14 @@ impl ServerManager {
         }
     }
 
-    async fn spawn_tunnel_process_with_url_capture(&self, config: &TunnelConfig, target_url: &str) -> Result<(Child, Option<String>)> {
+    async fn spawn_tunnel_process_with_url_capture(
+        &self,
+        config: &TunnelConfig,
+        target_url: &str,
+    ) -> Result<(Child, Option<String>)> {
         use std::io::{BufRead, BufReader};
         use tokio::time::{timeout, Duration};
-        
+
         let mut cmd = Command::new("cloudflared");
         cmd.arg("tunnel");
 
@@ -865,19 +1097,21 @@ impl ServerManager {
             cmd.arg("--hostname").arg(domain);
             // For custom domains, we know the URL format
             return Ok((
-                cmd.arg("--url").arg(target_url)
-                   .stdout(Stdio::piped())
-                   .stderr(Stdio::piped())
-                   .spawn()
-                   .map_err(|e| anyhow!("Failed to start cloudflared tunnel: {}", e))?,
-                Some(format!("https://{}", domain))
+                cmd.arg("--url")
+                    .arg(target_url)
+                    .stdout(Stdio::piped())
+                    .stderr(Stdio::piped())
+                    .spawn()
+                    .map_err(|e| anyhow!("Failed to start cloudflared tunnel: {}", e))?,
+                Some(format!("https://{}", domain)),
             ));
         }
 
         // For quick tunnels, we need to capture the generated URL
         cmd.arg("--url").arg(target_url);
-        
-        let mut child = cmd.stdout(Stdio::piped())
+
+        let mut child = cmd
+            .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
             .map_err(|e| anyhow!("Failed to start cloudflared tunnel: {}", e))?;
@@ -887,23 +1121,26 @@ impl ServerManager {
         if let Some(stdout) = child.stdout.take() {
             let tunnel_url_clone = Arc::new(Mutex::new(None::<String>));
             let tunnel_url_clone_for_task = tunnel_url_clone.clone();
-            
+
             tokio::spawn(async move {
                 let reader = BufReader::new(stdout);
                 for line_result in reader.lines() {
                     if let Ok(line) = line_result {
                         // Look for cloudflare tunnel URL pattern
-                        if line.contains("trycloudflare.com") || line.contains("Your quick tunnel") {
+                        if line.contains("trycloudflare.com") || line.contains("Your quick tunnel")
+                        {
                             // Extract URL from various formats cloudflared uses
                             if let Some(url_start) = line.find("https://") {
                                 if let Some(url_end) = line[url_start..].find(' ') {
                                     let url = &line[url_start..url_start + url_end];
-                                    *tunnel_url_clone_for_task.lock().unwrap() = Some(url.to_string());
+                                    *tunnel_url_clone_for_task.lock().unwrap() =
+                                        Some(url.to_string());
                                     break;
                                 } else {
                                     // URL might be at the end of line
                                     let url = &line[url_start..];
-                                    *tunnel_url_clone_for_task.lock().unwrap() = Some(url.trim().to_string());
+                                    *tunnel_url_clone_for_task.lock().unwrap() =
+                                        Some(url.trim().to_string());
                                     break;
                                 }
                             }
@@ -911,7 +1148,7 @@ impl ServerManager {
                     }
                 }
             });
-            
+
             // Wait briefly for URL to be captured
             let _ = timeout(Duration::from_secs(5), async {
                 loop {
@@ -920,11 +1157,12 @@ impl ServerManager {
                     }
                     tokio::time::sleep(Duration::from_millis(100)).await;
                 }
-            }).await;
-            
+            })
+            .await;
+
             tunnel_url = tunnel_url_clone.lock().unwrap().clone();
         }
-        
+
         Ok((child, tunnel_url))
     }
 
@@ -1022,11 +1260,11 @@ mod tests {
         fn new() -> Result<Self> {
             let temp_dir = tempfile::tempdir()?;
             let config_dir = temp_dir.path().join("config");
-            
+
             // Create a fake binary for testing
             let fake_binary = temp_dir.path().join("fake_opencode");
             fs::write(&fake_binary, "#!/bin/bash\necho 'OpenCode Server v1.0.0'\n")?;
-            
+
             #[cfg(unix)]
             {
                 use std::os::unix::fs::PermissionsExt;
@@ -1034,7 +1272,7 @@ mod tests {
             }
 
             let manager = ServerManager::new(config_dir, fake_binary.clone(), None)?;
-            
+
             Ok(Self {
                 manager,
                 _temp_dir: temp_dir,
@@ -1047,7 +1285,7 @@ mod tests {
     fn test_server_manager_creation() {
         let test_manager = TestServerManager::new().unwrap();
         let info = test_manager.manager.get_server_info();
-        
+
         assert!(matches!(info.status, ServerStatus::Stopped));
         assert_eq!(info.port, 4096);
         assert_eq!(info.host, "127.0.0.1");
@@ -1063,10 +1301,10 @@ mod tests {
     #[test]
     fn test_server_version_detection() {
         let test_manager = TestServerManager::new().unwrap();
-        
+
         // This will fail with our fake binary, but shouldn't crash
         let version_result = test_manager.manager.get_server_version();
-        
+
         // We expect this to fail with our fake script, but it should be handled gracefully
         assert!(version_result.is_err() || version_result.is_ok());
     }
@@ -1074,10 +1312,13 @@ mod tests {
     #[test]
     fn test_config_update() {
         let test_manager = TestServerManager::new().unwrap();
-        
+
         // Should succeed when server is stopped
-        assert!(test_manager.manager.update_server_config(Some(8080), Some("0.0.0.0".to_string())).is_ok());
-        
+        assert!(test_manager
+            .manager
+            .update_server_config(Some(8080), Some("0.0.0.0".to_string()))
+            .is_ok());
+
         let info = test_manager.manager.get_server_info();
         assert_eq!(info.port, 8080);
         assert_eq!(info.host, "0.0.0.0");
@@ -1086,19 +1327,25 @@ mod tests {
     #[test]
     fn test_invalid_port_config() {
         let test_manager = TestServerManager::new().unwrap();
-        
+
         // Should fail with invalid port
-        assert!(test_manager.manager.update_server_config(Some(99), None).is_err());
-        assert!(test_manager.manager.update_server_config(Some(80), None).is_err());
+        assert!(test_manager
+            .manager
+            .update_server_config(Some(99), None)
+            .is_err());
+        assert!(test_manager
+            .manager
+            .update_server_config(Some(80), None)
+            .is_err());
     }
 
     #[test]
     fn test_port_availability_check() {
         let test_manager = TestServerManager::new().unwrap();
-        
+
         // Port 4096 should be available initially
         assert!(test_manager.manager.is_port_available(4096).unwrap());
-        
+
         // Port 80 might not be available (system port)
         // This test is environment-dependent, so we just ensure it doesn't crash
         let _ = test_manager.manager.is_port_available(80);
@@ -1109,13 +1356,13 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap();
         let config_dir = temp_dir.path().join("config");
         let missing_binary = temp_dir.path().join("missing_binary");
-        
+
         let mut manager = ServerManager::new(config_dir, missing_binary, None).unwrap();
-        
+
         // Should fail because binary doesn't exist
         let result = manager.start_server().await;
         assert!(result.is_err());
-        
+
         let info = manager.get_server_info();
         assert!(matches!(info.status, ServerStatus::Error));
         assert!(info.last_error.is_some());
@@ -1124,7 +1371,7 @@ mod tests {
     #[tokio::test]
     async fn test_stop_server_when_not_running() {
         let test_manager = TestServerManager::new().unwrap();
-        
+
         // Should not fail when stopping a server that's not running
         let result = test_manager.manager.stop_server().await;
         assert!(result.is_ok());
@@ -1133,9 +1380,9 @@ mod tests {
     #[test]
     fn test_event_subscription() {
         let test_manager = TestServerManager::new().unwrap();
-        
+
         let mut receiver = test_manager.manager.subscribe_to_events();
-        
+
         // Should be able to subscribe without issues
         assert!(receiver.is_empty());
     }
@@ -1143,7 +1390,7 @@ mod tests {
     #[test]
     fn test_metrics_when_stopped() {
         let test_manager = TestServerManager::new().unwrap();
-        
+
         let metrics = test_manager.manager.get_metrics();
         assert!(metrics.is_none());
     }

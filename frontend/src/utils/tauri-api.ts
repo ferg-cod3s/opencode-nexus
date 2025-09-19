@@ -193,6 +193,16 @@ const mockApi = {
   is_authenticated: async (): Promise<boolean> => {
     console.log(`[MOCK API] is_authenticated called`);
     return true;
+  },
+
+  get_application_logs: async (): Promise<string[]> => {
+    console.log(`[MOCK API] get_application_logs called`);
+    return [
+      '[2024-01-01 12:00:00 UTC] 🔍 Index page: Starting initialization...',
+      '[2024-01-01 12:00:01 UTC] 🔐 [AUTH] Checking authentication status...',
+      '[2024-01-01 12:00:02 UTC] 👤 [USER] Getting user information...',
+      '[2024-01-01 12:00:03 UTC] 🚀 [ONBOARDING] Getting onboarding state...'
+    ];
   }
 };
 

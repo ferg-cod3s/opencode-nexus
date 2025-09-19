@@ -1,7 +1,7 @@
-import { FullConfig } from '@playwright/test';
+import type { FullConfig } from '@playwright/test';
 import { chromium } from '@playwright/test';
 
-async function globalSetup(config: FullConfig) {
+async function globalSetup(_config: FullConfig) {
   console.log('🔧 Setting up E2E test environment...');
   
   const browser = await chromium.launch();
@@ -36,7 +36,7 @@ async function globalSetup(config: FullConfig) {
         console.log('✅ Test user created successfully');
       } catch (error) {
         // If user already exists or onboarding is complete, that's fine
-        console.log('ℹ️ Test setup already exists or completed:', error.message);
+        console.log('ℹ️ Test setup already exists or completed:', error instanceof Error ? error.message : String(error));
       }
     });
     

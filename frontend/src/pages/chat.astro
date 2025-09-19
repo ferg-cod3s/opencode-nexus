@@ -4,6 +4,24 @@ import Layout from '../layouts/Layout.astro';
 
 <Layout title="OpenCode Nexus - Chat">
   <main class="chat-container">
+    <!-- Main Navigation Header -->
+    <header class="dashboard-header">
+      <div class="header-content">
+        <h1>OpenCode Nexus</h1>
+        <div class="user-menu" data-testid="user-menu">
+          <span id="username-display">Loading...</span>
+          <button id="logout-button" data-testid="logout-button" class="logout-btn">Sign Out</button>
+        </div>
+        <nav class="dashboard-nav">
+          <a href="/dashboard" class="nav-link" data-testid="dashboard-tab">Dashboard</a>
+          <a href="/chat" class="nav-link active" data-testid="chat-tab">Chat</a>
+          <a href="/settings" class="nav-link">Settings</a>
+          <a href="/logs" class="nav-link">Logs</a>
+          <a href="/help" class="nav-link">Help</a>
+        </nav>
+      </div>
+    </header>
+
     <!-- Chat interface will be mounted here by JavaScript -->
     <div id="chat-root" class="chat-root">
       <div class="loading-state" id="loading-state">
@@ -98,21 +116,32 @@ import Layout from '../layouts/Layout.astro';
 
   async function initializeChat() {
     try {
+      console.log('🔍 Chat page: Starting initialization...');
       loading = true;
-      
+
       // Check authentication
+      console.log('🔍 Chat page: Checking authentication...');
       const isAuthenticated = await invoke('is_authenticated');
+      console.log('🔍 Chat page: Authentication status:', isAuthenticated);
+
       if (!isAuthenticated) {
+        console.log('🔍 Chat page: Not authenticated, redirecting to /login');
         window.location.href = '/login';
         return;
       }
 
       // Check onboarding completion
+      console.log('🔍 Chat page: Checking onboarding status...');
       const onboardingState = await invoke('get_onboarding_state');
+      console.log('🔍 Chat page: Onboarding state:', onboardingState);
+
       if (!onboardingState.config?.is_completed) {
+        console.log('🔍 Chat page: Onboarding not completed, redirecting to /onboarding');
         window.location.href = '/onboarding';
         return;
       }
+
+      console.log('🔍 Chat page: All checks passed, loading chat interface...');
 
       // Load existing chat sessions
       await loadSessions();
@@ -129,8 +158,10 @@ import Layout from '../layouts/Layout.astro';
       // Hide loading state
       chatRoot.classList.add('loaded');
 
+      console.log('🔍 Chat page: Initialization complete');
+
     } catch (e) {
-      console.error('Failed to initialize chat:', e);
+      console.error('❌ Chat page: Failed to initialize chat:', e);
       error = `Failed to initialize chat: ${e}`;
       showError(error);
     } finally {

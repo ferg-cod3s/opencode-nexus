@@ -2,7 +2,7 @@ use crate::api_client::ApiClient;
 use crate::chat_manager::{ChatEvent, ChatMessage, MessageRole};
 use futures_util::StreamExt;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use std::time::Duration;
 use tokio::sync::broadcast;
 use tokio::time;

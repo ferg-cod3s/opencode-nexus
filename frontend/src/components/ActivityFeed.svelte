@@ -84,7 +84,7 @@
 
 <div
     class="activity-list"
-    role="log"
+    role="listbox"
     aria-live="polite"
     aria-label="Recent activity messages"
     aria-atomic="false"
@@ -100,7 +100,8 @@
             class:success={message.type === 'success'}
             class:selected={index === selectedIndex}
             id="activity-item-{index}"
-            role="listitem"
+            role="option"
+            aria-selected={index === selectedIndex}
             aria-label="{message.type} message at {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}: {message.message}"
             tabindex="-1"
         >
@@ -116,7 +117,7 @@
         </div>
     {/each}
     {#if messages.length === 0}
-        <div class="activity-item empty" role="listitem" aria-label="No activity messages yet">
+        <div class="activity-item empty" role="option" aria-selected="false" aria-label="No activity messages yet">
             <span class="activity-message">No activity messages yet</span>
         </div>
     {/if}

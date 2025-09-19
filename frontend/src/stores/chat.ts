@@ -1,5 +1,6 @@
 import { writable, derived, get } from 'svelte/store';
 import type { ChatSession, ChatMessage, ChatEvent } from '../types/chat';
+import { MessageRole } from '../types/chat';
 
 // Chat sessions store
 function createSessionsStore() {
@@ -68,13 +69,13 @@ function createActiveSessionStore() {
             content: lastMessage.content + content
           };
         } else {
-          // Create new streaming message
-          messages.push({
-            id: `streaming-${Date.now()}`,
-            role: 'assistant',
-            content,
-            timestamp: new Date().toISOString()
-          });
+           // Create new streaming message
+           messages.push({
+             id: `streaming-${Date.now()}`,
+             role: MessageRole.Assistant,
+             content,
+             timestamp: new Date().toISOString()
+           });
         }
         return {
           ...session,
@@ -170,7 +171,7 @@ export const compositionStore = createCompositionStore();
 // Derived stores for convenience
 export const activeSessions = derived(
   sessionsStore,
-  $sessions => $sessions.filter(s => s.status !== 'archived')
+  $sessions => $sessions // All sessions are considered active
 );
 
 export const hasActiveSessions = derived(
@@ -267,7 +268,7 @@ export const chatActions = {
     // Add user message immediately
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
-      role: 'user',
+      role: MessageRole.User,
       content,
       timestamp: new Date().toISOString()
     };

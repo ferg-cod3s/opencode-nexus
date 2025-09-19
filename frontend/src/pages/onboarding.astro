@@ -113,28 +113,41 @@ import Layout from '../layouts/Layout.astro';
           <p>Choose how you'd like to set up your OpenCode server:</p>
           
           <div class="server-options">
+            <div class="option" data-option="auto-detect" id="auto-detect-option" style="display: none;">
+              <input type="radio" name="server-setup" id="auto-detect" value="auto-detect">
+              <label for="auto-detect">
+                <h3>✅ Use Detected Installation (Recommended)</h3>
+                <p id="detected-path-display">OpenCode server found at: </p>
+                <ul>
+                  <li>Automatically detected</li>
+                  <li>No additional setup required</li>
+                  <li>Ready to use immediately</li>
+                </ul>
+              </label>
+            </div>
+            
+            <div class="option" data-option="existing">
+              <input type="radio" name="server-setup" id="existing-binary" value="existing">
+              <label for="existing-binary">
+                <h3>Use Different Installation</h3>
+                <p>Specify the path to your OpenCode server binary</p>
+                <ul>
+                  <li>Use your preferred version</li>
+                  <li>Custom installation path</li>
+                  <li>Manual path configuration</li>
+                </ul>
+              </label>
+            </div>
+
             <div class="option" data-option="auto-download">
               <input type="radio" name="server-setup" id="auto-download" value="auto-download">
               <label for="auto-download">
-                <h3>Auto-Download (Recommended)</h3>
+                <h3>Download Latest Version</h3>
                 <p>Download the latest OpenCode server automatically</p>
                 <ul>
                   <li>Latest stable version</li>
                   <li>Automatic updates</li>
                   <li>No manual configuration</li>
-                </ul>
-              </label>
-            </div>
-
-            <div class="option" data-option="existing">
-              <input type="radio" name="server-setup" id="existing-binary" value="existing">
-              <label for="existing-binary">
-                <h3>Use Existing Binary</h3>
-                <p>Use an OpenCode server you've already installed</p>
-                <ul>
-                  <li>Use your preferred version</li>
-                  <li>No additional download</li>
-                  <li>Manual path configuration</li>
                 </ul>
               </label>
             </div>
@@ -601,6 +614,62 @@ import Layout from '../layouts/Layout.astro';
     padding: 0.25rem 0;
   }
 
+  .error-container {
+    margin-bottom: 2rem;
+  }
+
+  .error-message {
+    background: hsl(0, 70%, 98%);
+    border: 1px solid hsl(0, 70%, 80%);
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .error-message h3 {
+    margin: 0 0 0.5rem 0;
+    color: hsl(0, 70%, 40%);
+  }
+
+  .error-message p {
+    margin: 0;
+    color: hsl(0, 70%, 30%);
+  }
+
+  .download-suggestion {
+    margin-top: 1rem;
+  }
+
+  .suggestion-content {
+    background: hsl(220, 90%, 98%);
+    border: 1px solid hsl(220, 90%, 80%);
+    border-radius: 0.5rem;
+    padding: 1.5rem;
+  }
+
+  .suggestion-content h3 {
+    margin: 0 0 1rem 0;
+    color: hsl(220, 90%, 25%);
+  }
+
+  .suggestion-content p {
+    margin: 0 0 1.5rem 0;
+    color: hsl(220, 20%, 40%);
+  }
+
+  .suggestion-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .suggestion-buttons .btn-primary,
+  .suggestion-buttons .btn-secondary {
+    margin-right: 0;
+    flex: 1;
+    min-width: 200px;
+  }
+
   .btn-primary,
   .btn-secondary {
     padding: 0.75rem 1.5rem;
@@ -675,6 +744,7 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
   import { invoke, checkEnvironment } from '../utils/tauri-api.ts';
+  import { logInfo, logError, logWarn } from '../utils/logger';
 
   class OnboardingWizard {
     private currentStep: string = 'welcome';
@@ -747,14 +817,49 @@ import Layout from '../layouts/Layout.astro';
     private async loadOnboardingState() {
       try {
         const state = await invoke('get_onboarding_state');
-        console.log('Onboarding state:', state);
-        
-        // If already completed, redirect to main chat interface
+        console.log('🔍 Onboarding page: Onboarding state:', state);
+
+        // If already completed, redirect to dashboard
         if (state.config?.is_completed) {
-          window.location.href = '/';
+          console.log('🔍 Onboarding page: Onboarding already completed, redirecting to /dashboard');
+          window.location.href = '/dashboard';
+          return;
         }
+        
+        // Handle OpenCode server detection
+        if (state.opencode_detected && state.opencode_path) {
+          console.log('🔍 Onboarding page: OpenCode server detected at:', state.opencode_path);
+          this.setupData.detectedOpenCodePath = state.opencode_path;
+          this.showAutoDetectOption(state.opencode_path);
+        } else {
+          console.log('🔍 Onboarding page: No OpenCode server detected');
+          this.hideAutoDetectOption();
+        }
+
+        console.log('🔍 Onboarding page: Onboarding not completed, showing wizard');
       } catch (error) {
-        console.error('Failed to load onboarding state:', error);
+        console.error('❌ Onboarding page: Failed to load onboarding state:', error);
+      }
+    }
+    
+    private showAutoDetectOption(detectedPath: string) {
+      const autoDetectOption = document.getElementById('auto-detect-option');
+      const pathDisplay = document.getElementById('detected-path-display');
+      const autoDetectRadio = document.getElementById('auto-detect') as HTMLInputElement;
+      
+      if (autoDetectOption && pathDisplay && autoDetectRadio) {
+        pathDisplay.textContent = `OpenCode server found at: ${detectedPath}`;
+        autoDetectOption.style.display = 'block';
+        // Auto-select the detected option as recommended
+        autoDetectRadio.checked = true;
+        this.validateCurrentStep();
+      }
+    }
+    
+    private hideAutoDetectOption() {
+      const autoDetectOption = document.getElementById('auto-detect-option');
+      if (autoDetectOption) {
+        autoDetectOption.style.display = 'none';
       }
     }
 
@@ -881,15 +986,26 @@ import Layout from '../layouts/Layout.astro';
     }
 
     private setupServer() {
+      console.log('🔍 setupServer called');
       // Store server setup data
       const serverSetup = document.querySelector('input[name="server-setup"]:checked') as HTMLInputElement;
+      console.log('🔍 Selected server setup:', serverSetup?.value);
       this.setupData.serverSetup = serverSetup?.value;
       
-      if (serverSetup?.value === 'existing') {
+      if (serverSetup?.value === 'auto-detect') {
+        // Use the detected OpenCode path
+        console.log('🔍 Using auto-detect, detected path:', this.setupData.detectedOpenCodePath);
+        this.setupData.serverPath = this.setupData.detectedOpenCodePath;
+      } else if (serverSetup?.value === 'existing') {
         const pathInput = document.querySelector('#server-path') as HTMLInputElement;
+        console.log('🔍 Using existing path:', pathInput.value);
         this.setupData.serverPath = pathInput.value;
+      } else if (serverSetup?.value === 'auto-download') {
+        console.log('🔍 Using auto-download, no path needed');
+        this.setupData.serverPath = null; // Will be set by download process
       }
       
+      console.log('🔍 Final serverPath set to:', this.setupData.serverPath);
       this.nextStep();
     }
 
@@ -947,6 +1063,9 @@ import Layout from '../layouts/Layout.astro';
         items.push('OpenCode server will be downloaded automatically');
       } else if (this.setupData.serverSetup === 'existing') {
         items.push(`Using existing OpenCode server at: ${this.setupData.serverPath}`);
+      } else if (this.setupData.serverSetup === 'auto-detect') {
+        items.push(`Using detected OpenCode server at: ${this.setupData.serverPath}`);
+        console.log('🔍 Summary: auto-detect serverPath =', this.setupData.serverPath);
       }
       
       if (this.setupData.auth) {
@@ -964,6 +1083,12 @@ import Layout from '../layouts/Layout.astro';
 
     private async completeOnboarding() {
       try {
+        logInfo('Starting onboarding completion process');
+        console.log('🔍 Complete onboarding - setupData:', this.setupData);
+        console.log('🔍 Complete onboarding - serverPath:', this.setupData.serverPath);
+        console.log('🔍 Complete onboarding - serverSetup:', this.setupData.serverSetup);
+        console.log('🔍 Complete onboarding - detectedPath:', this.setupData.detectedOpenCodePath);
+        
         // First create the owner account if auth data is provided
         if (this.setupData.auth) {
           console.log('Creating owner account for:', this.setupData.auth.username);
@@ -978,22 +1103,86 @@ import Layout from '../layouts/Layout.astro';
         }
 
         // Then complete the onboarding
+        console.log('🔍 Calling complete_onboarding with path:', this.setupData.serverPath);
+        
+        // Validate server path for auto-detect setup
+        if (this.setupData.serverSetup === 'auto-detect' && !this.setupData.serverPath) {
+          logError('Auto-detect selected but serverPath is null - attempting recovery');
+          if (this.setupData.detectedOpenCodePath) {
+            logInfo(`Recovery successful: using detected path ${this.setupData.detectedOpenCodePath}`);
+            this.setupData.serverPath = this.setupData.detectedOpenCodePath;
+          } else {
+            logError('Failed to recover server path - no detected path available');
+            throw new Error('OpenCode server path not configured. Please restart onboarding.');
+          }
+        }
+
+        // Validate path before attempting completion
+        if (this.setupData.serverPath && !this.setupData.serverPath.trim()) {
+          this.showError('Please provide a valid OpenCode server path');
+          return;
+        }
+        
         await invoke('complete_onboarding', {
           opencode_server_path: this.setupData.serverPath || null
         });
 
-        console.log('Onboarding completed successfully');
-        // Redirect to dashboard
+        logInfo('Onboarding completed successfully - redirecting to dashboard');
         window.location.href = '/dashboard';
       } catch (error) {
-        console.error('Failed to complete onboarding:', error);
-        alert('Failed to complete onboarding. Please try again.');
+        logError('Failed to complete onboarding', error.message || String(error));
+        // Display specific validation errors
+        this.showError(`Onboarding failed: ${error}`);
+        // Provide guidance for fixing the issue
+        if (error.toString().includes('executable not found')) {
+          this.showDownloadSuggestion();
+        }
       }
     }
 
     private browseServerPath() {
       // TODO: Implement file browser using Tauri dialog
       console.log('Browse server path');
+    }
+
+    private showError(message: string) {
+      const errorContainer = document.getElementById('error-container') || this.createErrorContainer();
+      errorContainer.innerHTML = `
+        <div class="error-message">
+          <h3>❌ Error</h3>
+          <p>${message}</p>
+        </div>
+      `;
+      errorContainer.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    private createErrorContainer() {
+      const container = document.createElement('div');
+      container.id = 'error-container';
+      container.className = 'error-container';
+      const completeStep = document.querySelector('.step-content[data-step="complete"]');
+      completeStep?.insertBefore(container, completeStep.firstChild);
+      return container;
+    }
+
+    private showDownloadSuggestion() {
+      // Phase 2 will implement auto-download UI here
+      const suggestion = document.createElement('div');
+      suggestion.className = 'download-suggestion';
+      suggestion.innerHTML = `
+        <div class="suggestion-content">
+          <h3>📥 OpenCode Server Not Found</h3>
+          <p>OpenCode server not found. Would you like to:</p>
+          <div class="suggestion-buttons">
+            <button class="btn-primary" onclick="startAutoDownload()">Download OpenCode Server Automatically</button>
+            <button class="btn-secondary" onclick="selectManualPath()">Browse for Existing Installation</button>
+          </div>
+        </div>
+      `;
+      const errorContainer = document.getElementById('error-container');
+      if (errorContainer) {
+        errorContainer.appendChild(suggestion);
+      }
     }
 
     private validateCurrentStep(): boolean {
@@ -1017,7 +1206,11 @@ import Layout from '../layouts/Layout.astro';
           if (serverSetup?.value === 'existing') {
             const pathInput = document.querySelector('#server-path') as HTMLInputElement;
             isValid = isValid && !!pathInput.value.trim();
+          } else if (serverSetup?.value === 'auto-detect') {
+            // Auto-detect is always valid if selected (we detected a path)
+            isValid = !!this.setupData.detectedOpenCodePath;
           }
+          // auto-download option needs no additional validation
           break;
           
         case 'security':

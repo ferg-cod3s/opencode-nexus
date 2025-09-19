@@ -758,36 +758,50 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
     }
 
     async init() {
+      console.log('🔍 Dashboard page: Starting initialization...');
+
       // Check authentication first - redirect to login if not authenticated
       if (!await this.checkAuthentication()) {
+        console.log('🔍 Dashboard page: Authentication failed, redirecting to /login');
         window.location.href = '/login';
         return;
       }
+
+      console.log('🔍 Dashboard page: Authentication passed, loading dashboard...');
 
       this.bindEvents();
       await this.loadInitialState();
       await this.setupEventListeners();
       this.startPeriodicUpdates();
+
+      console.log('🔍 Dashboard page: Initialization complete');
     }
 
     async checkAuthentication() {
       try {
+        console.log('🔍 Dashboard page: Checking authentication...');
+
         // Check if user is authenticated via sessionStorage
         const authenticated = sessionStorage.getItem('authenticated');
         const username = sessionStorage.getItem('username');
-        
+
+        console.log('🔍 Dashboard page: Session storage - authenticated:', authenticated, 'username:', username);
+
         if (!authenticated || !username) {
+          console.log('🔍 Dashboard page: Not authenticated, redirecting to /login');
           return false;
         }
+
+        console.log('🔍 Dashboard page: Authentication successful for user:', username);
 
         // Store current username and update display
         this.currentUsername = username;
         this.updateUserDisplay(username);
         this.updateWelcomeMessage(username);
-        
+
         return true;
       } catch (error) {
-        console.error('Authentication check failed:', error);
+        console.error('❌ Dashboard page: Authentication check failed:', error);
         return false;
       }
     }
