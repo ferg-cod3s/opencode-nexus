@@ -1,0 +1,607 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus - Logs">
+  <main class="logs-container">
+    <!-- Main Navigation Header -->
+    <header class="dashboard-header">
+      <div class="header-content">
+        <h1>OpenCode Nexus</h1>
+        <div class="user-menu" data-testid="user-menu">
+          <span id="username-display">Loading...</span>
+          <button id="logout-button" data-testid="logout-button" class="logout-btn">Sign Out</button>
+        </div>
+        <nav class="dashboard-nav">
+          <a href="/dashboard" class="nav-link" data-testid="dashboard-tab">Dashboard</a>
+          <a href="/chat" class="nav-link" data-testid="chat-tab">Chat</a>
+          <a href="/settings" class="nav-link">Settings</a>
+          <a href="/logs" class="nav-link active">Logs</a>
+          <a href="/help" class="nav-link">Help</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Page-specific header -->
+    <header class="logs-header">
+      <div class="header-content">
+        <h2>Application Logs</h2>
+        <div class="header-actions">
+          <button id="refresh-logs" class="btn-secondary" data-testid="refresh-logs">
+            <span class="btn-icon">🔄</span>
+            Refresh
+          </button>
+          <button id="clear-logs" class="btn-secondary" data-testid="clear-logs">
+            <span class="btn-icon">🗑️</span>
+            Clear
+          </button>
+          <button id="export-logs" class="btn-primary" data-testid="export-logs">
+            <span class="btn-icon">📤</span>
+            Export
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="logs-content">
+      <div class="logs-controls">
+        <div class="filter-controls">
+          <label for="log-level-filter">Filter by level:</label>
+          <select id="log-level-filter" data-testid="log-level-filter">
+            <option value="all">All Levels</option>
+            <option value="error">Errors Only</option>
+            <option value="warn">Warnings+</option>
+            <option value="info">Info+</option>
+            <option value="debug">Debug+</option>
+          </select>
+        </div>
+
+        <div class="search-controls">
+          <label for="log-search">Search:</label>
+          <input type="text" id="log-search" placeholder="Search logs..." data-testid="log-search">
+        </div>
+
+        <div class="auto-scroll-controls">
+          <label for="auto-scroll">
+            <input type="checkbox" id="auto-scroll" checked data-testid="auto-scroll">
+            Auto-scroll to bottom
+          </label>
+        </div>
+      </div>
+
+      <div class="logs-display" data-testid="logs-display">
+        <div id="logs-container" class="logs-entries">
+          <div class="log-entry loading">
+            <span class="log-timestamp">Loading...</span>
+            <span class="log-level">INFO</span>
+            <span class="log-message">Initializing log viewer...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .logs-container {
+    min-height: 100vh;
+    background: hsl(220, 15%, 97%);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logs-header {
+    background: hsl(220, 90%, 25%);
+    color: white;
+    padding: 1rem 2rem;
+    box-shadow: 0 2px 4px hsla(0, 0%, 0%, 0.1);
+  }
+
+  .header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .header-content h1 {
+    font-size: 1.5rem;
+    font-weight: 300;
+    margin: 0;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    padding: 0.5rem 1rem;
+    border-radius: 0.25rem;
+    border: none;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-primary {
+    background: hsla(0, 0%, 100%, 0.1);
+    color: white;
+    border: 1px solid hsla(0, 0%, 100%, 0.2);
+  }
+
+  .btn-primary:hover {
+    background: hsla(0, 0%, 100%, 0.2);
+    border-color: hsla(0, 0%, 100%, 0.3);
+  }
+
+  .btn-secondary {
+    background: hsla(0, 0%, 100%, 0.1);
+    color: white;
+    border: 1px solid hsla(0, 0%, 100%, 0.2);
+  }
+
+  .btn-secondary:hover {
+    background: hsla(0, 0%, 100%, 0.2);
+    border-color: hsla(0, 0%, 100%, 0.3);
+  }
+
+  .logs-content {
+    flex: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    padding: 1rem 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .logs-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+    border: 1px solid hsl(0, 0%, 90%);
+  }
+
+  .filter-controls,
+  .search-controls,
+  .auto-scroll-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .filter-controls label,
+  .search-controls label,
+  .auto-scroll-controls label {
+    font-weight: 500;
+    color: hsl(220, 20%, 40%);
+    font-size: 0.875rem;
+  }
+
+  .filter-controls select,
+  .search-controls input {
+    padding: 0.375rem 0.75rem;
+    border: 1px solid hsl(0, 0%, 90%);
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+  }
+
+  .filter-controls select:focus,
+  .search-controls input:focus {
+    outline: none;
+    border-color: hsl(220, 90%, 60%);
+    box-shadow: 0 0 0 2px hsla(220, 90%, 60%, 0.2);
+  }
+
+  .logs-display {
+    flex: 1;
+    background: white;
+    border-radius: 0.5rem;
+    border: 1px solid hsl(0, 0%, 90%);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logs-entries {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+
+  .log-entry {
+    display: flex;
+    gap: 1rem;
+    padding: 0.25rem 0;
+    border-bottom: 1px solid hsl(0, 0%, 95%);
+    align-items: flex-start;
+  }
+
+  .log-entry:last-child {
+    border-bottom: none;
+  }
+
+  .log-timestamp {
+    color: hsl(220, 20%, 60%);
+    font-size: 0.75rem;
+    min-width: 140px;
+    flex-shrink: 0;
+  }
+
+  .log-level {
+    font-weight: 600;
+    min-width: 60px;
+    flex-shrink: 0;
+    text-align: center;
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    font-size: 0.75rem;
+  }
+
+  .log-level.error {
+    background: hsl(0, 70%, 95%);
+    color: hsl(0, 70%, 40%);
+  }
+
+  .log-level.warn {
+    background: hsl(45, 100%, 95%);
+    color: hsl(45, 100%, 30%);
+  }
+
+  .log-level.info {
+    background: hsl(220, 90%, 95%);
+    color: hsl(220, 90%, 40%);
+  }
+
+  .log-level.debug {
+    background: hsl(120, 50%, 95%);
+    color: hsl(120, 50%, 30%);
+  }
+
+  .log-message {
+    flex: 1;
+    word-wrap: break-word;
+  }
+
+  .log-entry.error .log-message {
+    color: hsl(0, 70%, 40%);
+  }
+
+  .log-entry.warn .log-message {
+    color: hsl(45, 100%, 30%);
+  }
+
+  .log-entry.info .log-message {
+    color: hsl(220, 20%, 30%);
+  }
+
+  .log-entry.debug .log-message {
+    color: hsl(120, 50%, 30%);
+  }
+
+  .log-entry.loading {
+    color: hsl(220, 20%, 60%);
+    font-style: italic;
+  }
+
+  /* Responsive design */
+  @media (max-width: 768px) {
+    .header-content {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .header-actions {
+      width: 100%;
+      justify-content: center;
+    }
+
+    .logs-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .logs-entries {
+      font-size: 0.75rem;
+    }
+
+    .log-entry {
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .log-timestamp,
+    .log-level {
+      min-width: auto;
+    }
+  }
+
+  /* Focus indicators */
+  .btn-primary:focus,
+  .btn-secondary:focus,
+  select:focus,
+  input:focus {
+    outline: 2px solid hsl(220, 90%, 60%);
+    outline-offset: 2px;
+  }
+
+  /* High contrast mode */
+  @media (prefers-contrast: high) {
+    .logs-display {
+      border: 2px solid hsl(0, 0%, 0%);
+    }
+
+    .log-entry {
+      border-bottom: 1px solid hsl(0, 0%, 0%);
+    }
+  }
+</style>
+
+<script>
+  import { invoke } from '../utils/tauri-api.ts';
+  import '../utils/logger'; // Initialize logger with global error handlers
+
+  class LogViewer {
+    private logs: any[] = [];
+    private filteredLogs: any[] = [];
+    private autoScroll = true;
+
+    constructor() {
+      this.init();
+    }
+
+    private init() {
+      this.bindEvents();
+      this.loadLogs();
+      this.startLogUpdates();
+    }
+
+    private bindEvents() {
+      // Refresh logs
+      document.getElementById('refresh-logs')?.addEventListener('click', () => {
+        this.loadLogs();
+      });
+
+      // Clear logs
+      document.getElementById('clear-logs')?.addEventListener('click', () => {
+        this.clearLogs();
+      });
+
+      // Export logs
+      document.getElementById('export-logs')?.addEventListener('click', () => {
+        this.exportLogs();
+      });
+
+      // Filter by level
+      document.getElementById('log-level-filter')?.addEventListener('change', (e) => {
+        this.filterLogs((e.target as HTMLSelectElement).value);
+      });
+
+      // Search
+      document.getElementById('log-search')?.addEventListener('input', (e) => {
+        this.searchLogs((e.target as HTMLInputElement).value);
+      });
+
+      // Auto-scroll toggle
+      document.getElementById('auto-scroll')?.addEventListener('change', (e) => {
+        this.autoScroll = (e.target as HTMLInputElement).checked;
+      });
+    }
+
+    private async loadLogs() {
+      try {
+        // Fetch logs from backend (now includes both backend and frontend logs)
+        const backendLogs = await invoke('get_application_logs') as string[];
+        console.log('🔍 [LOGS] Fetched logs from backend:', backendLogs.length);
+
+        // Parse backend logs (which now include frontend logs sent via log_frontend_error)
+        const parsedBackendLogs = this.parseBackendLogs(backendLogs);
+        
+        // Also get any browser console logs that weren't sent to backend
+        const frontendLogs = this.getBrowserLogs();
+
+        // Combine and sort logs by timestamp
+        this.logs = [...parsedBackendLogs, ...frontendLogs]
+          .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+          
+        this.filteredLogs = [...this.logs];
+        this.renderLogs();
+        
+        console.log('🔍 [LOGS] Total logs loaded:', this.logs.length);
+      } catch (error) {
+        console.error('Failed to load logs:', error);
+        // Fallback to frontend logs only
+        this.logs = this.getBrowserLogs();
+        this.filteredLogs = [...this.logs];
+        this.renderLogs();
+      }
+    }
+
+    private parseBackendLogs(backendLogs: string[]): any[] {
+      return backendLogs.map(logLine => {
+        // Parse log format: [timestamp] message
+        const match = logLine.match(/^\[([^\]]+)\]\s*(.+)$/);
+        if (match) {
+          const [, timestamp, message] = match;
+
+          // Determine log level from message content
+          let level = 'info';
+          if (message.includes('❌') || message.includes('Error') || message.includes('Failed')) {
+            level = 'error';
+          } else if (message.includes('⚠️') || message.includes('Warning')) {
+            level = 'warn';
+          } else if (message.includes('🔍') || message.includes('🔐') || message.includes('👤') || message.includes('🚀')) {
+            level = 'debug';
+          }
+
+          return {
+            timestamp: new Date(timestamp).toISOString(),
+            level,
+            message
+          };
+        }
+
+        // Fallback for unparseable lines
+        return {
+          timestamp: new Date().toISOString(),
+          level: 'info',
+          message: logLine
+        };
+      });
+    }
+
+    private getBrowserLogs(): any[] {
+      // Get recent console logs from performance timing
+      const logs = [];
+
+      // Add a startup log
+      logs.push({
+        timestamp: new Date().toISOString(),
+        level: 'info',
+        message: '🔍 Frontend: Log viewer initialized'
+      });
+
+      return logs;
+    }
+
+    private filterLogs(level: string) {
+      if (level === 'all') {
+        this.filteredLogs = [...this.logs];
+      } else {
+        const levelMap: { [key: string]: string[] } = {
+          'error': ['error'],
+          'warn': ['error', 'warn'],
+          'info': ['error', 'warn', 'info'],
+          'debug': ['error', 'warn', 'info', 'debug']
+        };
+
+        this.filteredLogs = this.logs.filter(log => levelMap[level]?.includes(log.level));
+      }
+
+      this.renderLogs();
+    }
+
+    private searchLogs(query: string) {
+      if (!query.trim()) {
+        this.filteredLogs = [...this.logs];
+      } else {
+        const lowerQuery = query.toLowerCase();
+        this.filteredLogs = this.logs.filter(log =>
+          log.message.toLowerCase().includes(lowerQuery) ||
+          log.level.toLowerCase().includes(lowerQuery)
+        );
+      }
+
+      this.renderLogs();
+    }
+
+    private renderLogs() {
+      const container = document.getElementById('logs-container');
+      if (!container) return;
+
+      container.innerHTML = '';
+
+      if (this.filteredLogs.length === 0) {
+        container.innerHTML = '<div class="log-entry"><span class="log-message">No logs found</span></div>';
+        return;
+      }
+
+      this.filteredLogs.forEach(log => {
+        const logEntry = document.createElement('div');
+        logEntry.className = `log-entry ${log.level}`;
+
+        const timestamp = new Date(log.timestamp).toLocaleString();
+        const level = log.level.toUpperCase();
+
+        logEntry.innerHTML = `
+          <span class="log-timestamp">${timestamp}</span>
+          <span class="log-level ${log.level}">${level}</span>
+          <span class="log-message">${this.escapeHtml(log.message)}</span>
+        `;
+
+        container.appendChild(logEntry);
+      });
+
+      if (this.autoScroll) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+
+    private escapeHtml(text: string): string {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    private async clearLogs() {
+      try {
+        // Clear logs on backend
+        await invoke('clear_application_logs');
+        
+        // Clear frontend logs
+        this.logs = [];
+        this.filteredLogs = [];
+        this.renderLogs();
+        
+        console.log('✅ [LOGS] Logs cleared successfully');
+      } catch (error) {
+        console.error('❌ [LOGS] Failed to clear logs:', error);
+        // Still clear frontend logs even if backend fails
+        this.logs = [];
+        this.filteredLogs = [];
+        this.renderLogs();
+      }
+    }
+
+    private exportLogs() {
+      const logText = this.filteredLogs.map(log =>
+        `[${new Date(log.timestamp).toISOString()}] ${log.level.toUpperCase()}: ${log.message}`
+      ).join('\n');
+
+      const blob = new Blob([logText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `opencode-nexus-logs-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    private showError(message: string) {
+      const container = document.getElementById('logs-container');
+      if (container) {
+        container.innerHTML = `<div class="log-entry error"><span class="log-message">${message}</span></div>`;
+      }
+    }
+
+    private startLogUpdates() {
+      // Update logs every 5 seconds
+      setInterval(() => {
+        this.loadLogs();
+      }, 5000);
+    }
+  }
+
+  // Initialize when page loads
+  document.addEventListener('DOMContentLoaded', () => {
+    new LogViewer();
+  });
+</script>
