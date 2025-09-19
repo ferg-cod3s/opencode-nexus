@@ -1,0 +1,18 @@
+name: Cleanup Artifacts
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly at midnight on Sunday
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old artifacts
+        uses: actions/delete-artifact@v2
+        with:
+          # Remove artifacts older than 7 days
+          age: '7 days'
+          # Optional: Only keep the most recent successful artifact
+          skip-recent: 1
