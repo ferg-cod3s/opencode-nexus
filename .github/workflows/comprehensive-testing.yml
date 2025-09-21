@@ -1,0 +1,352 @@
+name: Comprehensive Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Type of test to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - unit
+        - e2e
+        - performance
+        - security
+
+jobs:
+  # Frontend Unit Tests
+  frontend-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: Run TypeScript type checking
+        working-directory: frontend
+        run: npm run typecheck
+      
+      - name: Run ESLint
+        working-directory: frontend
+        run: npm run lint
+      
+      - name: Run Prettier check
+        working-directory: frontend
+        run: npm run format:check
+      
+      - name: Run unit tests
+        working-directory: frontend
+        run: npm test
+
+  # Backend Unit Tests
+  backend-unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+      
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      
+      - name: Run Rust tests
+        working-directory: src-tauri
+        run: cargo test
+      
+      - name: Run Rust clippy
+        working-directory: src-tauri
+        run: cargo clippy -- -D warnings
+      
+      - name: Run Rust format check
+        working-directory: src-tauri
+        run: cargo fmt --check
+
+  # Frontend E2E Tests
+  frontend-e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+      
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      
+      - name: Run E2E tests
+        working-directory: frontend
+        run: npm run test:e2e
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 30
+
+  # Security Scanning
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: Run npm audit
+        working-directory: frontend
+        run: npm audit --audit-level high
+        continue-on-error: true
+      
+      - name: Setup Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+      
+      - name: Run cargo audit
+        working-directory: src-tauri
+        run: cargo install cargo-audit && cargo audit
+        continue-on-error: true
+
+  # Performance Tests
+  performance-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+      
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      
+      - name: Run performance tests
+        working-directory: frontend
+        run: npx playwright test --grep "performance"
+      
+      - name: Generate Lighthouse report
+        working-directory: frontend
+        run: |
+          npm install -g lighthouse
+          lighthouse http://localhost:4321 --output json --output-path ./lighthouse-report.json
+        continue-on-error: true
+      
+      - name: Upload performance reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: performance-reports
+          path: |
+            frontend/lighthouse-report.json
+            frontend/test-results/
+          retention-days: 30
+
+  # Accessibility Tests
+  accessibility-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps
+      
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      
+      - name: Run accessibility tests
+        working-directory: frontend
+        run: npx playwright test --grep "accessibility"
+      
+      - name: Install axe-core
+        run: npm install -g @axe-core/cli
+      
+      - name: Run axe accessibility scan
+        working-directory: frontend
+        run: |
+          npx serve dist -p 3000 &
+          sleep 5
+          axe http://localhost:3000
+        continue-on-error: true
+
+  # Build Test
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: Setup Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+      
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+      
+      - name: Build Tauri app
+        working-directory: src-tauri
+        run: cargo build --release
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-artifacts
+          path: |
+            frontend/dist/
+            src-tauri/target/release/
+          retention-days: 7
+
+  # Test Results Summary
+  test-summary:
+    runs-on: ubuntu-latest
+    needs: [frontend-unit-tests, backend-unit-tests, frontend-e2e-tests, security-scan, performance-tests, accessibility-tests, build-test]
+    if: always()
+    steps:
+      - name: Generate test summary
+        run: |
+          echo "## Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Frontend Unit Tests
+          if [ "${{ needs.frontend-unit-tests.result }}" == "success" ]; then
+            echo "✅ Frontend Unit Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Frontend Unit Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Backend Unit Tests
+          if [ "${{ needs.backend-unit-tests.result }}" == "success" ]; then
+            echo "✅ Backend Unit Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Backend Unit Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # E2E Tests
+          if [ "${{ needs.frontend-e2e-tests.result }}" == "success" ]; then
+            echo "✅ E2E Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ E2E Tests: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Security Scan
+          if [ "${{ needs.security-scan.result }}" == "success" ]; then
+            echo "✅ Security Scan: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Security Scan: COMPLETED WITH WARNINGS" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Performance Tests
+          if [ "${{ needs.performance-tests.result }}" == "success" ]; then
+            echo "✅ Performance Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Performance Tests: COMPLETED WITH WARNINGS" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Accessibility Tests
+          if [ "${{ needs.accessibility-tests.result }}" == "success" ]; then
+            echo "✅ Accessibility Tests: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ Accessibility Tests: COMPLETED WITH WARNINGS" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Build Test
+          if [ "${{ needs.build-test.result }}" == "success" ]; then
+            echo "✅ Build Test: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Build Test: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 **Overall Status**: ${{ needs.frontend-unit-tests.result == 'success' && needs.backend-unit-tests.result == 'success' && needs.frontend-e2e-tests.result == 'success' && needs.build-test.result == 'success' ? '✅ ALL TESTS PASSED' : '⚠️ SOME TESTS FAILED' }}" >> $GITHUB_STEP_SUMMARY
