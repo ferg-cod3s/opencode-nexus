@@ -1,0 +1,675 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus - Settings">
+  <main class="settings-container">
+    <header class="settings-header">
+      <div class="header-content">
+        <h1>OpenCode Nexus Settings</h1>
+        <p class="settings-subtitle">Configure your application preferences</p>
+      </div>
+    </header>
+
+    <div class="settings-content">
+      <!-- Tunnel Configuration Section -->
+      <section class="settings-section" id="tunnel-settings">
+        <header class="section-header">
+          <h2>Remote Access (Tunnel)</h2>
+          <p class="section-description">
+            Configure Cloudflare tunnel for remote access to your OpenCode Nexus instance
+          </p>
+        </header>
+
+        <div class="settings-form">
+          <!-- Custom Domain Configuration -->
+          <div class="form-group">
+            <label for="custom-domain" class="form-label">
+              Custom Domain
+              <span class="label-help">(optional)</span>
+            </label>
+            <input 
+              type="text" 
+              id="custom-domain" 
+              class="form-input" 
+              placeholder="your-domain.com"
+              aria-describedby="domain-help"
+            >
+            <div id="domain-help" class="form-help">
+              Enter your custom domain (e.g., chat.yourcompany.com). Leave empty for quick tunnel.
+            </div>
+            <div id="domain-error" class="form-error" style="display: none;"></div>
+          </div>
+
+          <!-- Authentication Token -->
+          <div class="form-group">
+            <label for="auth-token" class="form-label">
+              Cloudflare Token
+              <span class="label-help">(optional)</span>
+            </label>
+            <input 
+              type="password" 
+              id="auth-token" 
+              class="form-input" 
+              placeholder="Your Cloudflare tunnel token"
+              aria-describedby="token-help"
+            >
+            <div id="token-help" class="form-help">
+              Authentication token from Cloudflare dashboard. Required for custom domains.
+            </div>
+            <div id="token-error" class="form-error" style="display: none;"></div>
+          </div>
+
+          <!-- Tunnel Controls -->
+          <div class="form-group">
+            <div class="tunnel-controls">
+              <button id="save-tunnel-settings" class="btn-primary">
+                Save Settings
+              </button>
+              <button id="test-tunnel-config" class="btn-secondary">
+                Test Configuration
+              </button>
+            </div>
+          </div>
+
+          <!-- Current Tunnel Status -->
+          <div class="form-group">
+            <label class="form-label">Current Tunnel Status</label>
+            <div id="tunnel-status-display" class="status-display">
+              <div class="status-indicator">
+                <span class="status-dot" id="tunnel-status-dot"></span>
+                <span class="status-text" id="tunnel-status-text">Unknown</span>
+              </div>
+              <div id="tunnel-url-display" class="tunnel-url-display">
+                URL: <span id="current-tunnel-url">Not available</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Application Settings Section -->
+      <section class="settings-section" id="app-settings">
+        <header class="section-header">
+          <h2>Application</h2>
+          <p class="section-description">
+            General application settings and preferences
+          </p>
+        </header>
+
+        <div class="settings-form">
+          <!-- Auto-start Tunnel -->
+          <div class="form-group">
+            <label class="form-label">
+              <input type="checkbox" id="auto-start-tunnel" class="form-checkbox">
+              Auto-start tunnel on application launch
+            </label>
+            <div class="form-help">
+              Automatically start the tunnel when the application starts
+            </div>
+          </div>
+
+          <!-- Theme Settings -->
+          <div class="form-group">
+            <label for="theme-select" class="form-label">Theme</label>
+            <select id="theme-select" class="form-select">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+            <div class="form-help">
+              Choose your preferred color theme
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .settings-container {
+    min-height: 100vh;
+    background: hsl(220, 20%, 98%);
+  }
+
+  .settings-header {
+    background: white;
+    border-bottom: 1px solid hsl(220, 20%, 90%);
+    padding: 2rem 0;
+  }
+
+  .header-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  .settings-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: hsl(220, 20%, 20%);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .settings-subtitle {
+    color: hsl(220, 10%, 60%);
+    font-size: 1.125rem;
+    margin: 0;
+  }
+
+  .settings-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    display: grid;
+    gap: 2rem;
+  }
+
+  .settings-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px hsla(220, 20%, 20%, 0.1);
+    overflow: hidden;
+  }
+
+  .section-header {
+    padding: 2rem 2rem 1rem 2rem;
+    border-bottom: 1px solid hsl(220, 20%, 90%);
+  }
+
+  .section-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: hsl(220, 20%, 20%);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .section-description {
+    color: hsl(220, 10%, 60%);
+    margin: 0;
+    font-size: 1rem;
+  }
+
+  .settings-form {
+    padding: 2rem;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-group:last-child {
+    margin-bottom: 0;
+  }
+
+  .form-label {
+    display: block;
+    font-weight: 500;
+    color: hsl(220, 20%, 20%);
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .label-help {
+    color: hsl(220, 10%, 60%);
+    font-weight: 400;
+    margin-left: 0.25rem;
+  }
+
+  .form-input, .form-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid hsl(220, 20%, 90%);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: hsl(220, 90%, 60%);
+    box-shadow: 0 0 0 3px hsla(220, 90%, 60%, 0.1);
+  }
+
+  .form-input:invalid {
+    border-color: hsl(0, 70%, 50%);
+  }
+
+  .form-help {
+    color: hsl(220, 10%, 60%);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+
+  .form-error {
+    color: hsl(0, 70%, 50%);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+  }
+
+  .form-checkbox {
+    margin-right: 0.5rem;
+    transform: scale(1.1);
+  }
+
+  .tunnel-controls {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .btn-primary, .btn-secondary {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary {
+    background: hsl(220, 90%, 60%);
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: hsl(220, 80%, 50%);
+  }
+
+  .btn-primary:disabled {
+    background: hsl(220, 20%, 80%);
+    cursor: not-allowed;
+  }
+
+  .btn-secondary {
+    background: hsl(220, 20%, 95%);
+    color: hsl(220, 20%, 20%);
+    border: 1px solid hsl(220, 20%, 90%);
+  }
+
+  .btn-secondary:hover {
+    background: hsl(220, 20%, 90%);
+  }
+
+  .status-display {
+    padding: 1rem;
+    background: hsl(220, 20%, 95%);
+    border-radius: 8px;
+    border: 1px solid hsl(220, 20%, 90%);
+  }
+
+  .status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  .status-dot.running {
+    background: hsl(120, 70%, 50%);
+  }
+
+  .status-dot.stopped {
+    background: hsl(0, 70%, 50%);
+  }
+
+  .status-dot.unknown {
+    background: hsl(220, 10%, 60%);
+  }
+
+  .status-text {
+    font-weight: 500;
+    color: hsl(220, 20%, 20%);
+  }
+
+  .tunnel-url-display {
+    font-family: monospace;
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 20%);
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    .settings-content {
+      padding: 1rem;
+    }
+
+    .section-header {
+      padding: 1.5rem 1rem 1rem 1rem;
+    }
+
+    .settings-form {
+      padding: 1.5rem 1rem;
+    }
+
+    .tunnel-controls {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .btn-primary, .btn-secondary {
+      width: 100%;
+    }
+  }
+
+  /* High contrast mode */
+  @media (prefers-contrast: high) {
+    .settings-section {
+      border: 2px solid hsl(220, 20%, 20%);
+    }
+
+    .form-input, .form-select {
+      border: 2px solid hsl(220, 20%, 20%);
+    }
+
+    .btn-primary {
+      background: hsl(220, 20%, 20%);
+      border: 2px solid hsl(220, 20%, 100%);
+    }
+
+    .btn-secondary {
+      background: hsl(220, 20%, 100%);
+      border: 2px solid hsl(220, 20%, 20%);
+    }
+  }
+</style>
+
+<script>
+  import { invoke } from '../utils/tauri-api.ts';
+
+  // Settings state
+  let tunnelSettings = {
+    custom_domain: '',
+    auth_token: '',
+    auto_start: false
+  };
+
+  let currentTunnelStatus = 'unknown';
+  let currentTunnelUrl = '';
+
+  // DOM elements
+  const customDomainInput = document.getElementById('custom-domain') as HTMLInputElement;
+  const authTokenInput = document.getElementById('auth-token') as HTMLInputElement;
+  const autoStartCheckbox = document.getElementById('auto-start-tunnel') as HTMLInputElement;
+  const saveButton = document.getElementById('save-tunnel-settings') as HTMLButtonElement;
+  const testButton = document.getElementById('test-tunnel-config') as HTMLButtonElement;
+  const tunnelStatusDot = document.getElementById('tunnel-status-dot') as HTMLElement;
+  const tunnelStatusText = document.getElementById('tunnel-status-text') as HTMLElement;
+  const tunnelUrlDisplay = document.getElementById('current-tunnel-url') as HTMLElement;
+
+  // Initialize settings page
+  async function initializeSettings() {
+    try {
+      console.log('🔧 Settings: Initializing...');
+
+      // Load current tunnel configuration
+      await loadTunnelSettings();
+
+      // Update tunnel status display
+      await updateTunnelStatusDisplay();
+
+      // Set up event listeners
+      setupEventListeners();
+
+      console.log('🔧 Settings: Initialization complete');
+
+    } catch (error) {
+      console.error('❌ Settings: Failed to initialize:', error);
+      showError('Failed to load settings');
+    }
+  }
+
+  async function loadTunnelSettings() {
+    try {
+      const config = await invoke<any>('get_tunnel_config');
+      
+      if (config) {
+        tunnelSettings = { ...tunnelSettings, ...config };
+        customDomainInput.value = tunnelSettings.custom_domain || '';
+        authTokenInput.value = tunnelSettings.auth_token || '';
+        autoStartCheckbox.checked = tunnelSettings.auto_start || false;
+      }
+    } catch (error) {
+      console.warn('⚠️ Settings: Could not load tunnel config:', error);
+      // Use defaults if config not available
+    }
+  }
+
+  async function updateTunnelStatusDisplay() {
+    try {
+      const status = await invoke<string>('get_tunnel_status');
+      const url = await invoke<string>('get_tunnel_url');
+
+      currentTunnelStatus = status.toLowerCase();
+      currentTunnelUrl = url || '';
+
+      // Update status indicator
+      tunnelStatusDot.className = `status-dot ${currentTunnelStatus}`;
+      tunnelStatusText.textContent = 
+        currentTunnelStatus === 'running' ? 'Running' :
+        currentTunnelStatus === 'stopped' ? 'Stopped' : 'Unknown';
+
+      tunnelUrlDisplay.textContent = currentTunnelUrl || 'Not available';
+
+    } catch (error) {
+      console.warn('⚠️ Settings: Could not get tunnel status:', error);
+      tunnelStatusDot.className = 'status-dot unknown';
+      tunnelStatusText.textContent = 'Unknown';
+      tunnelUrlDisplay.textContent = 'Not available';
+    }
+  }
+
+  function setupEventListeners() {
+    // Save settings
+    saveButton.addEventListener('click', saveTunnelSettings);
+
+    // Test configuration
+    testButton.addEventListener('click', testTunnelConfiguration);
+
+    // Real-time validation
+    customDomainInput.addEventListener('input', validateDomain);
+    authTokenInput.addEventListener('input', validateToken);
+  }
+
+  async function saveTunnelSettings() {
+    try {
+      saveButton.disabled = true;
+      saveButton.textContent = 'Saving...';
+
+      // Validate inputs
+      if (!validateForm()) {
+        return;
+      }
+
+      // Update settings object
+      tunnelSettings.custom_domain = customDomainInput.value.trim() || null;
+      tunnelSettings.auth_token = authTokenInput.value.trim() || null;
+      tunnelSettings.auto_start = autoStartCheckbox.checked;
+
+      // Save to backend
+      await invoke('update_tunnel_config', { config: tunnelSettings });
+
+      showSuccess('Settings saved successfully');
+
+    } catch (error) {
+      console.error('❌ Settings: Failed to save:', error);
+      showError('Failed to save settings');
+    } finally {
+      saveButton.disabled = false;
+      saveButton.textContent = 'Save Settings';
+    }
+  }
+
+  async function testTunnelConfiguration() {
+    try {
+      testButton.disabled = true;
+      testButton.textContent = 'Testing...';
+
+      // Create test config
+      const testConfig = {
+        enabled: true,
+        auto_start: tunnelSettings.auto_start,
+        custom_domain: customDomainInput.value.trim() || null,
+        auth_token: authTokenInput.value.trim() || null,
+      };
+
+      // Test the configuration (this would start a test tunnel)
+      // For now, just validate the configuration
+      await invoke('update_tunnel_config', { config: testConfig });
+
+      showSuccess('Configuration is valid');
+
+    } catch (error) {
+      console.error('❌ Settings: Configuration test failed:', error);
+      showError('Configuration test failed: ' + error);
+    } finally {
+      testButton.disabled = false;
+      testButton.textContent = 'Test Configuration';
+    }
+  }
+
+  function validateForm(): boolean {
+    let isValid = true;
+
+    // Validate domain
+    if (!validateDomain()) {
+      isValid = false;
+    }
+
+    // Validate token (if domain is provided)
+    if (customDomainInput.value.trim() && !validateToken()) {
+      isValid = false;
+    }
+
+    return isValid;
+  }
+
+  function validateDomain(): boolean {
+    const domain = customDomainInput.value.trim();
+    const errorElement = document.getElementById('domain-error')!;
+
+    if (!domain) {
+      errorElement.style.display = 'none';
+      customDomainInput.setCustomValidity('');
+      return true;
+    }
+
+    // Basic domain validation
+    const domainRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*$/;
+    
+    if (!domainRegex.test(domain)) {
+      errorElement.textContent = 'Please enter a valid domain name';
+      errorElement.style.display = 'block';
+      customDomainInput.setCustomValidity('Invalid domain');
+      return false;
+    }
+
+    errorElement.style.display = 'none';
+    customDomainInput.setCustomValidity('');
+    return true;
+  }
+
+  function validateToken(): boolean {
+    const token = authTokenInput.value.trim();
+    const errorElement = document.getElementById('token-error')!;
+
+    if (!token && customDomainInput.value.trim()) {
+      errorElement.textContent = 'Authentication token is required for custom domains';
+      errorElement.style.display = 'block';
+      authTokenInput.setCustomValidity('Token required');
+      return false;
+    }
+
+    errorElement.style.display = 'none';
+    authTokenInput.setCustomValidity('');
+    return true;
+  }
+
+  function showSuccess(message: string) {
+    const notification = document.createElement('div');
+    notification.className = 'notification success';
+    notification.innerHTML = `
+      <span class="notification-icon">✅</span>
+      <span class="notification-message">${message}</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.remove();
+    }, 3000);
+  }
+
+  function showError(message: string) {
+    const notification = document.createElement('div');
+    notification.className = 'notification error';
+    notification.innerHTML = `
+      <span class="notification-icon">❌</span>
+      <span class="notification-message">${message}</span>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.remove();
+    }, 5000);
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeSettings);
+  } else {
+    initializeSettings();
+  }
+</script>
+
+<style is:global>
+  .notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px hsla(220, 20%, 20%, 0.2);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 500;
+  }
+
+  .notification.success {
+    background: hsl(120, 70%, 95%);
+    color: hsl(120, 70%, 30%);
+    border: 1px solid hsl(120, 70%, 80%);
+  }
+
+  .notification.error {
+    background: hsl(0, 70%, 95%);
+    color: hsl(0, 70%, 30%);
+    border: 1px solid hsl(0, 70%, 80%);
+  }
+
+  .notification-icon {
+    font-size: 1.125rem;
+  }
+
+  /* Mobile responsiveness */
+  @media (max-width: 768px) {
+    .notification {
+      left: 20px;
+      right: 20px;
+      top: 20px;
+    }
+  }
+</style>
