@@ -27,32 +27,30 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
       
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: bun install
       
       - name: Run TypeScript type checking
         working-directory: frontend
-        run: npm run typecheck
+        run: bun run typecheck
       
       - name: Run ESLint
         working-directory: frontend
-        run: npm run lint
+        run: bun run lint
       
       - name: Run Prettier check
         working-directory: frontend
-        run: npm run format:check
+        run: bun run format:check
       
       - name: Run unit tests
         working-directory: frontend
-        run: npm test
+        run: bun test
 
   # Backend Unit Tests
   backend-unit-tests:
@@ -96,28 +94,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
       
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: bun install
       
       - name: Install Playwright browsers
         working-directory: frontend
-        run: npx playwright install --with-deps
+        run: bunx playwright install --with-deps
       
       - name: Build frontend
         working-directory: frontend
-        run: npm run build
+        run: bun run build
       
       - name: Run E2E tests
         working-directory: frontend
-        run: npm run test:e2e
+        run: bunx playwright test
       
       - name: Upload test results
         uses: actions/upload-artifact@v3
@@ -134,20 +130,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
       
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: bun install
       
       - name: Run npm audit
         working-directory: frontend
-        run: npm audit --audit-level high
+        run: bunx npm audit --audit-level high
         continue-on-error: true
       
       - name: Setup Rust
@@ -157,7 +151,7 @@ jobs:
       
       - name: Run cargo audit
         working-directory: src-tauri
-        run: cargo install cargo-audit && cargo audit
+        run: bunx cargo install cargo-audit && bunx cargo audit
         continue-on-error: true
 
   # Performance Tests
@@ -167,34 +161,31 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
       
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: bun install
       
       - name: Install Playwright browsers
         working-directory: frontend
-        run: npx playwright install --with-deps
+        run: bunx playwright install --with-deps
       
       - name: Build frontend
         working-directory: frontend
-        run: npm run build
+        run: bun run build
       
       - name: Run performance tests
         working-directory: frontend
-        run: npx playwright test --grep "performance"
+        run: bunx playwright test --grep "performance"
       
       - name: Generate Lighthouse report
         working-directory: frontend
         run: |
-          npm install -g lighthouse
-          lighthouse http://localhost:4321 --output json --output-path ./lighthouse-report.json
+          bunx lighthouse http://localhost:4321 --output json --output-path ./lighthouse-report.json
         continue-on-error: true
       
       - name: Upload performance reports
@@ -214,38 +205,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
       
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: bun install
       
       - name: Install Playwright browsers
         working-directory: frontend
-        run: npx playwright install --with-deps
+        run: bunx playwright install --with-deps
       
       - name: Build frontend
         working-directory: frontend
-        run: npm run build
+        run: bun run build
       
       - name: Run accessibility tests
         working-directory: frontend
-        run: npx playwright test --grep "accessibility"
+        run: bunx playwright test --grep "accessibility"
       
       - name: Install axe-core
-        run: npm install -g @axe-core/cli
+        run: bunx npm install -g @axe-core/cli
       
       - name: Run axe accessibility scan
         working-directory: frontend
         run: |
-          npx serve dist -p 3000 &
+          bunx serve dist -p 3000 &
           sleep 5
-          axe http://localhost:3000
+          bunx axe http://localhost:3000
         continue-on-error: true
 
   # Build Test
@@ -255,16 +244,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          bun-version: latest
       
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: bun install
       
       - name: Setup Rust
         uses: actions/setup-rust@v1
@@ -273,7 +260,7 @@ jobs:
       
       - name: Build frontend
         working-directory: frontend
-        run: npm run build
+        run: bun run build
       
       - name: Build Tauri app
         working-directory: src-tauri
