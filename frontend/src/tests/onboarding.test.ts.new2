@@ -6,7 +6,8 @@ const mockInvoke = mock(() => Promise.resolve());
 
 // Extend global types for testing
 declare global {
-  var globalDocument: any;
+  namespace NodeJS { interface Global { window: any; document: any; } }
+  var document: any;
 }
 
 describe('Onboarding Wizard', () => {
@@ -103,7 +104,7 @@ describe('Onboarding Wizard', () => {
     });
 
     document = dom.window.document;
-    window = dom.window as any;
+    window = dom.window;
 
     // Set up global variables
     (global as any).document = document;

@@ -2,7 +2,7 @@
   import type { ChatMessage, MessageRole } from '../types/chat';
 
   export let message: ChatMessage;
-  
+  export let isUser: boolean;
 
   $: isUser = message.role === MessageRole.User;
 

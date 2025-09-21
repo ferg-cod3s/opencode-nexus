@@ -2,7 +2,7 @@
 name = "src-tauri"
 version = "1.0.0-mvp"
 description = "OpenCode Nexus - Desktop application for managing OpenCode servers with secure remote access"
-authors = ["OpenCode Team"]
+authors = ["f3rg-codes"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

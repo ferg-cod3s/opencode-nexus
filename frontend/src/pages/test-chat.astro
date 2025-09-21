@@ -1,0 +1,382 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { invoke, listen } from '../utils/tauri-api';
+import type { ChatSession } from '../types/chat';
+---
+
+<Layout title="OpenCode Nexus - Chat">
+  <main class="chat-container">
+    <!-- Main Navigation Header -->
+    <header class="dashboard-header">
+      <div class="header-content">
+        <h1>OpenCode Nexus</h1>
+        <div class="user-menu" data-testid="user-menu">
+          <span id="username-display">Loading...</span>
+          <button id="logout-button" data-testid="logout-button" class="logout-btn">Sign Out</button>
+        </div>
+        <nav class="dashboard-nav">
+          <a href="/dashboard" class="nav-link" data-testid="dashboard-tab">Dashboard</a>
+          <a href="/chat" class="nav-link active" data-testid="chat-tab">Chat</a>
+          <a href="/settings" class="nav-link">Settings</a>
+          <a href="/logs" class="nav-link">Logs</a>
+          <a href="/help" class="nav-link">Help</a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Chat interface will be mounted here by JavaScript -->
+    <div id="chat-root" class="chat-root">
+      <div class="loading-state" id="loading-state">
+        <div class="loading-spinner"></div>
+        <p>Starting chat session...</p>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .chat-container {
+    height: 100vh;
+    background: hsl(220, 20%, 98%);
+    display: flex;
+    overflow: hidden;
+  }
+
+  .chat-root {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: hsl(220, 10%, 50%);
+  }
+
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid hsl(220, 20%, 90%);
+    border-top: 4px solid hsl(220, 70%, 50%);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .dashboard-header {
+    background: white;
+    border-bottom: 1px solid hsl(220, 20%, 90%);
+    padding: 1rem 2rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  .header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .header-content h1 {
+    color: hsl(220, 70%, 50%);
+    margin: 0;
+    font-size: 1.5rem;
+  }
+
+  .user-menu {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .logout-btn {
+    background: hsl(0, 70%, 50%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background-color 0.2s;
+  }
+
+  .logout-btn:hover {
+    background: hsl(0, 60%, 45%);
+  }
+
+  .dashboard-nav {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .nav-link {
+    color: hsl(220, 10%, 50%);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .nav-link:hover {
+    background: hsl(220, 20%, 95%);
+    color: hsl(220, 70%, 50%);
+  }
+
+  .nav-link.active {
+    background: hsl(220, 70%, 50%);
+    color: white;
+  }
+</style>
+
+<script>
+  // Import required modules
+  import { invoke, listen } from '../utils/tauri-api';
+  import type { ChatSession } from '../types/chat';
+
+  // Import Svelte components dynamically
+  let ChatInterface: any = null;
+  let SessionGrid: any = null;
+
+  // State management
+  let chatInterfaceComponent: any = null;
+  let sessionGridComponent: any = null;
+  let currentSession: ChatSession | null = null;
+  let sessions: ChatSession[] = [];
+  let loading = false;
+  let error: string | null = null;
+
+  // DOM elements
+  const chatRoot = document.getElementById('chat-root') as HTMLElement;
+  if (!chatRoot) {
+    throw new Error('chat-root element not found');
+  }
+
+  async function initializeChat() {
+    try {
+      console.log('🔍 Chat page: Starting initialization...');
+      loading = true;
+
+      // Import Svelte components
+      console.log('🔍 Chat page: Importing Svelte components...');
+      const chatModule = await import('../components/ChatInterface.svelte');
+      const sessionModule = await import('../components/SessionGrid.svelte');
+      ChatInterface = chatModule.default;
+      SessionGrid = sessionModule.default;
+      console.log('🔍 Chat page: Svelte components imported successfully');
+
+      // Check authentication
+      console.log('🔍 Chat page: Checking authentication...');
+      const isAuthenticated = await invoke<boolean>('is_authenticated');
+      console.log('🔍 Chat page: Authentication status:', isAuthenticated);
+      console.log('🔍 Chat page: Authentication check completed');
+
+      if (!isAuthenticated) {
+        console.log('🔍 Chat page: Not authenticated, redirecting to /login');
+        window.location.href = '/login';
+        return;
+      }
+
+      // Check onboarding completion
+      console.log('🔍 Chat page: Checking onboarding status...');
+      const onboardingState = await invoke<any>('get_onboarding_state');
+      console.log('🔍 Chat page: Onboarding state:', onboardingState);
+
+      if (!onboardingState.config.is_completed) {
+        console.log('🔍 Chat page: Onboarding not complete, redirecting to /onboarding');
+        window.location.href = '/onboarding';
+        return;
+      }
+
+      // Load existing sessions
+      console.log('🔍 Chat page: Loading existing sessions...');
+      sessions = await invoke<ChatSession[]>('get_chat_sessions') || [];
+      console.log('🔍 Chat page: Loaded sessions:', sessions.length);
+
+      // Create default session if none exist
+      if (sessions.length === 0) {
+        console.log('🔍 Chat page: No sessions found, creating default session...');
+        const defaultSession = await invoke<ChatSession>('create_chat_session', {
+          title: 'Default Chat Session'
+        });
+        sessions = [defaultSession];
+        currentSession = defaultSession;
+        console.log('🔍 Chat page: Default session created:', defaultSession.id);
+      } else {
+        // Use the most recent session
+        currentSession = sessions[0];
+        console.log('🔍 Chat page: Using existing session:', currentSession.id);
+      }
+
+      // Start message streaming
+      console.log('🔍 Chat page: Starting message stream...');
+      await invoke('start_message_stream');
+
+      // Set up event listeners
+      console.log('🔍 Chat page: Setting up event listeners...');
+      await listen('chat-event', (event: any) => {
+        console.log('🔍 Chat page: Received chat event:', event);
+        handleChatEvent(event);
+      });
+
+      // Mount components
+      console.log('🔍 Chat page: Mounting components...');
+      mountComponents();
+
+      loading = false;
+      console.log('🔍 Chat page: Initialization completed successfully');
+
+    } catch (caughtError) {
+      console.error('🔍 Chat page: Initialization failed:', error);
+      loading = false;
+      error = caughtError instanceof Error ? caughtError.message : 'Unknown error occurred';
+      showError(error);
+    }
+  }
+
+  function handleChatEvent(event: any) {
+    console.log('🔍 Chat page: Handling chat event:', event);
+
+    if (event.MessageReceived && currentSession) {
+      const message = event.MessageReceived.message;
+      console.log('🔍 Chat page: New message received:', message);
+
+      // Update current session with new message
+      currentSession.messages.push(message);
+      currentSession = { ...currentSession };
+
+      // Update chat interface if mounted
+      if (chatInterfaceComponent) {
+        chatInterfaceComponent.$set({ session: currentSession });
+      }
+    } else if (event.MessageChunk) {
+      console.log('🔍 Chat page: Message chunk received:', event.MessageChunk.chunk);
+
+      // Handle streaming chunks if chat interface supports it
+      if (chatInterfaceComponent && chatInterfaceComponent.handleMessageChunk) {
+        chatInterfaceComponent.handleMessageChunk(event.MessageChunk);
+      }
+    } else if (event.Error) {
+      console.error('🔍 Chat page: Chat error:', event.Error.message);
+      showError(event.Error.message);
+    }
+  }
+
+  function mountComponents() {
+    console.log('🔍 Chat page: Mounting components...');
+
+    // Clear loading state
+    chatRoot.innerHTML = '';
+
+    // Create container for components
+    const componentsContainer = document.createElement('div');
+    componentsContainer.className = 'components-container';
+    componentsContainer.style.cssText = 'display: flex; height: 100%;';
+
+    // Create sidebar for sessions
+    const sidebar = document.createElement('div');
+    sidebar.className = 'sessions-sidebar';
+    sidebar.style.cssText = 'width: 300px; border-right: 1px solid hsl(220, 20%, 90%); padding: 1rem; overflow-y: auto;';
+
+    // Create main chat area
+    const chatArea = document.createElement('div');
+    chatArea.className = 'chat-area';
+    chatArea.style.cssText = 'flex: 1; display: flex; flex-direction: column;';
+
+    componentsContainer.appendChild(sidebar);
+    componentsContainer.appendChild(chatArea);
+    chatRoot.appendChild(componentsContainer);
+
+    // Mount SessionGrid in sidebar
+    if (SessionGrid) {
+      sessionGridComponent = new SessionGrid({
+        target: sidebar,
+        props: {
+          sessions,
+          currentSession,
+          onSessionSelect: (session: ChatSession) => {
+            currentSession = session;
+            updateChatInterface();
+          }
+        }
+      });
+    }
+
+    // Mount ChatInterface in chat area
+    if (ChatInterface) {
+      chatInterfaceComponent = new ChatInterface({
+        target: chatArea,
+        props: {
+          session: currentSession,
+          loading,
+          onSendMessage: async (content: string) => {
+            console.log('🔍 Chat page: Sending message:', content);
+            await invoke('send_chat_message', {
+              session_id: currentSession?.id || '',
+              content
+            });
+          }
+        }
+      });
+    }
+  }
+
+  function updateChatInterface() {
+    console.log('🔍 Chat page: Updating chat interface...');
+
+    if (chatInterfaceComponent) {
+      chatInterfaceComponent.$set({
+        session: currentSession,
+        loading
+      });
+    }
+  }
+
+  function showError(message: string) {
+    console.error('🔍 Chat page: Showing error:', message);
+
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message';
+    errorDiv.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: hsl(0, 70%, 50%);
+      color: white;
+      padding: 1rem;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+    `;
+    errorDiv.innerHTML = `
+      <strong>Error:</strong> ${message}
+      <button onclick="this.parentElement.remove()" style="float: right; margin-left: 1rem; background: none; border: none; color: white; cursor: pointer;">×</button>
+    `;
+
+    document.body.appendChild(errorDiv);
+
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      if (errorDiv.parentElement) {
+        errorDiv.remove();
+      }
+    }, 5000);
+  }
+
+  // Initialize when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeChat);
+  } else {
+    initializeChat();
+  }
+</script>

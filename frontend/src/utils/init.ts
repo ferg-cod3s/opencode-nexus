@@ -1,3 +1,10 @@
+// Extend Window interface for Tauri
+declare global {
+  interface Window {
+    __TAURI__?: any;
+  }
+}
+
 // Application initialization
 import { logger } from './logger';
 

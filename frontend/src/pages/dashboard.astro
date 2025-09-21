@@ -22,26 +22,26 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       </div>
     </header>
 
-     <!-- Screen reader announcements -->
-     <div id="sr-announcements" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
+    <!-- Screen reader announcements -->
+    <div id="sr-announcements" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
 
-     <main class="dashboard-content" data-testid="server-dashboard">
-       <div class="welcome-section" data-testid="dashboard-welcome">
-         <h2 id="welcome-message">Welcome back!</h2>
-         <p class="welcome-subtitle">Your OpenCode server management dashboard</p>
-       </div>
-       
+    <div class="dashboard-content" data-testid="server-dashboard">
+      <div class="welcome-section" data-testid="dashboard-welcome">
+        <h2 id="welcome-message">Welcome back!</h2>
+        <p class="welcome-subtitle">Your OpenCode server management dashboard</p>
+      </div>
+
       <section class="status-grid" aria-label="System status overview">
-         <!-- Server Status Card -->
-         <article class="status-card" id="server-status-card" role="region" aria-labelledby="server-status-heading">
-           <header class="card-header">
-             <h2 id="server-status-heading">OpenCode Server</h2>
-             <div class="status-indicator" id="server-status" data-testid="server-status" aria-live="polite" aria-atomic="true">
-               <span class="status-dot stopped" aria-hidden="true"></span>
-               <span class="status-text">Stopped</span>
-             </div>
-           </header>
-           <div class="card-content">
+        <!-- Server Status Card -->
+        <article class="status-card" id="server-status-card" role="region" aria-labelledby="server-status-heading">
+          <header class="card-header">
+            <h2 id="server-status-heading">OpenCode Server</h2>
+            <div class="status-indicator" id="server-status" data-testid="server-status" aria-live="polite" aria-atomic="true">
+              <span class="status-dot stopped" aria-hidden="true"></span>
+              <span class="status-text">Stopped</span>
+            </div>
+          </header>
+          <div class="card-content">
             <div class="server-info">
               <p class="server-path" id="server-path">Path: Not configured</p>
               <p class="server-uptime" id="server-uptime" data-testid="server-uptime">Uptime: --</p>
@@ -58,19 +58,19 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
               <button class="btn-secondary" id="restart-server-btn" data-testid="restart-server-button" disabled>
                 Restart
               </button>
-           </div>
-         </article>
-        </div>
+            </div>
+          </div>
+        </article>
 
-         <!-- Remote Access Card -->
-         <article class="status-card" id="remote-access-card" role="region" aria-labelledby="remote-access-heading">
-           <header class="card-header">
-             <h2 id="remote-access-heading">Remote Access</h2>
-             <div class="status-indicator" id="tunnel-status" aria-live="polite" aria-atomic="true">
-               <span class="status-dot stopped" aria-hidden="true"></span>
-               <span class="status-text">Disabled</span>
-             </div>
-           </header>
+        <!-- Remote Access Card -->
+        <article class="status-card" id="remote-access-card" role="region" aria-labelledby="remote-access-heading">
+          <header class="card-header">
+            <h2 id="remote-access-heading">Remote Access</h2>
+            <div class="status-indicator" id="tunnel-status" aria-live="polite" aria-atomic="true">
+              <span class="status-dot stopped" aria-hidden="true"></span>
+              <span class="status-text">Disabled</span>
+            </div>
+          </header>
           <div class="card-content">
             <div class="tunnel-info">
               <p class="tunnel-url" id="tunnel-url">URL: Not available</p>
@@ -86,15 +86,15 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
               <button class="btn-secondary" id="copy-url-btn" disabled>
                 Copy URL
               </button>
-           </div>
-         </article>
-        </div>
+            </div>
+          </div>
+        </article>
 
-         <!-- System Resources Card -->
-         <article class="status-card" id="system-resources-card" role="region" aria-labelledby="system-resources-heading">
-           <header class="card-header">
-             <h2 id="system-resources-heading">System Resources</h2>
-           </header>
+        <!-- System Resources Card -->
+        <article class="status-card" id="system-resources-card" role="region" aria-labelledby="system-resources-heading">
+          <header class="card-header">
+            <h2 id="system-resources-heading">System Resources</h2>
+          </header>
           <div class="card-content">
             <div class="resource-metrics">
               <div class="metric">
@@ -118,87 +118,86 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
                 </div>
                 <span class="metric-value" id="disk-value">0%</span>
               </div>
-           </div>
-         </article>
-        </div>
+            </div>
+          </div>
+        </article>
 
-          <!-- Sessions Card -->
-          <article class="status-card" id="sessions-card" role="region" aria-labelledby="sessions-heading">
-            <header class="card-header">
-              <h2 id="sessions-heading">Active Sessions</h2>
-            </header>
-            <div class="card-content">
-              <div class="session-stats" id="session-stats">
-                <div class="stat-item">
-                  <span class="stat-label">Total Sessions:</span>
-                  <span class="stat-value">0</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">Active Now:</span>
-                  <span class="stat-value">0</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">Peak Concurrent:</span>
-                  <span class="stat-value">0</span>
-                </div>
+        <!-- Sessions Card -->
+        <article class="status-card" id="sessions-card" role="region" aria-labelledby="sessions-heading">
+          <header class="card-header">
+            <h2 id="sessions-heading">Active Sessions</h2>
+          </header>
+          <div class="card-content">
+            <div class="session-stats" id="session-stats">
+              <div class="stat-item">
+                <span class="stat-label">Total Sessions:</span>
+                <span class="stat-value">0</span>
               </div>
-              <div class="sessions-list" id="sessions-list">
-                <div class="session-item">
-                  <span class="session-name">No active sessions</span>
-                  <span class="session-status">Waiting for server...</span>
-                </div>
+              <div class="stat-item">
+                <span class="stat-label">Active Now:</span>
+                <span class="stat-value">0</span>
               </div>
-              <div class="session-controls">
-                <button class="btn-secondary" id="refresh-sessions-btn">
-                  Refresh
-                </button>
-              </div>
-           </div>
-         </article>
-
-          <!-- Chat Sessions Card -->
-          <article class="status-card" id="chat-sessions-card" role="region" aria-labelledby="chat-sessions-heading">
-            <header class="card-header">
-              <h2 id="chat-sessions-heading">Chat Sessions</h2>
-            </header>
-            <div class="card-content">
-              <div class="chat-session-stats" id="chat-session-stats">
-                <div class="stat-item">
-                  <span class="stat-label">Active Sessions:</span>
-                  <span class="stat-value" id="active-chat-sessions">0</span>
-                </div>
-                <div class="stat-item">
-                  <span class="stat-label">Total Messages:</span>
-                  <span class="stat-value" id="total-messages">0</span>
-                </div>
-              </div>
-              <div class="chat-session-actions">
-                <button class="btn-primary" id="open-chat-btn">
-                  Open Chat Interface
-                </button>
-                <button class="btn-secondary" id="new-chat-session-btn">
-                  New Chat Session
-                </button>
+              <div class="stat-item">
+                <span class="stat-label">Peak Concurrent:</span>
+                <span class="stat-value">0</span>
               </div>
             </div>
-          </article>
-
-          <!-- Recent Activity Card -->
-          <article class="status-card" id="activity-card">
-            <header class="card-header">
-              <h2>Recent Activity</h2>
-            </header>
-            <div class="card-content">
-              <ActivityFeed client:load />
+            <div class="sessions-list" id="sessions-list">
+              <div class="session-item">
+                <span class="session-name">No active sessions</span>
+                <span class="session-status">Waiting for server...</span>
+              </div>
             </div>
-          </article>
-        </section>
-      </main>
+            <div class="session-controls">
+              <button class="btn-secondary" id="refresh-sessions-btn">
+                Refresh
+              </button>
+            </div>
+          </div>
+        </article>
 
-       <!-- Quick Actions -->
-       <aside class="quick-actions">
-         <h3>Quick Actions</h3>
-         <nav class="action-buttons" aria-label="Quick action buttons">
+        <!-- Chat Sessions Card -->
+        <article class="status-card" id="chat-sessions-card" role="region" aria-labelledby="chat-sessions-heading">
+          <header class="card-header">
+            <h2 id="chat-sessions-heading">Chat Sessions</h2>
+          </header>
+          <div class="card-content">
+            <div class="chat-session-stats" id="chat-session-stats">
+              <div class="stat-item">
+                <span class="stat-label">Active Sessions:</span>
+                <span class="stat-value" id="active-chat-sessions">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">Total Messages:</span>
+                <span class="stat-value" id="total-messages">0</span>
+              </div>
+            </div>
+            <div class="chat-session-actions">
+              <button class="btn-primary" id="open-chat-btn">
+                Open Chat Interface
+              </button>
+              <button class="btn-secondary" id="new-chat-session-btn">
+                New Chat Session
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <!-- Recent Activity Card -->
+        <article class="status-card" id="activity-card">
+          <header class="card-header">
+            <h2>Recent Activity</h2>
+          </header>
+          <div class="card-content">
+            <ActivityFeed client:load />
+          </div>
+        </article>
+      </section>
+
+      <!-- Quick Actions -->
+      <aside class="quick-actions">
+        <h3>Quick Actions</h3>
+        <nav class="action-buttons" aria-label="Quick action buttons">
           <button class="action-btn" id="open-local-btn">
             <span class="action-icon">🌐</span>
             <span class="action-text">Open Local</span>
@@ -215,8 +214,8 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
             <span class="action-icon">⚙️</span>
             <span class="action-text">Settings</span>
           </button>
-          </article>
-       </section>
+        </nav>
+      </aside>
     </div>
   </main>
 </Layout>
@@ -745,15 +744,60 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
 </style>
 
 <script>
-  import { invoke, listen, checkEnvironment } from '../utils/tauri-api.ts';
+  import { invoke, listen } from '../utils/tauri-api.ts';
   import { activityStore } from '../stores/activity';
 
+  type ActivityType = 'info' | 'success' | 'warning' | 'error';
+  type ServerEventType = 'Started' | 'Stopped' | 'Error' | 'ConfigChanged' | 'HealthCheck' | 'SessionUpdate';
+
+  interface OnboardingState {
+    config?: {
+      opencode_server_path?: string;
+      is_completed?: boolean;
+    } | null;
+    [key: string]: any;
+  }
+
+  interface AppInfo {
+    version: string;
+    status: 'running' | 'active' | 'stopped' | 'inactive' | 'unknown' | string;
+    uptime: number | null;
+    sessions_count: number | null;
+  }
+
+  interface ServerMetrics {
+    cpu_usage: number; // percent
+    memory_usage: number; // bytes
+  }
+
+  interface ActiveSession {
+    id: string;
+    username?: string;
+    client_ip?: string;
+    is_active: boolean;
+    connected_at: string;
+  }
+
+  interface SessionStats {
+    total_sessions: number;
+    active_sessions: number;
+    peak_concurrent: number;
+  }
+
+  interface ServerEventPayload {
+    event_type: ServerEventType;
+    message: string;
+    [key: string]: any;
+  }
+
   class Dashboard {
+    serverRunning: boolean = false;
+    tunnelEnabled: boolean = false;
+    tunnelUrl: string | null = null;
+    currentUsername: string | null = null;
+    unlistenServerEvents: Function | null = null;
+
     constructor() {
-      this.serverRunning = false;
-      this.tunnelEnabled = false;
-      this.tunnelUrl = null;
-      this.currentUsername = null;
       this.init();
     }
 
@@ -761,11 +805,11 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       console.log('🔍 Dashboard page: Starting initialization...');
 
       // Check authentication first - redirect to login if not authenticated
-      if (!await this.checkAuthentication()) {
+      if (!(await this.checkAuthentication())) {
         console.log('🔍 Dashboard page: Authentication failed, redirecting to /login');
         window.location.href = '/login';
         return;
-      }
+        }
 
       console.log('🔍 Dashboard page: Authentication passed, loading dashboard...');
 
@@ -806,17 +850,16 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       }
     }
 
-    updateUserDisplay(username) {
+    updateUserDisplay(username: string) {
       const usernameDisplay = document.getElementById('username-display');
       const userMenu = document.querySelector('[data-testid="user-menu"]');
-      
+
       if (usernameDisplay) {
         usernameDisplay.textContent = username;
       }
-      
+
       // Update the user menu to include the username as text content for E2E tests
-      if (userMenu && !userMenu.textContent.includes(username)) {
-        // Add username as text content while keeping the elements
+      if (userMenu && !userMenu.textContent?.includes(username)) {
         const usernameSpan = document.createElement('span');
         usernameSpan.className = 'username-text';
         usernameSpan.textContent = username;
@@ -824,7 +867,7 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       }
     }
 
-    updateWelcomeMessage(username) {
+    updateWelcomeMessage(username: string) {
       const welcomeMessage = document.getElementById('welcome-message');
       if (welcomeMessage) {
         welcomeMessage.textContent = `Welcome back, ${username}!`;
@@ -832,11 +875,8 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
     }
 
     logout() {
-      // Clear session storage
       sessionStorage.removeItem('authenticated');
       sessionStorage.removeItem('username');
-      
-      // Redirect to login
       window.location.href = '/login';
     }
 
@@ -854,23 +894,24 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       document.getElementById('disable-tunnel-btn')?.addEventListener('click', () => this.disableTunnel());
       document.getElementById('copy-url-btn')?.addEventListener('click', () => this.copyTunnelUrl());
 
-       // Quick actions
-       document.getElementById('open-local-btn')?.addEventListener('click', () => this.openLocal());
-       document.getElementById('open-remote-btn')?.addEventListener('click', () => this.openRemote());
-       document.getElementById('view-logs-btn')?.addEventListener('click', () => this.viewLogs());
-       document.getElementById('settings-btn')?.addEventListener('click', () => this.openSettings());
+      // Quick actions
+      document.getElementById('open-local-btn')?.addEventListener('click', () => this.openLocal());
+      document.getElementById('open-remote-btn')?.addEventListener('click', () => this.openRemote());
+      document.getElementById('view-logs-btn')?.addEventListener('click', () => this.viewLogs());
+      document.getElementById('settings-btn')?.addEventListener('click', () => this.openSettings());
 
-       // Chat session actions
-       document.getElementById('open-chat-btn')?.addEventListener('click', () => this.openChat());
-       document.getElementById('new-chat-session-btn')?.addEventListener('click', () => this.createNewChatSession());
+      // Chat session actions
+      document.getElementById('open-chat-btn')?.addEventListener('click', () => this.openChat());
+      document.getElementById('new-chat-session-btn')?.addEventListener('click', () => this.createNewChatSession());
 
       // Sessions
       document.getElementById('refresh-sessions-btn')?.addEventListener('click', () => this.refreshSessions());
 
       // Handle disconnect buttons (delegated event listener)
       document.addEventListener('click', (event) => {
-        if (event.target.classList.contains('disconnect-btn')) {
-          const sessionId = event.target.dataset.sessionId;
+        const target = event.target as HTMLElement | null;
+        if (target?.classList.contains('disconnect-btn')) {
+          const sessionId = target.dataset.sessionId;
           if (sessionId) {
             this.disconnectSession(sessionId);
           }
@@ -880,11 +921,11 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
 
     async loadInitialState() {
       try {
-        const state = await invoke('get_onboarding_state');
+        const state = await invoke<OnboardingState>('get_onboarding_state');
         this.updateServerInfo(state);
 
         // Try to get app info if server is configured
-        if (state.config?.opencode_server_path) {
+        if (state?.config?.opencode_server_path) {
           await this.updateAppInfo();
           await this.updateTunnelStatus();
         }
@@ -899,24 +940,29 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       }
     }
 
-    updateServerInfo(state) {
+    updateServerInfo(state: OnboardingState) {
       const serverPath = document.getElementById('server-path');
-      const serverStatus = document.getElementById('server-status');
-      const startBtn = document.getElementById('start-server-btn');
-      const stopBtn = document.getElementById('stop-server-btn');
-      const restartBtn = document.getElementById('restart-server-btn');
+      const serverStatus = document.getElementById('server-status') as HTMLElement | null;
+      const startBtn = document.getElementById('start-server-btn') as HTMLButtonElement | null;
+      const stopBtn = document.getElementById('stop-server-btn') as HTMLButtonElement | null;
+      const restartBtn = document.getElementById('restart-server-btn') as HTMLButtonElement | null;
 
-      if (state.config?.opencode_server_path) {
-        serverPath.textContent = `Path: ${state.config.opencode_server_path}`;
-        startBtn.disabled = false;
-      } else {
-        serverPath.textContent = 'Path: Not configured';
-        startBtn.disabled = true;
+      if (serverPath) {
+        if (state?.config?.opencode_server_path) {
+          serverPath.textContent = `Path: ${state.config.opencode_server_path}`;
+          if (startBtn) startBtn.disabled = false;
+        } else {
+          serverPath.textContent = 'Path: Not configured';
+          if (startBtn) startBtn.disabled = true;
+        }
       }
 
+      if (!serverStatus || !stopBtn || !restartBtn) return;
+
       // Update status indicator
-      const statusDot = serverStatus.querySelector('.status-dot');
-      const statusText = serverStatus.querySelector('.status-text');
+      const statusDot = serverStatus.querySelector('.status-dot') as HTMLElement | null;
+      const statusText = serverStatus.querySelector('.status-text') as HTMLElement | null;
+      if (!statusDot || !statusText) return;
 
       if (this.serverRunning) {
         statusDot.className = 'status-dot running';
@@ -933,7 +979,7 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
 
     async updateAppInfo() {
       try {
-        const appInfo = await invoke('get_app_info');
+        const appInfo = await invoke<AppInfo>('get_app_info');
         this.updateAppInfoDisplay(appInfo);
       } catch (error) {
         // If API fails, show unknown status but don't break the UI
@@ -947,15 +993,17 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       }
     }
 
-    updateAppInfoDisplay(appInfo) {
+    updateAppInfoDisplay(appInfo: AppInfo) {
       const serverUptime = document.getElementById('server-uptime');
 
-      if (appInfo.uptime) {
-        const uptimeMinutes = Math.floor(appInfo.uptime / 60);
-        const uptimeSeconds = appInfo.uptime % 60;
-        serverUptime.textContent = `Uptime: ${uptimeMinutes}m ${uptimeSeconds}s`;
-      } else {
-        serverUptime.textContent = 'Uptime: --';
+      if (serverUptime) {
+        if (appInfo.uptime != null) {
+          const uptimeMinutes = Math.floor(appInfo.uptime / 60);
+          const uptimeSeconds = Math.floor(appInfo.uptime % 60);
+          serverUptime.textContent = `Uptime: ${uptimeMinutes}m ${uptimeSeconds}s`;
+        } else {
+          serverUptime.textContent = 'Uptime: --';
+        }
       }
 
       // Update server status based on API response
@@ -980,8 +1028,9 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
 
         this.updateServerControls();
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
         console.error('Failed to start server:', error);
-        this.addActivity('Failed to start server: ' + error.message);
+        this.addActivity('Failed to start server: ' + msg);
         this.serverRunning = false;
         this.updateServerControls();
       }
@@ -995,8 +1044,9 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
         this.addActivity('OpenCode server stopped');
         this.updateServerControls();
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
         console.error('Failed to stop server:', error);
-        this.addActivity('Failed to stop server: ' + error.message);
+        this.addActivity('Failed to stop server: ' + msg);
       }
     }
 
@@ -1012,22 +1062,26 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
 
         this.updateServerControls();
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
         console.error('Failed to restart server:', error);
-        this.addActivity('Failed to restart server: ' + error.message);
+        this.addActivity('Failed to restart server: ' + msg);
         this.serverRunning = false;
         this.updateServerControls();
       }
     }
 
     updateServerControls() {
-      const serverStatus = document.getElementById('server-status');
-      const startBtn = document.getElementById('start-server-btn');
-      const stopBtn = document.getElementById('stop-server-btn');
-      const restartBtn = document.getElementById('restart-server-btn');
-      const openLocalBtn = document.getElementById('open-local-btn');
+      const serverStatus = document.getElementById('server-status') as HTMLElement | null;
+      const startBtn = document.getElementById('start-server-btn') as HTMLButtonElement | null;
+      const stopBtn = document.getElementById('stop-server-btn') as HTMLButtonElement | null;
+      const restartBtn = document.getElementById('restart-server-btn') as HTMLButtonElement | null;
+      const openLocalBtn = document.getElementById('open-local-btn') as HTMLButtonElement | null;
 
-      const statusDot = serverStatus.querySelector('.status-dot');
-      const statusText = serverStatus.querySelector('.status-text');
+      if (!serverStatus || !startBtn || !stopBtn || !restartBtn || !openLocalBtn) return;
+
+      const statusDot = serverStatus.querySelector('.status-dot') as HTMLElement | null;
+      const statusText = serverStatus.querySelector('.status-text') as HTMLElement | null;
+      if (!statusDot || !statusText) return;
 
       const wasRunning = this.serverRunning;
 
@@ -1038,10 +1092,6 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
         stopBtn.disabled = false;
         restartBtn.disabled = false;
         openLocalBtn.disabled = false;
-
-        if (!wasRunning) {
-          this.announceToScreenReader('OpenCode server is now running');
-        }
       } else {
         statusDot.className = 'status-dot stopped';
         statusText.textContent = 'Stopped';
@@ -1049,36 +1099,41 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
         stopBtn.disabled = true;
         restartBtn.disabled = true;
         openLocalBtn.disabled = true;
-
-        if (wasRunning) {
-          this.announceToScreenReader('OpenCode server has stopped');
-        }
       }
+
+      // Announce changes for accessibility
+      this.announceToScreenReader(
+        this.serverRunning && !wasRunning
+          ? 'OpenCode server is now running'
+          : !this.serverRunning && wasRunning
+          ? 'OpenCode server has stopped'
+          : ''
+      );
     }
 
     async enableTunnel() {
       try {
         this.addActivity('Enabling remote access...');
 
-        // Create tunnel configuration
         const tunnelConfig = {
           enabled: true,
           auto_start: true,
-          custom_domain: null, // Will be configured later
-          auth_token: null // Will be configured later
+          custom_domain: null as string | null,
+          auth_token: null as string | null,
         };
 
         await invoke('start_cloudflared_tunnel', { config: tunnelConfig });
         this.tunnelEnabled = true;
         this.addActivity('Remote access enabled');
-        
+
         // Wait a moment for tunnel URL to be captured, then update status
         setTimeout(() => {
           this.updateTunnelStatus();
         }, 2000);
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
         console.error('Failed to enable tunnel:', error);
-        this.addActivity('Failed to enable remote access: ' + error.message);
+        this.addActivity('Failed to enable remote access: ' + msg);
         this.tunnelEnabled = false;
         this.updateTunnelControls();
       }
@@ -1093,20 +1148,20 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
         this.addActivity('Remote access disabled');
         this.updateTunnelControls();
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
         console.error('Failed to disable tunnel:', error);
-        this.addActivity('Failed to disable remote access: ' + error.message);
+        this.addActivity('Failed to disable remote access: ' + msg);
       }
     }
 
     async updateTunnelStatus() {
       try {
-        const tunnelStatus = await invoke('get_tunnel_status');
+        const tunnelStatus = await invoke<string>('get_tunnel_status');
         this.tunnelEnabled = tunnelStatus === 'Running';
-        
-        // Get the actual tunnel URL if tunnel is running
+
         if (this.tunnelEnabled) {
           try {
-            this.tunnelUrl = await invoke('get_tunnel_url');
+            this.tunnelUrl = await invoke<string>('get_tunnel_url');
           } catch (urlError) {
             console.warn('Failed to get tunnel URL:', urlError);
             this.tunnelUrl = null;
@@ -1114,7 +1169,7 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
         } else {
           this.tunnelUrl = null;
         }
-        
+
         this.updateTunnelControls();
       } catch (error) {
         console.warn('Failed to get tunnel status:', error);
@@ -1125,15 +1180,18 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
     }
 
     updateTunnelControls() {
-      const tunnelStatus = document.getElementById('tunnel-status');
+      const tunnelStatus = document.getElementById('tunnel-status') as HTMLElement | null;
       const tunnelUrl = document.getElementById('tunnel-url');
-      const enableBtn = document.getElementById('enable-tunnel-btn');
-      const disableBtn = document.getElementById('disable-tunnel-btn');
-      const copyBtn = document.getElementById('copy-url-btn');
-      const openRemoteBtn = document.getElementById('open-remote-btn');
+      const enableBtn = document.getElementById('enable-tunnel-btn') as HTMLButtonElement | null;
+      const disableBtn = document.getElementById('disable-tunnel-btn') as HTMLButtonElement | null;
+      const copyBtn = document.getElementById('copy-url-btn') as HTMLButtonElement | null;
+      const openRemoteBtn = document.getElementById('open-remote-btn') as HTMLButtonElement | null;
 
-      const statusDot = tunnelStatus.querySelector('.status-dot');
-      const statusText = tunnelStatus.querySelector('.status-text');
+      if (!tunnelStatus || !tunnelUrl || !enableBtn || !disableBtn || !copyBtn || !openRemoteBtn) return;
+
+      const statusDot = tunnelStatus.querySelector('.status-dot') as HTMLElement | null;
+      const statusText = tunnelStatus.querySelector('.status-text') as HTMLElement | null;
+      if (!statusDot || !statusText) return;
 
       if (this.tunnelEnabled) {
         statusDot.className = 'status-dot running';
@@ -1159,13 +1217,16 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
         this.addActivity('No tunnel URL available to copy');
         return;
       }
-      
-      navigator.clipboard.writeText(this.tunnelUrl).then(() => {
-        this.addActivity('Tunnel URL copied to clipboard');
-      }).catch(error => {
-        console.error('Failed to copy tunnel URL:', error);
-        this.addActivity('Failed to copy tunnel URL to clipboard');
-      });
+
+      navigator.clipboard
+        .writeText(this.tunnelUrl)
+        .then(() => {
+          this.addActivity('Tunnel URL copied to clipboard');
+        })
+        .catch((error) => {
+          console.error('Failed to copy tunnel URL:', error);
+          this.addActivity('Failed to copy tunnel URL to clipboard');
+        });
     }
 
     openLocal() {
@@ -1178,7 +1239,7 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
         this.addActivity('No tunnel URL available');
         return;
       }
-      
+
       try {
         window.open(this.tunnelUrl, '_blank');
         this.addActivity('Opening remote access...');
@@ -1198,53 +1259,53 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
 
     openChat() {
       // Navigate to the main chat interface
-      window.location.href = '/';
+      window.location.href = '/chat';
     }
 
     async createNewChatSession() {
       try {
         this.addActivity('Creating new chat session...');
-        const newSession = await invoke('create_chat_session', {
-          title: `Chat ${new Date().toLocaleString()}`
+        const newSession = await invoke<any>('create_chat_session', {
+          title: `Chat ${new Date().toLocaleString()}`,
         });
 
         this.addActivity(`Chat session "${newSession.title}" created successfully`);
         // Update session count
-        this.updateChatSessionStats();
-
+        await this.updateChatSessionStats();
       } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
         console.error('Failed to create chat session:', error);
-        this.addActivity('Failed to create chat session: ' + error.message);
+        this.addActivity('Failed to create chat session: ' + msg);
       }
     }
 
     async updateChatSessionStats() {
       try {
-        const sessions = await invoke('get_chat_sessions');
-        const activeSessions = sessions.filter(s => s.is_active).length;
-        const totalMessages = sessions.reduce((sum, s) => sum + s.messages.length, 0);
+        const sessions = await invoke<any[]>('get_chat_sessions');
+        const activeSessions = sessions.filter((s: any) => s.is_active).length;
+        const totalMessages = sessions.reduce((sum: number, s: any) => sum + (s.messages?.length || 0), 0);
 
-        document.getElementById('active-chat-sessions').textContent = activeSessions.toString();
-        document.getElementById('total-messages').textContent = totalMessages.toString();
-
+        const activeEl = document.getElementById('active-chat-sessions');
+        const totalEl = document.getElementById('total-messages');
+        if (activeEl) activeEl.textContent = activeSessions.toString();
+        if (totalEl) totalEl.textContent = totalMessages.toString();
       } catch (error) {
         console.warn('Failed to update chat session stats:', error);
       }
     }
 
-    addActivity(message, type = 'info') {
+    addActivity(message: string, type: ActivityType = 'info') {
       activityStore.addMessage(message, type);
-      // Also announce to screen readers for critical messages
       if (type === 'error' || type === 'warning') {
         this.announceToScreenReader(`${type} message: ${message}`);
       }
     }
 
-    announceToScreenReader(message) {
+    announceToScreenReader(message: string) {
+      if (!message) return;
       const liveRegion = document.getElementById('sr-announcements');
       if (liveRegion) {
         liveRegion.textContent = message;
-        // Clear after announcement
         setTimeout(() => {
           liveRegion.textContent = '';
         }, 1000);
@@ -1253,40 +1314,40 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
 
     startPeriodicUpdates() {
       // Reduced polling frequency since we now have real-time events
-      // Only poll for metrics that aren't available via events
       setInterval(async () => {
-        // Only update metrics if server is running
         if (this.serverRunning) {
           await this.updateAppInfo();
           this.updateResourceMetrics();
           await this.updateTunnelStatus();
         }
-      }, 30000); // 30 seconds instead of 5 seconds
-
-      // Sessions are now updated via events, so no need to poll
-      // Initial session load happens in loadInitialState
+      }, 30000);
     }
 
     async updateResourceMetrics() {
       try {
-        const metrics = await invoke('get_server_metrics');
+        const metrics = await invoke<ServerMetrics>('get_server_metrics');
 
         // Update CPU usage
         const cpuPercent = Math.min(metrics.cpu_usage, 100);
-        document.getElementById('cpu-usage').style.width = `${cpuPercent}%`;
-        document.getElementById('cpu-value').textContent = `${cpuPercent.toFixed(1)}%`;
+        const cpuBar = document.getElementById('cpu-usage');
+        const cpuVal = document.getElementById('cpu-value');
+        if (cpuBar) (cpuBar as HTMLElement).style.width = `${cpuPercent}%`;
+        if (cpuVal) cpuVal.textContent = `${cpuPercent.toFixed(1)}%`;
 
         // Update memory usage (convert bytes to percentage - assuming 4GB total)
         const totalMemory = 4 * 1024 * 1024 * 1024; // 4GB in bytes
         const memoryPercent = Math.min((metrics.memory_usage / totalMemory) * 100, 100);
-        document.getElementById('memory-usage').style.width = `${memoryPercent}%`;
-        document.getElementById('memory-value').textContent = `${memoryPercent.toFixed(1)}%`;
+        const memBar = document.getElementById('memory-usage');
+        const memVal = document.getElementById('memory-value');
+        if (memBar) (memBar as HTMLElement).style.width = `${memoryPercent}%`;
+        if (memVal) memVal.textContent = `${memoryPercent.toFixed(1)}%`;
 
         // For now, keep disk usage simulated until we have real disk metrics
         const disk = Math.random() * 100;
-        document.getElementById('disk-usage').style.width = `${disk}%`;
-        document.getElementById('disk-value').textContent = `${disk.toFixed(1)}%`;
-
+        const diskBar = document.getElementById('disk-usage');
+        const diskVal = document.getElementById('disk-value');
+        if (diskBar) (diskBar as HTMLElement).style.width = `${disk}%`;
+        if (diskVal) diskVal.textContent = `${disk.toFixed(1)}%`;
       } catch (error) {
         console.warn('Failed to get server metrics:', error);
         // Fallback to simulated data if metrics API fails
@@ -1295,25 +1356,29 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
     }
 
     updateSimulatedMetrics() {
-      // Fallback: Simulate resource usage when real metrics unavailable
       const cpu = Math.random() * 100;
       const memory = Math.random() * 100;
       const disk = Math.random() * 100;
 
-      document.getElementById('cpu-usage').style.width = `${cpu}%`;
-      document.getElementById('cpu-value').textContent = `${cpu.toFixed(1)}%`;
+      const cpuBar = document.getElementById('cpu-usage');
+      const cpuVal = document.getElementById('cpu-value');
+      const memBar = document.getElementById('memory-usage');
+      const memVal = document.getElementById('memory-value');
+      const diskBar = document.getElementById('disk-usage');
+      const diskVal = document.getElementById('disk-value');
 
-      document.getElementById('memory-usage').style.width = `${memory}%`;
-      document.getElementById('memory-value').textContent = `${memory.toFixed(1)}%`;
-
-      document.getElementById('disk-usage').style.width = `${disk}%`;
-      document.getElementById('disk-value').textContent = `${disk.toFixed(1)}%`;
+      if (cpuBar) (cpuBar as HTMLElement).style.width = `${cpu}%`;
+      if (cpuVal) cpuVal.textContent = `${cpu.toFixed(1)}%`;
+      if (memBar) (memBar as HTMLElement).style.width = `${memory}%`;
+      if (memVal) memVal.textContent = `${memory.toFixed(1)}%`;
+      if (diskBar) (diskBar as HTMLElement).style.width = `${disk}%`;
+      if (diskVal) diskVal.textContent = `${disk.toFixed(1)}%`;
     }
 
     async refreshSessions() {
       try {
-        const sessions = await invoke('get_active_sessions');
-        const stats = await invoke('get_session_stats');
+        const sessions = await invoke<ActiveSession[]>('get_active_sessions');
+        const stats = await invoke<SessionStats>('get_session_stats');
 
         this.updateSessionsDisplay(sessions, stats);
       } catch (error) {
@@ -1322,11 +1387,13 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       }
     }
 
-    updateSessionsDisplay(sessions, stats) {
+    updateSessionsDisplay(sessions: ActiveSession[], stats: SessionStats) {
       const sessionsList = document.getElementById('sessions-list');
       const statsDisplay = document.getElementById('session-stats');
 
-      if (sessions.length === 0) {
+      if (!sessionsList) return;
+
+      if (!sessions || sessions.length === 0) {
         sessionsList.innerHTML = `
           <div class="session-item empty">
             <span class="session-name">No active sessions</span>
@@ -1334,21 +1401,22 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
           </div>
         `;
       } else {
-        sessionsList.innerHTML = sessions.map(session => `
-          <div class="session-item ${session.is_active ? 'active' : 'inactive'}">
-            <div class="session-info">
-              <span class="session-name">${session.username || 'Anonymous'}</span>
-              <span class="session-details">${session.client_ip} • ${this.formatDuration(session.connected_at)}</span>
+        sessionsList.innerHTML = sessions
+          .map((session) => `
+            <div class="session-item ${session.is_active ? 'active' : 'inactive'}">
+              <div class="session-info">
+                <span class="session-name">${session.username || 'Anonymous'}</span>
+                <span class="session-details">${session.client_ip || ''} • ${this.formatDuration(session.connected_at)}</span>
+              </div>
+              <div class="session-actions">
+                <span class="session-status">${session.is_active ? 'Active' : 'Inactive'}</span>
+                ${session.is_active ? `<button class="disconnect-btn" data-session-id="${session.id}">Disconnect</button>` : ''}
+              </div>
             </div>
-            <div class="session-actions">
-              <span class="session-status">${session.is_active ? 'Active' : 'Inactive'}</span>
-              ${session.is_active ? `<button class="disconnect-btn" data-session-id="${session.id}">Disconnect</button>` : ''}
-           </div>
-         </article>
-        `).join('');
+          `)
+          .join('');
       }
 
-      // Update statistics
       if (statsDisplay) {
         statsDisplay.innerHTML = `
           <div class="stat-item">
@@ -1367,10 +1435,10 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       }
     }
 
-    formatDuration(connectedAt) {
+    formatDuration(connectedAt: string) {
       const now = new Date();
       const connected = new Date(connectedAt);
-      const diffMs = now - connected;
+      const diffMs = now.getTime() - connected.getTime();
       const diffMins = Math.floor(diffMs / 60000);
       const diffHours = Math.floor(diffMins / 60);
 
@@ -1383,6 +1451,7 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
 
     showErrorState() {
       const sessionsList = document.getElementById('sessions-list');
+      if (!sessionsList) return;
       sessionsList.innerHTML = `
         <div class="session-item error">
           <span class="session-name">Error loading sessions</span>
@@ -1391,9 +1460,9 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       `;
     }
 
-    async disconnectSession(sessionId) {
+    async disconnectSession(sessionId: string) {
       try {
-        const success = await invoke('disconnect_session', { sessionId });
+        const success = await invoke<boolean>('disconnect_session', { session_id: sessionId });
         if (success) {
           activityStore.addMessage(`Session ${sessionId} disconnected`, 'info');
           await this.refreshSessions();
@@ -1407,12 +1476,13 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       try {
         // Listen for server events from backend
         const unlistenServerEvents = await listen('server_event', (event) => {
-          const serverEvent = event.payload;
+          const serverEvent = event.payload as ServerEventPayload;
           this.handleServerEvent(serverEvent);
         });
 
         // Store unlisten function for cleanup
-        this.unlistenServerEvents = unlistenServerEvents;
+        this.unlistenServerEvents = unlistenServerEvents as unknown as Function;
+        (window as any).__unlistenServerEvents = unlistenServerEvents;
 
         console.log('Event listeners set up successfully');
       } catch (error) {
@@ -1421,18 +1491,17 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       }
     }
 
-    handleServerEvent(serverEvent) {
-      // Map server event types to activity store types
-      const eventTypeMap = {
-        'Started': 'success',
-        'Stopped': 'info',
-        'Error': 'error',
-        'ConfigChanged': 'info',
-        'HealthCheck': 'info',
-        'SessionUpdate': 'info'
+    handleServerEvent(serverEvent: ServerEventPayload) {
+      const eventTypeMap: Record<ServerEventType, ActivityType> = {
+        Started: 'success',
+        Stopped: 'info',
+        Error: 'error',
+        ConfigChanged: 'info',
+        HealthCheck: 'info',
+        SessionUpdate: 'info',
       };
 
-      const activityType = eventTypeMap[serverEvent.event_type] || 'info';
+      const activityType: ActivityType = eventTypeMap[serverEvent.event_type] ?? 'info';
 
       // Add to activity feed
       this.addActivity(serverEvent.message, activityType);
@@ -1462,5 +1531,14 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
   document.addEventListener('DOMContentLoaded', () => {
     new Dashboard();
   });
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    if ((window as any).__unlistenServerEvents) {
+      try {
+        (window as any).__unlistenServerEvents();
+      } catch {}
+      (window as any).__unlistenServerEvents = null;
+    }
+  });
 </script>
-</Layout>

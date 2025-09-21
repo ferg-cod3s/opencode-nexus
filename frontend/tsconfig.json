@@ -1,12 +1,20 @@
 {
-  "extends": "astro/tsconfigs/base",
+  "extends": "astro/tsconfigs/strict",
   "compilerOptions": {
-    "strict": false,
-    "noImplicitAny": false,
-    "noImplicitReturns": false,
-    "strictNullChecks": false,
-    "skipLibCheck": true
+    "strict": true,
+    "types": [
+      "vite/client"
+    ]
   },
-  "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist", "e2e"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "src/**/*.svelte",
+    "src/**/*.astro"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/tests/**"
+  ]
 }

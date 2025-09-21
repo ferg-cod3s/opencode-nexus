@@ -63,7 +63,7 @@ function createActiveSessionStore() {
         if (!session || session.messages.length === 0) return session;
         const messages = [...session.messages];
         const lastMessage = messages[messages.length - 1];
-        if (lastMessage.role === 'assistant') {
+        if (lastMessage.role === MessageRole.Assistant) {
           messages[messages.length - 1] = {
             ...lastMessage,
             content: lastMessage.content + content

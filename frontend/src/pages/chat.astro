@@ -97,10 +97,11 @@ import Layout from '../layouts/Layout.astro';
 </style>
 
 <script>
-  import { invoke, listen, checkEnvironment } from '../utils/tauri-api.ts';
+  import { invoke, listen } from '../utils/tauri-api.ts';
   import ChatInterface from '../components/ChatInterface.svelte';
   import SessionGrid from '../components/SessionGrid.svelte';
   import type { ChatSession, ChatMessage, ChatEvent } from '../types/chat';
+  import { MessageRole } from '../types/chat';
 
   // State management
   let chatInterfaceComponent: ChatInterface | null = null;
@@ -112,8 +113,6 @@ import Layout from '../layouts/Layout.astro';
 
   // DOM elements
   const chatRoot = document.getElementById('chat-root')!;
-  const loadingState = document.getElementById('loading-state')!;
-
   async function initializeChat() {
     try {
       console.log('🔍 Chat page: Starting initialization...');
@@ -121,7 +120,7 @@ import Layout from '../layouts/Layout.astro';
 
       // Check authentication
       console.log('🔍 Chat page: Checking authentication...');
-      const isAuthenticated = await invoke('is_authenticated');
+      const isAuthenticated = await invoke<boolean>('is_authenticated');
       console.log('🔍 Chat page: Authentication status:', isAuthenticated);
 
       if (!isAuthenticated) {
@@ -132,7 +131,7 @@ import Layout from '../layouts/Layout.astro';
 
       // Check onboarding completion
       console.log('🔍 Chat page: Checking onboarding status...');
-      const onboardingState = await invoke('get_onboarding_state');
+      const onboardingState = await invoke<any>('get_onboarding_state');
       console.log('🔍 Chat page: Onboarding state:', onboardingState);
 
       if (!onboardingState.config?.is_completed) {
@@ -171,7 +170,7 @@ import Layout from '../layouts/Layout.astro';
 
   async function loadSessions() {
     try {
-      sessions = await invoke('get_chat_sessions') || [];
+      sessions = await invoke<ChatSession[]>('get_chat_sessions') || [];
       console.log(`Loaded ${sessions.length} chat sessions`);
       
       // If no sessions exist, create a default one
@@ -190,7 +189,7 @@ import Layout from '../layouts/Layout.astro';
 
   async function createNewSession(title?: string) {
     try {
-      const newSession = await invoke('create_chat_session', {
+      const newSession = await invoke<ChatSession>('create_chat_session', {
         title: title || `Chat ${new Date().toLocaleDateString()}`
       });
       
@@ -211,7 +210,7 @@ import Layout from '../layouts/Layout.astro';
     try {
       if (!currentSession) return;
       
-      const messages = await invoke('get_chat_session_history', { session_id: sessionId });
+      const messages = await invoke<ChatMessage[]>('get_chat_session_history', { session_id: sessionId });
       if (messages) {
         currentSession.messages = messages || [];
         updateComponents();
@@ -228,10 +227,13 @@ import Layout from '../layouts/Layout.astro';
   async function setupEventListeners() {
     try {
       // Listen for chat events from backend
-      await listen('chat-event', (event) => {
+      const unlistenChat = await listen('chat-event', (event) => {
         const chatEvent = event.payload as ChatEvent;
         handleChatEvent(chatEvent);
       });
+
+      // Store cleanup
+      (window as any).__unlistenChat = unlistenChat;
 
       console.log('Chat event listeners set up successfully');
     } catch (e) {
@@ -242,7 +244,7 @@ import Layout from '../layouts/Layout.astro';
 
   async function startMessageStreaming() {
     try {
-      await invoke('start_message_stream');
+      await invoke<void>('start_message_stream');
       console.log('Message streaming started');
     } catch (e) {
       console.error('Failed to start message streaming:', e);
@@ -280,14 +282,14 @@ import Layout from '../layouts/Layout.astro';
     const messages = currentSession.messages;
     const lastMessage = messages[messages.length - 1];
 
-    if (lastMessage && lastMessage.role === 'assistant') {
+    if (lastMessage && lastMessage.role === MessageRole.Assistant) {
       // Append to existing assistant message
       lastMessage.content += chunk;
     } else {
       // Create new streaming message
       const streamingMessage: ChatMessage = {
         id: `streaming-${Date.now()}`,
-        role: 'assistant',
+        role: MessageRole.Assistant,
         content: chunk,
         timestamp: new Date().toISOString()
       };
@@ -376,7 +378,7 @@ import Layout from '../layouts/Layout.astro';
       
       const userMessage: ChatMessage = {
         id: `temp-${Date.now()}`,
-        role: 'user',
+        role: MessageRole.User,
         content: event.detail.content,
         timestamp: new Date().toISOString()
       };
@@ -386,7 +388,7 @@ import Layout from '../layouts/Layout.astro';
       updateComponents();
 
       // Send to backend
-      await invoke('send_chat_message', {
+      await invoke<void>('send_chat_message', {
         session_id: currentSession.id,
         content: event.detail.content
       });
@@ -447,6 +449,10 @@ import Layout from '../layouts/Layout.astro';
     }
     if (sessionGridComponent) {
       sessionGridComponent.$destroy();
+    }
+    if ((window as any).__unlistenChat) {
+      try { (window as any).__unlistenChat(); } catch {}
+      (window as any).__unlistenChat = null;
     }
   });
 

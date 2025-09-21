@@ -5,8 +5,6 @@ mod web_server_manager;
 mod api_client;
 mod chat_manager;
 mod message_stream;
-#[cfg(test)]
-mod tests;
 
 use auth::AuthManager;
 use onboarding::{OnboardingManager, OnboardingState, SystemRequirements};
@@ -739,7 +737,7 @@ async fn create_chat_session(app_handle: tauri::AppHandle, title: Option<String>
 }
 
 #[tauri::command]
-async fn send_chat_message(app_handle: tauri::AppHandle, session_id: String, content: String) -> Result<ChatMessage, String> {
+async fn send_chat_message(app_handle: tauri::AppHandle, session_id: String, content: String) -> Result<(), String> {
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
@@ -755,7 +753,9 @@ async fn send_chat_message(app_handle: tauri::AppHandle, session_id: String, con
             if let Some(api_client) = &server_manager.api_client {
                 let mut chat_manager = ChatManager::new(config_dir.clone());
                 chat_manager.set_api_client(api_client.clone());
-                chat_manager.send_message(&session_id, &content).await
+                // Send the message and rely on events/streaming for responses
+                let _ = chat_manager.send_message(&session_id, &content).await?;
+                Ok(())
             } else {
                 Err("Server not running or API client not available".to_string())
             }

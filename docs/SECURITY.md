@@ -1,7 +1,7 @@
 # Security Model
 **Project:** OpenCode Nexus  
 **Version:** 0.0.1  
-**Last Updated:** 2025-09-01
+**Last Updated:**  2025-09-20
 **Status:** Planning Phase
 
 ## 1. Security Principles
@@ -461,3 +461,80 @@ The security model for OpenCode Nexus is comprehensive and multi-layered, addres
 Security is not a one-time effort but a continuous process of improvement and adaptation to emerging threats. Regular security assessments, updates, and training ensure that OpenCode Nexus remains secure as the threat landscape evolves.
 
 The commitment to security by design, transparency, and community involvement makes OpenCode Nexus not only secure but also a model for secure open-source software development.
+
+---
+
+## 14. Runtime Content Security Policy (CSP) and Security Headers
+
+This project now enforces a strong security posture in both development and production.
+
+### 14.1 Policies Applied
+
+- Cross-Origin-Opener-Policy: same-origin
+- Cross-Origin-Embedder-Policy: require-corp
+- X-Content-Type-Options: nosniff
+- Content-Security-Policy (CSP)
+
+### 14.2 Production (Tauri v2)
+
+Configured in src-tauri/tauri.conf.json under app.security:
+
+- csp:
+  - default-src 'self'
+  - script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules' tauri:
+  - style-src 'self'
+  - img-src 'self' data: blob:
+  - font-src 'self' data:
+  - connect-src 'self' https: http: ws: tauri: ipc: http://ipc.localhost
+  - media-src 'self' data: blob:
+  - object-src 'none'
+  - base-uri 'self'
+  - frame-ancestors 'self'
+  - form-action 'self'
+  - worker-src 'self' blob:
+
+- headers:
+  - Cross-Origin-Opener-Policy: same-origin
+  - Cross-Origin-Embedder-Policy: require-corp
+  - X-Content-Type-Options: nosniff
+
+### 14.3 Development (Astro/Vite dev server)
+
+Set in frontend/astro.config.mjs via vite.server.headers and a fallback Vite middleware plugin to ensure headers are applied in all environments:
+
+- dev CSP (relaxed for HMR):
+  - default-src 'self'
+  - script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval' http: https: tauri:
+  - style-src 'self' 'unsafe-inline'
+  - img-src 'self' data: blob: https:
+  - font-src 'self' data:
+  - connect-src 'self' ws: http: https: tauri: ipc:
+  - media-src 'self' data: blob:
+  - object-src 'none'
+  - base-uri 'self'
+  - frame-ancestors 'self'
+  - form-action 'self'
+  - worker-src 'self' blob:
+
+Note: 'unsafe-inline' and 'unsafe-eval' remain in dev to support Vite HMR and inline scripts in legacy pages. They are removed in production.
+
+### 14.4 Verifying Headers
+
+- Dev: bun run dev, then curl -I http://localhost:1420 and verify CSP, COOP, COEP, and nosniff headers.
+- Tauri dev: cargo tauri dev (loads remote devUrl); headers must be present from the Astro dev server as above.
+- Prod: cargo tauri build, then inspect the bundled app. CSP is injected by Tauri; COOP/COEP/nosniff are set via app.security.headers.
+
+### 14.5 Extending Policies (e.g., Chat/AI endpoints)
+
+If adding new network endpoints, update both:
+- frontend/astro.config.mjs: add origin to the dev CSP connect-src
+- src-tauri/tauri.conf.json (csp and/or devCsp): add origin to connect-src
+
+Examples:
+- Allow an AI API at https://api.example.ai → add https://api.example.ai to connect-src.
+- Allow WebSockets at wss://stream.example.ai → add wss: and the origin to connect-src.
+
+### 14.6 Cross-Origin Isolation Notes
+
+COOP+COEP enable cross-origin isolation, allowing features like SharedArrayBuffer and strengthening security boundaries. Third-party resources must be compliant (serve proper CORS/Corp headers) or they may be blocked under COEP.
+
