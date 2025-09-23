@@ -1,10 +1,10 @@
 <script lang="ts">
-  import type { ChatMessage, MessageRole } from '../types/chat';
+  import type { ChatMessage } from '../types/chat';
 
   export let message: ChatMessage;
   
 
-  $: isUser = message.role === MessageRole.User;
+  $: isUser = message.role === "user";
 
   function formatTime(timestamp: string): string {
     try {

@@ -263,11 +263,11 @@ export const invoke = async <T = any>(command: string, args?: Record<string, any
 
   if (isTauriEnvironment()) {
     try {
-      // Use real Tauri API
+      // Use real Tauri API - in Tauri v2, invoke is in the core module
       const { invoke } = await import('@tauri-apps/api/core');
-      const result = await invoke<T>(command, args);
+      const result = await invoke(command, args);
       console.log(`[TAURI API] ${command} result:`, result);
-      return result;
+      return result as T;
     } catch (error) {
       console.error(`[TAURI API] Command ${command} failed:`, error);
       throw error;
@@ -301,7 +301,7 @@ const mockEventListeners = new Map<string, Function[]>();
 export const listen = async (event: string, handler: (event: any) => void): Promise<() => void> => {
   if (isTauriEnvironment()) {
     try {
-      // Use real Tauri event API
+      // Use real Tauri event API - in Tauri v2, listen is in the event module
       const { listen } = await import('@tauri-apps/api/event');
       return await listen(event, handler);
     } catch (error) {

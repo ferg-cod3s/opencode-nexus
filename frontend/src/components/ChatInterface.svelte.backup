@@ -20,8 +20,8 @@
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 
-  function handleSendMessage(content: string) {
-    dispatch('sendMessage', { content });
+  function handleSendMessage(event: CustomEvent<{ content: string }>) {
+    dispatch('sendMessage', event.detail);
   }
 
   function handleClose() {
@@ -37,7 +37,7 @@
   }
 </script>
 
-<div class="chat-interface" data-testid="chat-interface">
+<div class="chat-interface">
   <div class="chat-header">
     <div class="session-info">
       <h3 class="session-title" data-testid="current-session-title">{session.title || 'Untitled Session'}</h3>
@@ -79,7 +79,7 @@
 
   <MessageInput
     disabled={loading}
-    onSend={handleSendMessage}
+    on:send={handleSendMessage}
   />
 </div>
 

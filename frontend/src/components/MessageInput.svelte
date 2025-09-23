@@ -1,20 +1,15 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
-
   export let disabled = false;
   export let placeholder = "Type your message...";
-
-  const dispatch = createEventDispatcher<{
-    send: { content: string };
-  }>();
+  export let onSend: ((content: string) => void) | undefined = undefined;
 
   let inputElement: HTMLTextAreaElement;
   let content = '';
 
   function handleSubmit() {
     const trimmedContent = content.trim();
-    if (trimmedContent && !disabled) {
-      dispatch('send', { content: trimmedContent });
+    if (trimmedContent && !disabled && onSend) {
+      onSend(trimmedContent);
       content = '';
       // Reset textarea height
       if (inputElement) {
@@ -70,7 +65,7 @@
 
     <button
       class="send-btn"
-      disabled={!content.trim() || disabled}
+      disabled={!content.trim() || disabled || !onSend}
       data-testid="send-button"
       aria-label="Send message"
       on:click={handleSubmit}

@@ -24,11 +24,11 @@
   - [x] **BONUS**: Real-time event streaming for server status updates
   - [x] **BONUS**: Comprehensive session tracking and management
 
-- [x] \*\*🚨 CRITICAL: Implement Cloudflared Tunnel Integration\*\* \(Priority: High - BLOCKING REMOTE ACCESS\) ✅ COMPLETED
-  - [x] ✅ Real cloudflared process management implemented \(UI controls connected\)
-  - [x] ✅ Tunnel management backend connected to real cloudflared binary
-  - [x] ✅ Tunnel configuration persistence implemented
-  - [x] ✅ Real tunnel status monitoring implemented \(real-time updates\)
+- [ ] **🚨 CRITICAL: Implement Cloudflared Tunnel Integration** (Priority: High - BLOCKING REMOTE ACCESS)
+  - [ ] 🔴 **CRITICAL**: Implement real cloudflared process management (UI controls ready)
+  - [ ] 🔴 **CRITICAL**: Connect tunnel management backend to real cloudflared binary
+  - [ ] 🔴 **CRITICAL**: Implement tunnel configuration persistence
+  - [ ] 🔴 **CRITICAL**: Add real tunnel status monitoring (currently hardcoded)
   - [x] ✅ Tunnel UI controls in dashboard (connected to stub functions)
   - [ ] 🟡 Add Tailscale VPN support (planned for Phase 4)
   - [ ] 🟡 Add secure authentication for remote access tunnel
@@ -166,8 +166,8 @@
 - [x] **BONUS COMPLETED**: Reactive activity feed with Svelte store
 - [x] **BONUS COMPLETED**: Session management and monitoring
 
-### Milestone 3: Remote Access \(Week 5-6\) ✅ COMPLETED
-- [x] Secure tunnel integration \(Cloudflared\) ✅ IMPLEMENTED
+### Milestone 3: Remote Access (Week 5-6)
+- [ ] Secure tunnel integration (Cloudflared)
 - [ ] Authentication system ✅ **ALREADY COMPLETED**
 - [ ] Remote web interface (tunnel status monitoring)
 
@@ -218,7 +218,7 @@ Based on [OpenCode server documentation](https://opencode.ai/docs/server/):
 
 **Last Updated**: 2025-09-04
 **Next Review**: Daily (debugging active)
-\*\*Status\*\*: ✅ MVP COMPLETE - All Components Operational
-\*\*Progress\*\*: 100% Complete \(Full OpenCode Nexus functionality\)
-\*\*Current Focus\*\*: Production deployment and user onboarding
-\*\*Next Priority\*\*: Production deployment and user onboarding
+**Status**: 🔄 INTEGRATION PHASE - Critical Components Need Connection
+**Progress**: ~90% Complete (All core functionality operational)
+**Current Focus**: Cloudflared tunnel implementation, production hardening
+**Next Priority**: Implement real cloudflared process management, production optimization

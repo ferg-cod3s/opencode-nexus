@@ -31,7 +31,6 @@
     <h2 class="grid-title">Chat Sessions</h2>
     <button
       class="create-btn"
-      data-testid="new-session-button"
       on:click={handleCreateSession}
       disabled={loading}
       aria-label="Create new chat session"
@@ -55,7 +54,6 @@
       </p>
       <button
         class="create-btn primary"
-        data-testid="create-first-session-button"
         on:click={handleCreateSession}
         aria-label="Create your first chat session"
       >

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "strict": true,
     "types": [
-      "vite/client"
+      "vite/client",
+      "svelte"
     ]
   },
   "include": [

@@ -44,7 +44,6 @@
 <div
   class="session-card"
   class:active={isActive}
-  data-testid="chat-session"
   role="button"
   tabindex="0"
   aria-label="Chat session: {session.title || 'Untitled'} with {messageCount} messages"
@@ -60,7 +59,6 @@
     <h3 class="session-title">{session.title || 'Untitled Session'}</h3>
     <button
       class="delete-btn"
-      data-testid="delete-session-button"
       aria-label="Delete session"
       on:click={handleDelete}
       on:keydown={(e) => {

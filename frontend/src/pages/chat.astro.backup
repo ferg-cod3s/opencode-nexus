@@ -151,13 +151,12 @@ import Layout from '../layouts/Layout.astro';
       // Start message streaming for real-time AI responses
       await startMessageStreaming();
 
-        loading = false;
+      // Mount components
+      mountComponents();
 
-        // Mount components
-        mountComponents();
-
-        // Hide loading state only on success
-        chatRoot.classList.add("loaded");
+      // Hide loading state only on success
+      chatRoot.classList.add('loaded');
+      loading = false;
 
       console.log('🔍 Chat page: Initialization complete');
 

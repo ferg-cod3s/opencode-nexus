@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tauri Debug Test</title>
+</head>
+<body>
+    <h1>Tauri Environment Debug</h1>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        function log(message) {
+            results.innerHTML += '<p>' + message + '</p>';
+            console.log(message);
+        }
+        
+        log('Testing Tauri environment detection...');
+        
+        // Check if we're in Tauri environment
+        const isTauri = typeof window !== 'undefined' && '__TAURI__' in window;
+        log('Is Tauri environment: ' + isTauri);
+        
+        if (isTauri) {
+            log('Tauri object found in window');
+            log('Tauri version: ' + (window as any).__TAURI__.version);
+        } else {
+            log('Not in Tauri environment - falling back to mock API');
+        }
+        
+        // Test invoke function
+        async function testInvoke() {
+            try {
+                log('Testing invoke function...');
+                const { invoke } = await import('./src/utils/tauri-api.ts');
+                log('Invoke function imported successfully');
+                
+                // Test a simple command
+                const result = await invoke('is_authenticated');
+                log('is_authenticated result: ' + result);
+                
+            } catch (error) {
+                log('Error testing invoke: ' + error.message);
+                console.error(error);
+            }
+        }
+        
+        testInvoke();
+    </script>
+</body>
+</html>

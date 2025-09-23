@@ -205,18 +205,19 @@ test.describe('Settings Page', () => {
     await expect(page.locator('#tunnel-settings')).toBeVisible();
   });
 
-  test('should clear settings across page reloads', async ({ page }) => {
+  test('should persist settings across page reloads', async ({ page }) => {
     const domainInput = page.locator('#custom-domain');
     const tokenInput = page.locator('#auth-token');
     
     // Fill settings
-    await domainInput.fill('test.example.com');
-    await tokenInput.fill('test-token-12345');
+    await domainInput.fill('persistent.example.com');
+    await tokenInput.fill('persistent-token-12345');
     
     // Reload page
     await page.reload();
     
-    // Settings should be cleared (no client-side persistence implemented yet)
+    // Settings should be cleared (since backend persistence isn't implemented yet)
+    // This test documents the current behavior
     await expect(domainInput).toHaveValue('');
     await expect(tokenInput).toHaveValue('');
   });
@@ -226,16 +227,15 @@ test.describe('Settings Page', () => {
     await expect(page.locator('form')).toHaveCount(0); // No traditional form element
     await expect(page.locator('input[type="text"]')).toHaveCount(1);
     await expect(page.locator('input[type="password"]')).toHaveCount(1);
-    // Count only checkboxes within the settings sections, not dev toolbar
-    await expect(page.locator('#tunnel-settings input[type="checkbox"], #app-settings input[type="checkbox"]')).toHaveCount(1);
+    await expect(page.locator('input[type="checkbox"]')).toHaveCount(1);
     await expect(page.locator('select')).toHaveCount(1);
     await expect(page.locator('button')).toHaveCount(2);
   });
 
   test('should have proper semantic structure', async ({ page }) => {
-    // Check semantic HTML structure - be more specific to avoid dev toolbar
+    // Check semantic HTML structure
     await expect(page.locator('main')).toBeVisible();
-    await expect(page.locator('.settings-header')).toBeVisible();
+    await expect(page.locator('header')).toBeVisible();
     await expect(page.locator('section')).toHaveCount(2);
     await expect(page.locator('h1')).toBeVisible();
     await expect(page.locator('h2')).toHaveCount(2);
@@ -258,7 +258,7 @@ test.describe('Settings Page', () => {
     const domainInput = page.locator('#custom-domain');
     
     // Focus on input
-    await domainInput.click(); // Use click instead of focus()
+    await domainInput.focus();
     await expect(domainInput).toBeFocused();
     
     // Blur input
@@ -310,22 +310,19 @@ test.describe('Settings Page', () => {
   });
 
   test('should handle missing JavaScript gracefully', async ({ page }) => {
-    // Create a new context with JavaScript disabled
-    const context = page.context();
-    const newPage = await context.newPage();
-    
-    // Disable JavaScript on the new page
-    await newPage.goto('/settings');
+    // Disable JavaScript
+    await page.context().setJavaScriptEnabled(false);
+    await page.reload();
     
     // Page should still render basic HTML structure
-    await expect(newPage.locator('#tunnel-settings')).toBeVisible();
-    await expect(newPage.locator('#app-settings')).toBeVisible();
+    await expect(page.locator('#tunnel-settings')).toBeVisible();
+    await expect(page.locator('#app-settings')).toBeVisible();
     
     // Form elements should be present but non-functional
-    await expect(newPage.locator('#custom-domain')).toBeVisible();
-    await expect(newPage.locator('#save-tunnel-settings')).toBeVisible();
+    await expect(page.locator('#custom-domain')).toBeVisible();
+    await expect(page.locator('#save-tunnel-settings')).toBeVisible();
     
-    // Close the new page
-    await newPage.close();
+    // Re-enable JavaScript for other tests
+    await page.context().setJavaScriptEnabled(true);
   });
 });

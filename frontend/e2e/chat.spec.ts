@@ -31,7 +31,7 @@ async function completeOnboarding(page: any) {
 test.describe('Chat Interface', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to main chat interface
-    await page.goto('/');
+    await page.goto('/chat');
 
     // Wait for page to load and handle potential redirect to onboarding
     await page.waitForLoadState('networkidle');
@@ -39,48 +39,51 @@ test.describe('Chat Interface', () => {
     // If redirected to onboarding, complete it first
     if (page.url().includes('/onboarding')) {
       await completeOnboarding(page);
-      await page.goto('/');
+      await page.goto('/chat');
       await page.waitForLoadState('networkidle');
     }
 
-    // Wait for the start button to be enabled (app initialization)
-    await page.waitForSelector('#start-chat-btn:not([disabled])', { timeout: 10000 });
+    // Wait for either successful loading or error state
+    await Promise.race([
+      page.waitForSelector('.chat-interface', { timeout: 10000 }),
+      page.waitForSelector('.error-banner', { timeout: 10000 })
+    ]);
   });
 
-  test('should display welcome screen initially', async ({ page }) => {
-    // Verify welcome screen is shown
-    await expect(page.locator('#welcome-screen')).toBeVisible();
-    await expect(page.locator('.welcome-title')).toContainText('Welcome to OpenCode Nexus');
-    await expect(page.locator('#start-chat-btn')).toBeVisible();
-    await expect(page.locator('#start-chat-btn')).not.toBeDisabled();
-  });
-
-  test('should create new chat session', async ({ page }) => {
-    // Click start chat button
-    await page.click('#start-chat-btn');
-
-    // Welcome screen should disappear
-    await expect(page.locator('#welcome-screen')).not.toBeVisible();
-
-    // Chat interface should appear
-    await expect(page.locator('.chat-interface')).toBeVisible();
-
-    // Should have a session in the sidebar
-    await expect(page.locator('.session-card')).toHaveCount(1);
+  test('should display chat interface after loading', async ({ page }) => {
+    // Check if chat interface loaded successfully
+    const chatInterface = page.locator('.chat-interface');
+    const errorBanner = page.locator('.error-banner');
+    
+    // If there's an error banner, the test should fail with a clear message
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
+    
+    // Verify chat interface is loaded
+    await expect(chatInterface).toBeVisible();
+    
+    // Should have a session in the sidebar (auto-created)
+    await expect(page.locator('.sessions-sidebar')).toBeVisible();
+    
+    // Should have message input available
+    await expect(page.locator('.message-input-container')).toBeVisible();
   });
 
   test('should send and display messages', async ({ page }) => {
-    // Create a new session first
-    await page.click('#start-chat-btn');
-
-    // Wait for chat interface to load
-    await expect(page.locator('.chat-interface')).toBeVisible();
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
 
     // Type a message
-    await page.fill('.message-input textarea', 'Hello, can you help me with coding?');
+    await page.fill('.message-input-container textarea', 'Hello, can you help me with coding?');
 
     // Click send button
-    await page.click('button[data-action="send"]');
+    await page.click('button[data-testid="send-button"]');
 
     // Message should appear in chat
     await expect(page.locator('.message-bubble.user')).toContainText('Hello, can you help me with coding?');
@@ -90,54 +93,72 @@ test.describe('Chat Interface', () => {
   });
 
   test('should handle message input validation', async ({ page }) => {
-    // Create a new session
-    await page.click('#start-chat-btn');
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
 
     // Try to send empty message
-    await page.click('button[data-action="send"]');
+    await page.click('button[data-testid="send-button"]');
 
-    // Should not send empty message
-    await expect(page.locator('.message-bubble')).toHaveCount(0);
+    // Should not send empty message (button should be disabled)
+    await expect(page.locator('button[data-testid="send-button"]')).toBeDisabled();
 
     // Type message with only whitespace
-    await page.fill('.message-input textarea', '   ');
-    await page.click('button[data-action="send"]');
+    await page.fill('.message-input-container textarea', '   ');
+    await page.click('button[data-testid="send-button"]');
 
-    // Should not send whitespace-only message
-    await expect(page.locator('.message-bubble')).toHaveCount(0);
+    // Should not send whitespace-only message (button should be disabled)
+    await expect(page.locator('button[data-testid="send-button"]')).toBeDisabled();
   });
 
   test('should support keyboard shortcuts', async ({ page }) => {
-    // Create a new session
-    await page.click('#start-chat-btn');
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
 
     // Type message
-    await page.fill('.message-input textarea', 'Test message');
+    await page.fill('.message-input-container textarea', 'Test message');
 
-    // Press Ctrl+Enter to send
-    await page.keyboard.press('Control+Enter');
+    // Press Enter to send (default behavior)
+    await page.keyboard.press('Enter');
 
     // Message should be sent
     await expect(page.locator('.message-bubble.user')).toContainText('Test message');
   });
 
   test('should display message timestamps', async ({ page }) => {
-    // Create session and send message
-    await page.click('.start-btn');
-    await page.fill('.message-input textarea', 'Test message');
-    await page.click('button[data-action="send"]');
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
+
+    // Send message
+    await page.fill('.message-input-container textarea', 'Test message');
+    await page.click('button[data-testid="send-button"]');
 
     // Should display timestamp
     await expect(page.locator('.message-time')).toBeVisible();
   });
 
   test('should handle message formatting', async ({ page }) => {
-    // Create session
-    await page.click('.start-btn');
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
 
     // Send message with markdown
-    await page.fill('.message-input textarea', 'Here is some `inline code` and a code block:\n\n```javascript\nconsole.log("Hello World");\n```');
-    await page.click('button[data-action="send"]');
+    await page.fill('.message-input-container textarea', 'Here is some `inline code` and a code block:\n\n```javascript\nconsole.log("Hello World");\n```');
+    await page.click('button[data-testid="send-button"]');
 
     // Should render formatted content
     await expect(page.locator('.inline-code')).toContainText('inline code');
@@ -145,14 +166,18 @@ test.describe('Chat Interface', () => {
   });
 
   test('should maintain message history', async ({ page }) => {
-    // Create session and send multiple messages
-    await page.click('.start-btn');
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
 
     const messages = ['First message', 'Second message', 'Third message'];
 
     for (const message of messages) {
-      await page.fill('.message-input textarea', message);
-      await page.click('button[data-action="send"]');
+      await page.fill('.message-input-container textarea', message);
+      await page.click('button[data-testid="send-button"]');
       await expect(page.locator('.message-bubble.user').last()).toContainText(message);
     }
 
@@ -161,26 +186,34 @@ test.describe('Chat Interface', () => {
   });
 
   test('should handle long messages gracefully', async ({ page }) => {
-    // Create session
-    await page.click('#start-chat-btn');
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
 
     // Send a very long message
     const longMessage = 'A'.repeat(1000);
-    await page.fill('.message-input textarea', longMessage);
-    await page.click('button[data-action="send"]');
+    await page.fill('.message-input-container textarea', longMessage);
+    await page.click('button[data-testid="send-button"]');
 
     // Should handle long message without breaking layout
     await expect(page.locator('.message-bubble.user')).toContainText(longMessage.substring(0, 100));
   });
 
   test('should auto-scroll to new messages', async ({ page }) => {
-    // Create session
-    await page.click('#start-chat-btn');
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
 
     // Send multiple messages to create scroll
     for (let i = 1; i <= 10; i++) {
-      await page.fill('.message-input textarea', `Message ${i}`);
-      await page.click('button[data-action="send"]');
+      await page.fill('.message-input-container textarea', `Message ${i}`);
+      await page.click('button[data-testid="send-button"]');
       await expect(page.locator('.message-bubble.user').last()).toContainText(`Message ${i}`);
     }
 
@@ -200,16 +233,83 @@ test.describe('Chat Interface', () => {
   });
 
   test('should be accessible with screen reader', async ({ page }) => {
-    // Create session
-    await page.click('.start-btn');
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
 
     // Send a message
-    await page.fill('.message-input textarea', 'Test message');
-    await page.click('button[data-action="send"]');
+    await page.fill('.message-input-container textarea', 'Test message');
+    await page.click('button[data-testid="send-button"]');
 
     // Check ARIA attributes
     await expect(page.locator('[role="log"]')).toBeVisible();
     await expect(page.locator('[aria-live="polite"]')).toBeVisible();
     await expect(page.locator('[aria-label="Chat messages"]')).toBeVisible();
+  });
+
+  test('should create new chat sessions', async ({ page }) => {
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
+
+    // Click new session button in sidebar
+    await page.click('.create-btn');
+
+    // Should create a new session
+    await expect(page.locator('.session-card')).toHaveCount(2); // Original + new
+  });
+
+  test('should switch between chat sessions', async ({ page }) => {
+    // First check if chat interface loaded successfully
+    const errorBanner = page.locator('.error-banner');
+    if (await errorBanner.isVisible()) {
+      const errorText = await errorBanner.textContent();
+      throw new Error(`Chat interface failed to load: ${errorText}`);
+    }
+
+    // Create a second session
+    await page.click('.create-btn');
+    
+    // Send message to first session
+    await page.fill('.message-input-container textarea', 'Message in first session');
+    await page.click('button[data-testid="send-button"]');
+    
+    // Switch to second session (click the second session card)
+    await page.click('.session-card:nth-child(2)');
+    
+    // Should have empty message area (new session)
+    await expect(page.locator('.message-bubble')).toHaveCount(0);
+    
+    // Send message to second session
+    await page.fill('.message-input-container textarea', 'Message in second session');
+    await page.click('button[data-testid="send-button"]');
+    
+    // Should show message in second session
+    await expect(page.locator('.message-bubble.user')).toContainText('Message in second session');
+  });
+
+  test('should handle server unavailable gracefully', async ({ page }) => {
+    // Wait for either chat interface or error state
+    const chatInterface = page.locator('.chat-interface');
+    const errorBanner = page.locator('.error-banner');
+    
+    // If chat interface loads, that's fine
+    if (await chatInterface.isVisible()) {
+      console.log('✅ Chat interface loaded successfully');
+      return;
+    }
+    
+    // If error banner appears, verify it shows appropriate error message
+    await expect(errorBanner).toBeVisible();
+    const errorText = await errorBanner.textContent();
+    
+    // Should show a user-friendly error message
+    expect(errorText).toMatch(/(Failed to initialize chat|Server not running|OpenCode server)/i);
   });
 });
