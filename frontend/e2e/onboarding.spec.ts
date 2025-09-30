@@ -1,19 +1,33 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Onboarding Flow', () => {
+  test.beforeEach(async ({ page }) => {
+    // Don't set __TAURI__ so the tauri-api utility falls back to mock API
+    // The mock API in tauri-api.ts will handle all the commands
+  });
+
   test('should complete full onboarding process', async ({ page }) => {
     // Navigate to onboarding page
     await page.goto('/onboarding');
+    await page.waitForLoadState('networkidle');
 
-    // Verify welcome step is active
-    await expect(page.locator('.step.active[data-step="welcome"]')).toBeVisible();
-    await expect(page.locator('.step-content.active[data-step="welcome"]')).toBeVisible();
+    // Debug: Check what's actually on the page
+    const bodyText = await page.locator('body').textContent();
+    console.log('Onboarding page body text:', bodyText?.substring(0, 500));
 
-    // Click "Get Started" button
-    await page.click('[data-action="next"]');
+    // Check if onboarding body has content
+    const onboardingBody = page.locator('#onboarding-body');
+    const bodyContent = await onboardingBody.textContent();
+    console.log('Onboarding body content:', bodyContent);
 
-    // Verify requirements step is now active
-    await expect(page.locator('.step.active[data-step="requirements"]')).toBeVisible();
+    // The onboarding starts with system requirements check (step 1), not welcome
+    // Check if the system requirements step is visible
+    await expect(page.locator('text=System Requirements Check')).toBeVisible();
+    await expect(page.locator('text=Let\'s verify your system can run OpenCode AI.')).toBeVisible();
+
+    // The system check happens automatically, so we should see the results
+    // Wait for system check to complete
+    await page.waitForSelector('text=Operating System: Compatible', { timeout: 10000 });
     await expect(page.locator('.step-content.active[data-step="requirements"]')).toBeVisible();
 
     // Wait for system requirements check to complete

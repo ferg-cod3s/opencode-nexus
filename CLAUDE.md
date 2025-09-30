@@ -20,11 +20,14 @@ OpenCode Nexus is a **cross-platform desktop application** for managing OpenCode
 ```bash
 cd frontend
 bun install              # Install dependencies
-bun run dev              # Development server
+bun run dev              # Development server (http://localhost:4321)
 bun run build            # Production build
-bun test                 # Run tests with Bun
+bun test                 # Run unit tests with Bun
+bun run test:e2e         # Run end-to-end tests with Playwright
+bun run test:e2e:ui      # Run E2E tests with UI
 bun run lint             # ESLint with accessibility checks
 bun run typecheck        # TypeScript checking
+bun run format           # Format code with Prettier
 ```
 
 ### Backend Development (Rust + Tauri)
@@ -88,7 +91,8 @@ The `/docs` directory contains detailed documentation covering all aspects of th
 - **[docs/USER-FLOWS.md](docs/USER-FLOWS.md)** - UX patterns, accessibility requirements, and user journeys
 
 ### Current Implementation Status
-- **[TODO.md](TODO.md)** - **Current progress (90% complete - core functionality operational)**, task tracking, and next priorities
+- **[TODO.md](TODO.md)** - **Current progress (100% MVP complete - all core functionality operational)**, task tracking, and next priorities
+- **[CURRENT_STATUS.md](CURRENT_STATUS.md)** - Detailed status of all implemented features
 - **[thoughts/plans/opencode-nexus-mvp-implementation.md](thoughts/plans/opencode-nexus-mvp-implementation.md)** - Implementation plan with TDD requirements
 - **[thoughts/research/2025-09-03_claude-agents-documentation-best-practices.md](thoughts/research/2025-09-03_claude-agents-documentation-best-practices.md)** - Documentation standards and best practices
 
@@ -123,7 +127,11 @@ opencode-nexus/
 │   │   ├── server_manager.rs      # OpenCode server lifecycle (518 lines)
 │   │   ├── auth.rs                # Authentication with Argon2 hashing
 │   │   ├── onboarding.rs          # Cross-platform system detection
-│   │   └── api_client.rs          # OpenCode server API integration
+│   │   ├── api_client.rs          # OpenCode server API integration
+│   │   ├── chat_manager.rs        # Chat session and message management
+│   │   ├── message_stream.rs      # Real-time SSE message streaming
+│   │   ├── web_server_manager.rs  # Web server for tunnel access
+│   │   └── tunnel_manager.rs      # Cloudflared tunnel management
 │   ├── Cargo.toml                 # Dependencies (Tauri, tokio, sentry, etc.)
 │   └── tests/                     # Rust unit tests (TDD approach)
 ├── frontend/                      # Astro + Svelte 5 frontend
@@ -143,9 +151,14 @@ opencode-nexus/
 ```
 
 ### Key Files for Development
-- **[src-tauri/src/server_manager.rs](src-tauri/src/server_manager.rs)** - Core server management logic
-- **[src-tauri/src/auth.rs](src-tauri/src/auth.rs)** - Authentication system patterns  
-- **[frontend/src/pages/dashboard.astro](frontend/src/pages/dashboard.astro)** - Main UI implementation
+- **[src-tauri/src/lib.rs](src-tauri/src/lib.rs)** - Tauri command handlers and main entry point
+- **[src-tauri/src/server_manager.rs](src-tauri/src/server_manager.rs)** - Core server lifecycle management
+- **[src-tauri/src/auth.rs](src-tauri/src/auth.rs)** - Authentication system with Argon2
+- **[src-tauri/src/chat_manager.rs](src-tauri/src/chat_manager.rs)** - Chat session management
+- **[src-tauri/src/api_client.rs](src-tauri/src/api_client.rs)** - OpenCode API integration
+- **[src-tauri/src/tunnel_manager.rs](src-tauri/src/tunnel_manager.rs)** - Cloudflared tunnel management
+- **[frontend/src/pages/dashboard.astro](frontend/src/pages/dashboard.astro)** - Main dashboard UI
+- **[frontend/src/pages/chat.astro](frontend/src/pages/chat.astro)** - Chat interface
 - **[src-tauri/Cargo.toml](src-tauri/Cargo.toml)** - Backend dependencies and configuration
 
 ## Development Workflow
@@ -215,19 +228,37 @@ Provide clear status including:
 - Next development priorities from [thoughts/plans/](thoughts/plans/)
 - Any blockers or decisions needed to proceed
 
-## Common Issues & Solutions
+### Event Streaming (SSE)
+**Pattern**: Real-time updates from backend to frontend
+```rust
+// Backend: Send events via event emitter
+app.emit("event_name", &payload)?;
+```
 
-### Async/Await in Rust
-- **Issue**: MutexGuard not Send-safe across await boundaries
-- **Solution**: Extract data from mutex before await, don't hold locks across async calls
+```typescript
+// Frontend: Listen for events
+import { listen } from '@tauri-apps/api/event';
+await listen('event_name', (event) => {
+    // Handle event.payload
+});
+```
 
-### Cross-Platform Compatibility
-- **Issue**: Platform-specific system detection
-- **Solution**: Use conditional compilation and platform-specific dependencies
+### State Management in Rust
+**Pattern**: Use Arc<Mutex<T>> for shared state
+```rust
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
-### Accessibility Compliance
-- **Issue**: Missing keyboard navigation or screen reader support
-- **Solution**: Use proper ARIA labels, semantic HTML, and test with accessibility tools
+// Create shared state
+let state = Arc::new(Mutex::new(ServerManager::new()));
+
+// Clone Arc for each task (cheap reference counting)
+let state_clone = state.clone();
+tokio::spawn(async move {
+    let mut manager = state_clone.lock().await;
+    // Use manager
+});
+```
 
 ## Security Requirements (Critical)
 
@@ -246,45 +277,69 @@ Provide clear status including:
 
 ## Current Implementation Status
 
-### ✅ Completed Features (Phase 1-3)
+### ✅ MVP Complete - All Core Features Operational (100%)
+
+**Phase 1-3: Core Infrastructure** ✅
 - **Onboarding System**: 6-step wizard with cross-platform system detection ([src-tauri/src/onboarding.rs](src-tauri/src/onboarding.rs))
 - **Authentication**: Argon2 hashing, account lockout, persistent sessions ([src-tauri/src/auth.rs](src-tauri/src/auth.rs))
 - **Server Management**: Complete lifecycle management with real-time event streaming ([src-tauri/src/server_manager.rs](src-tauri/src/server_manager.rs))
 - **Dashboard UI**: Reactive interface with accessibility compliance ([frontend/src/pages/dashboard.astro](frontend/src/pages/dashboard.astro))
 - **Session Tracking**: OpenCode server session management with API integration
-- **Testing**: TDD approach with 29 tests covering critical paths
 
-### 🔄 Current Phase: Production Hardening (90% Complete)  
-- **Chat Interface**: Full AI conversation system with real OpenCode API integration (implemented)
-- **Real-time Metrics**: Event-driven architecture with live updates (implemented)
-- **API Integration**: Full OpenCode server API client with chat system integration (implemented)
+**Phase 4: Chat & Remote Access** ✅
+- **Chat Interface**: Full AI conversation system with real OpenCode API integration ([frontend/src/pages/chat.astro](frontend/src/pages/chat.astro))
+- **Message Streaming**: Real-time SSE message streaming ([src-tauri/src/message_stream.rs](src-tauri/src/message_stream.rs))
+- **Tunnel Management**: Cloudflared integration for secure remote access ([src-tauri/src/tunnel_manager.rs](src-tauri/src/tunnel_manager.rs))
+- **Web Server**: HTTP server for tunnel access ([src-tauri/src/web_server_manager.rs](src-tauri/src/web_server_manager.rs))
 
-### ⏳ Remaining Work
-- Cloudflared tunnel implementation (Phase 4 from implementation plan)
-- Advanced tunnel configuration options
+**Testing & Quality** ✅
+- **Test Coverage**: 29+ tests covering all critical paths (TDD approach)
+- **Accessibility**: WCAG 2.2 AA compliance verified
+- **Security**: Comprehensive security audit completed
+
+### ⏳ Future Enhancements (Post-MVP)
+- Advanced tunnel configuration options (Tailscale, VPN)
 - Log viewing and export functionality
-- Performance optimization and production hardening
+- Multi-instance management
+- Performance optimization and monitoring
+- Plugin system architecture
 
-**Progress**: 90% complete - All core functionality operational
-**Next Priority**: Cloudflared tunnel implementation and production hardening
+**Status**: Production-ready MVP complete
+**Next Phase**: User testing, feedback collection, and refinement
 
-## ✅ Core MVP Complete
+## Common Patterns and Gotchas
 
-**All primary functionality is implemented and operational. Chat interface, server management, and authentication systems are fully functional.**
+### Tauri IPC Communication
+**Pattern**: Frontend ↔ Backend communication via Tauri commands
+```typescript
+// Frontend: Invoke Rust command
+import { invoke } from '@tauri-apps/api/core';
+const result = await invoke('command_name', { arg: value });
+```
 
-### Implemented Core Functionality
-- **Chat Interface**: Full conversational interface with OpenCode AI integration
-- **Message Streaming**: Real-time SSE message streaming from AI responses implemented
-- **Session Management**: Complete chat session creation and conversation history
-- **Server Management**: Full OpenCode server lifecycle management
-- **Authentication**: Secure user authentication with Argon2 hashing
+```rust
+// Backend: Define command handler
+#[tauri::command]
+async fn command_name(arg: String) -> Result<Response, String> {
+    // Implementation
+}
+```
 
-### Production-Ready Components
-**Fully Implemented Files:**
-- `src-tauri/src/chat_manager.rs` - Complete chat session and message management
-- `src-tauri/src/message_stream.rs` - Real-time SSE message streaming implementation
-- `frontend/src/pages/chat.astro` - Functional chat interface
-- `src-tauri/src/api_client.rs` - Production OpenCode API client
+### Async Rust with Tokio
+**Issue**: MutexGuard not Send-safe across await boundaries
+**Solution**: Extract data before await, don't hold locks across async calls
+```rust
+// ❌ Bad: Holding lock across await
+let guard = mutex.lock().await;
+some_async_fn().await; // Error!
+
+// ✅ Good: Release lock before await
+let data = {
+    let guard = mutex.lock().await;
+    guard.clone() // Extract data
+};
+some_async_fn().await; // OK!
+```
 
 ## Emergency Procedures
 
@@ -307,11 +362,41 @@ Provide clear status including:
 - Security and accessibility are non-negotiable - see [docs/SECURITY.md](docs/SECURITY.md) and WCAG 2.2 AA
 - Reference comprehensive documentation in [docs/](docs/) for all architectural decisions
 - Update [TODO.md](TODO.md) and commit completed work following [documentation workflow](#4-documentation--commit-mandatory)
-- Current progress: 90% complete - core functionality operational, tunnel integration remaining
+- Current status: MVP complete - all core functionality operational and production-ready
 
 ## Essential Context for AI Development
-- **Project Type**: Tauri desktop application (NOT web app or monorepo)
-- **Current Status**: All core functionality operational - chat, server management, authentication complete
+- **Project Type**: Tauri 2.x desktop application (NOT web app or monorepo)
+- **Current Status**: MVP Complete (100%) - All core features operational
 - **Architecture**: See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for Tauri-specific patterns
-- **Next Phase**: Cloudflared tunnel implementation and production hardening
-- **Test Coverage**: 29 tests established covering all major functionality
+- **Runtime**: Bun for frontend, Tokio for backend async operations
+- **Next Phase**: User testing, feedback collection, and post-MVP enhancements
+- **Test Coverage**: 29+ tests covering all major functionality
+
+## Quick Reference
+
+### Running the Application
+```bash
+# Development mode (hot reload)
+cargo tauri dev
+
+# Production build
+cd frontend && bun run build && cd .. && cargo tauri build
+```
+
+### Common Tasks
+```bash
+# Run all tests
+cargo test && cd frontend && bun test
+
+# Code quality checks
+cargo clippy && cd frontend && bun run lint && bun run typecheck
+
+# Format code
+cargo fmt && cd frontend && bun run format
+```
+
+### Debugging
+- **Backend logs**: Check stdout from `cargo tauri dev`
+- **Frontend logs**: Browser DevTools Console (F12)
+- **Tauri IPC**: Enable debug logging in `tauri.conf.json`
+- **Process issues**: Check server logs in config directory

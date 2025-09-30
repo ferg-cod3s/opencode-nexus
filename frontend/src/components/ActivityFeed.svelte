@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { activityStore } from '../stores/activity';
+    import { activityStore, type ActivityMessage } from '../stores/activity';
     import { onMount } from 'svelte';
 
     let messages: ActivityMessage[] = [];
@@ -83,7 +83,7 @@
 </script>
 
 <div
-    class="activity-list"
+    class="activity-list activity-feed"
     role="listbox"
     aria-live="polite"
     aria-label="Recent activity messages"

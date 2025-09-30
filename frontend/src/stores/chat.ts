@@ -1,5 +1,5 @@
 import { writable, derived, get } from 'svelte/store';
-import type { ChatSession, ChatMessage, ChatEvent } from '../types/chat';
+import type { ChatSession, ChatMessage, ChatEvent, MessageRole } from '../types/chat';
 
 // Chat sessions store
 function createSessionsStore() {
@@ -71,7 +71,7 @@ function createActiveSessionStore() {
             // Create new streaming message
             messages.push({
               id: `streaming-${Date.now()}`,
-              role: "assistant",
+              role: MessageRole.Assistant,
               content,
               timestamp: new Date().toISOString()
             });
@@ -267,7 +267,7 @@ export const chatActions = {
     // Add user message immediately
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
-      role: "user",
+      role: MessageRole.User,
       content,
       timestamp: new Date().toISOString()
     };

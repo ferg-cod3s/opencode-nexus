@@ -158,6 +158,15 @@ import ChatInterface from '../components/ChatInterface.svelte';
   // Initialize the application
   async function initializeApp() {
     try {
+      // Get onboarding state first
+      const onboardingState = await invoke('get_onboarding_state');
+
+      // If onboarding config doesn't exist or isn't completed, redirect to onboarding
+      if (!onboardingState.config || !onboardingState.config.is_completed) {
+        window.location.href = '/onboarding';
+        return;
+      }
+
       // Check authentication status
       const isAuthenticated = await invoke('is_authenticated');
       if (!isAuthenticated) {
@@ -171,14 +180,9 @@ import ChatInterface from '../components/ChatInterface.svelte';
         console.log(`Welcome back, ${userInfo[0]}!`);
       }
 
-      // Get onboarding state
-      const onboardingState = await invoke('get_onboarding_state');
-
-      // Enable start button if onboarding is complete
-      if (onboardingState.config.is_completed) {
-        startChatBtn.disabled = false;
-        startChatBtn.textContent = 'Start New Chat';
-      }
+      // Enable start button since onboarding is complete
+      startChatBtn.disabled = false;
+      startChatBtn.textContent = 'Start New Chat';
 
       // Mount SessionGrid component
       mountSessionGrid();

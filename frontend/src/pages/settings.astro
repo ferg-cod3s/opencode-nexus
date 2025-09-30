@@ -492,8 +492,8 @@ import Layout from '../layouts/Layout.astro';
       }
 
       // Update settings object
-      tunnelSettings.custom_domain = customDomainInput.value.trim() || null;
-      tunnelSettings.auth_token = authTokenInput.value.trim() || null;
+      tunnelSettings.custom_domain = customDomainInput.value.trim() || "";
+      tunnelSettings.auth_token = authTokenInput.value.trim() || "";
       tunnelSettings.auto_start = autoStartCheckbox.checked;
 
       // Save to backend

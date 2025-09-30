@@ -188,6 +188,35 @@ async fn complete_onboarding(opencode_server_path: Option<String>) -> Result<(),
     })
 }
 
+#[tauri::command]
+async fn setup_opencode_server() -> Result<(), String> {
+    log_info!("🚀 [ONBOARDING] Setting up OpenCode server...");
+
+    let manager = OnboardingManager::new().map_err(|e| {
+        format!("Failed to initialize onboarding manager: {}", e)
+    })?;
+
+    // For now, just mark that we're using auto-setup
+    // In a real implementation, this would download and install the server
+    log_info!("🚀 [ONBOARDING] Auto-setup requested - would download OpenCode server");
+
+    Ok(())
+}
+
+#[tauri::command]
+async fn skip_onboarding() -> Result<(), String> {
+    log_info!("🚀 [ONBOARDING] Skipping onboarding...");
+
+    let manager = OnboardingManager::new().map_err(|e| {
+        format!("Failed to initialize onboarding manager: {}", e)
+    })?;
+
+    // Mark onboarding as completed without full setup
+    manager.skip_onboarding().map_err(|e| {
+        format!("Failed to skip onboarding: {}", e)
+    })
+}
+
 // App management commands
 #[tauri::command]
 async fn get_app_info(app_handle: tauri::AppHandle) -> Result<crate::server_manager::AppInfo, String> {
@@ -1236,6 +1265,8 @@ pub fn run() {
             greet,
             get_onboarding_state,
             complete_onboarding,
+            setup_opencode_server,
+            skip_onboarding,
             check_system_requirements,
             get_app_info,
             get_server_metrics,

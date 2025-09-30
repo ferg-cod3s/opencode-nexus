@@ -30,7 +30,7 @@ test.describe('Authentication Flow', () => {
       // Should stay on login page with error
       await expect(page).toHaveURL('/login');
       await expect(page.locator('[data-testid="login-error"]')).toBeVisible();
-      await expect(page.locator('[data-testid="login-error"]')).toContainText('Invalid username or password');
+      await expect(page.locator('[data-testid="login-error"]')).toContainText('Invalid credentials');
     });
 
     test('empty fields show validation errors', async ({ page }) => {
