@@ -79,84 +79,33 @@ export class AuthHelper {
   }
 
   async login(username: string, password: string, options?: { expectFailure?: boolean }) {
-    // Dismiss any error overlays first
     await this.dismissErrorOverlays();
 
-    // Check if form elements exist
     await expect(this.page.locator('[data-testid="username-input"]')).toBeVisible();
     await expect(this.page.locator('[data-testid="password-input"]')).toBeVisible();
     await expect(this.page.locator('[data-testid="login-button"]')).toBeVisible();
 
+    console.log(`[AUTH HELPER] Filling form with username: ${username}`);
     await this.page.fill('[data-testid="username-input"]', username);
     await this.page.fill('[data-testid="password-input"]', password);
 
-    // Wait a moment for form to be ready
     await this.page.waitForTimeout(100);
-
-    // Dismiss overlays again before clicking
     await this.dismissErrorOverlays();
 
-    // Check console logs for any JavaScript errors
-    const consoleMessages = [];
-    this.page.on('console', msg => {
-      consoleMessages.push(`${msg.type()}: ${msg.text()}`);
-    });
-
-    // Since the page JavaScript is not working, simulate the login process manually
-    console.log('[AUTH HELPER] Simulating login process manually...');
-
-    // Manually call the mock authentication API
-    const authResult = await this.page.evaluate(async (credentials) => {
-      // Import the mock API directly
-      const { invoke } = await import('/src/utils/tauri-api.ts');
-      console.log('🔍 Manual auth: Calling authenticate_user...');
-      try {
-        const result = await invoke('authenticate_user', credentials);
-        console.log('🔍 Manual auth: Result:', result);
-
-        if (result) {
-          // Simulate successful login redirect
-          sessionStorage.setItem('authenticated', 'true');
-          sessionStorage.setItem('username', credentials.username);
-          window.location.href = '/dashboard';
-        } else {
-          // Show error
-          const errorElement = document.getElementById('login-error');
-          if (errorElement) {
-            errorElement.textContent = 'Invalid credentials. Please check your username and password.';
-            errorElement.style.display = 'block';
-          }
-        }
-
-        return result;
-      } catch (error) {
-        console.error('🔍 Manual auth: Error:', error);
-        return false;
-      }
-    }, { username, password });
-
-    console.log(`[AUTH HELPER] Manual authentication result: ${authResult}`);
-
-    // Wait for redirect if successful
-    if (authResult) {
-      await this.page.waitForTimeout(1000);
-    }
-
-    // Log any console messages
-    if (consoleMessages.length > 0) {
-      console.log('[AUTH HELPER] Console messages during login:', consoleMessages);
-    }
+    console.log('[AUTH HELPER] Submitting login form via button click...');
+    await this.page.click('[data-testid="login-button"]');
 
     if (!options?.expectFailure) {
-      // Expect successful login
       console.log('[AUTH HELPER] Expecting redirect to dashboard...');
-      await expect(this.page).toHaveURL('/dashboard');
+      await this.page.waitForURL('/dashboard', { timeout: 5000 });
       await expect(this.page.locator('[data-testid="user-menu"]')).toContainText(username);
+      console.log('[AUTH HELPER] Login successful, on dashboard');
     } else {
-      // Stay on login page with error
       console.log('[AUTH HELPER] Expecting to stay on login page with error...');
+      await this.page.waitForTimeout(500);
       await expect(this.page).toHaveURL('/login');
       await expect(this.page.locator('[data-testid="login-error"]')).toBeVisible();
+      console.log('[AUTH HELPER] Login failed as expected, error visible');
     }
   }
 
@@ -212,19 +161,49 @@ export class AuthHelper {
   async triggerAccountLockout(username: string) {
     await this.navigateToLogin();
     
-    // Attempt 5 failed logins
-    for (let i = 0; i < 5; i++) {
-      await this.login(username, 'wrongpassword', { expectFailure: true });
+    console.log('[AUTH HELPER] Triggering account lockout - attempting 6 failed logins...');
+    
+    for (let i = 1; i <= 6; i++) {
+      console.log(`[AUTH HELPER] Failed login attempt ${i}/6`);
       
-      // Clear fields for next attempt
-      await this.page.fill('[data-testid="username-input"]', '');
-      await this.page.fill('[data-testid="password-input"]', '');
+      const usernameInput = this.page.locator('[data-testid="username-input"]');
+      const passwordInput = this.page.locator('[data-testid="password-input"]');
+      const loginButton = this.page.locator('[data-testid="login-button"]');
+      
+      const isDisabled = await usernameInput.isDisabled().catch(() => true);
+      if (isDisabled) {
+        console.log('[AUTH HELPER] Form already locked, stopping attempts');
+        break;
+      }
+      
+      await usernameInput.fill(username);
+      await passwordInput.fill('wrongpassword');
+      await loginButton.click();
+      
+      await this.page.waitForTimeout(800);
+      
+      await expect(this.page).toHaveURL('/login');
+      
+      const accountLocked = await this.page.locator('[data-testid="account-locked"]').isVisible().catch(() => false);
+      if (accountLocked) {
+        console.log(`[AUTH HELPER] Account locked after attempt ${i}`);
+        break;
+      }
+      
+      await expect(this.page.locator('[data-testid="login-error"]')).toBeVisible();
+      
+      if (i < 6) {
+        const stillEnabled = await usernameInput.isEnabled().catch(() => false);
+        if (stillEnabled) {
+          await usernameInput.fill('');
+          await passwordInput.fill('');
+        }
+      }
     }
     
-    // 6th attempt should trigger lockout
-    await this.login(username, 'wrongpassword', { expectFailure: true });
-    await expect(this.page.locator('[data-testid="account-locked"]')).toBeVisible();
-    await expect(this.page.locator('[data-testid="lockout-timer"]')).toBeVisible();
+    await expect(this.page.locator('[data-testid="account-locked"]').first()).toBeVisible();
+    await expect(this.page.locator('[data-testid="lockout-timer"]').first()).toBeVisible();
+    console.log('[AUTH HELPER] Account lockout triggered successfully');
   }
 
   async verifySessionPersistence() {
