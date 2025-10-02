@@ -405,7 +405,6 @@ async fn auth_status_endpoint(State(_app_state): State<AppState>) -> impl axum::
 mod tests {
     use super::*;
     use crate::auth::AuthManager;
-    use std::path::PathBuf;
     use tempfile::TempDir;
 
     #[tokio::test]

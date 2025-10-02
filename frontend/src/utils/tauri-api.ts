@@ -13,8 +13,8 @@ export const isTauriEnvironment = (): boolean => {
 
 // Import Tauri APIs (only available in Tauri environment)
 let tauriInvoke: ((cmd: string, args?: any) => Promise<any>) | null = null;
-let tauriListen: ((event: string, handler: (event: any) => void) => Promise<() => void>) | null = null;
-let tauriEmit: ((event: string, payload?: any) => Promise<void>) | null = null;
+let tauriListen: ((event: string, handler: (event: any) => void) => Promise<() => void>) | undefined = undefined;
+let tauriEmit: ((event: string, payload?: any) => Promise<void>) | undefined = undefined;
 
 // Load Tauri APIs if in Tauri environment
 if (isTauriEnvironment()) {
@@ -36,10 +36,10 @@ const MOCK_TEST_USER = {
 };
 
 // Mock storage for chat sessions and messages (persists in localStorage for E2E tests)
-const getMockChatStorage = () => {
+const getMockChatStorage = (): Map<string, any> => {
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('mockChatStorage');
-    return stored ? new Map(JSON.parse(stored)) : new Map<string, any>();
+    return stored ? new Map<string, any>(JSON.parse(stored)) : new Map<string, any>();
   }
   return new Map<string, any>();
 };
@@ -135,20 +135,39 @@ const mockApi = {
   // Onboarding APIs
   complete_onboarding: async (args: { opencode_server_path?: string }): Promise<void> => {
     console.log(`[MOCK API] complete_onboarding called with:`, args);
+    localStorage.setItem('mockOnboardingComplete', 'true');
+    return;
+  },
+
+  setup_opencode_server: async (): Promise<void> => {
+    console.log(`[MOCK API] setup_opencode_server called`);
+    return;
+  },
+
+  create_owner_account: async (args: { username: string; password: string }): Promise<void> => {
+    console.log(`[MOCK API] create_owner_account called with username:`, args.username);
     return;
   },
 
    get_onboarding_state: async (): Promise<OnboardingState> => {
      console.log(`[MOCK API] get_onboarding_state called`);
+     
+     // Check if we should simulate incomplete onboarding (for onboarding tests)
+     // If we're on the onboarding page, assume onboarding is NOT complete
+     const isOnboardingPage = typeof window !== 'undefined' && window.location.pathname === '/onboarding';
+     const isCompleted = !isOnboardingPage && (
+       typeof window !== 'undefined' && localStorage.getItem('mockOnboardingComplete') === 'true'
+     );
+     
      return {
-       config: {
+       config: isCompleted ? {
          is_completed: true,
          opencode_server_path: '/fake/test/path/opencode',
          owner_account_created: true,
          owner_username: 'testuser',
          created_at: new Date().toISOString(),
          updated_at: new Date().toISOString()
-       },
+       } : null,
        system_requirements: {
          os_compatible: true,
          memory_sufficient: true,

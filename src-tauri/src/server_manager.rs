@@ -301,7 +301,7 @@ impl ServerManager {
 
     pub async fn start_server(&mut self) -> Result<()> {
         // Extract data from mutex before any async operations
-        let (binary_path, port) = {
+        let (_binary_path, port) = {
             let mut server_info = self.server_info.lock().unwrap();
 
             // Check if already running
@@ -658,7 +658,7 @@ impl ServerManager {
         }
 
         if let Some(new_port) = port {
-            if new_port < 1024 || new_port > 65535 {
+            if new_port < 1024 {
                 return Err(anyhow!("Port must be between 1024 and 65535"));
             }
             server_info.port = new_port;
@@ -796,7 +796,7 @@ impl ServerManager {
         // Ensure API client is available
         self.ensure_api_client()?;
 
-        if let Some(client) = &self.api_client {
+        if let Some(_client) = &self.api_client {
             // First try basic connectivity check instead of /app endpoint
             match self.check_server_connectivity().await {
                 Ok(_) => {
@@ -1283,7 +1283,7 @@ mod tests {
 
     #[test]
     fn test_server_manager_creation() {
-        let mut test_manager = TestServerManager::new().unwrap();
+        let test_manager = TestServerManager::new().unwrap();
         let info = test_manager.manager.get_server_info();
 
         assert!(matches!(info.status, ServerStatus::Stopped));
@@ -1294,13 +1294,13 @@ mod tests {
 
     #[test]
     fn test_server_not_running_initially() {
-        let mut test_manager = TestServerManager::new().unwrap();
+        let test_manager = TestServerManager::new().unwrap();
         assert!(!test_manager.manager.is_running());
     }
 
     #[test]
     fn test_server_version_detection() {
-        let mut test_manager = TestServerManager::new().unwrap();
+        let test_manager = TestServerManager::new().unwrap();
 
         // This will fail with our fake binary, but shouldn't crash
         let version_result = test_manager.manager.get_server_version();
@@ -1311,7 +1311,7 @@ mod tests {
 
     #[test]
     fn test_config_update() {
-        let mut test_manager = TestServerManager::new().unwrap();
+        let test_manager = TestServerManager::new().unwrap();
 
         // Should succeed when server is stopped
         assert!(test_manager
@@ -1326,7 +1326,7 @@ mod tests {
 
     #[test]
     fn test_invalid_port_config() {
-        let mut test_manager = TestServerManager::new().unwrap();
+        let test_manager = TestServerManager::new().unwrap();
 
         // Should fail with invalid port
         assert!(test_manager
@@ -1341,7 +1341,7 @@ mod tests {
 
     #[test]
     fn test_port_availability_check() {
-        let mut test_manager = TestServerManager::new().unwrap();
+        let test_manager = TestServerManager::new().unwrap();
 
         // Test with a high-numbered port that's more likely to be available
         let test_port = 54321;
@@ -1377,7 +1377,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_stop_server_when_not_running() {
-        let mut test_manager = TestServerManager::new().unwrap();
+        let test_manager = TestServerManager::new().unwrap();
 
         // Should not fail when stopping a server that's not running
         let result = test_manager.manager.stop_server().await;
@@ -1386,9 +1386,9 @@ mod tests {
 
     #[test]
     fn test_event_subscription() {
-        let mut test_manager = TestServerManager::new().unwrap();
+        let test_manager = TestServerManager::new().unwrap();
 
-        let mut receiver = test_manager.manager.subscribe_to_events();
+        let receiver = test_manager.manager.subscribe_to_events();
 
         // Should be able to subscribe without issues
         assert!(receiver.is_empty());
@@ -1396,7 +1396,7 @@ mod tests {
 
     #[test]
     fn test_metrics_when_stopped() {
-        let mut test_manager = TestServerManager::new().unwrap();
+        let test_manager = TestServerManager::new().unwrap();
 
         let metrics = test_manager.manager.get_metrics();
         assert!(metrics.is_none());
@@ -1523,7 +1523,7 @@ mod tests {
         assert!(result1.is_ok());
         
         // Try to start second tunnel (should fail or handle gracefully)
-        let result2 = test_manager.manager.start_cloudflared_tunnel(&config2).await;
+        let _result2 = test_manager.manager.start_cloudflared_tunnel(&config2).await;
         // This might fail or replace the first tunnel depending on implementation
         // Both outcomes are acceptable for this test
         

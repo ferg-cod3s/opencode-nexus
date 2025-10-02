@@ -192,7 +192,7 @@ async fn complete_onboarding(opencode_server_path: Option<String>) -> Result<(),
 async fn setup_opencode_server() -> Result<(), String> {
     log_info!("🚀 [ONBOARDING] Setting up OpenCode server...");
 
-    let manager = OnboardingManager::new().map_err(|e| {
+    let _manager = OnboardingManager::new().map_err(|e| {
         format!("Failed to initialize onboarding manager: {}", e)
     })?;
 

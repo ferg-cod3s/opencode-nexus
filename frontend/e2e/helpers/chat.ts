@@ -66,39 +66,112 @@ export class ChatHelper {
     await this.page.waitForURL('**/chat');
     console.log('[CHAT HELPER] On chat page, waiting for interface to load...');
 
-    // Try to manually initialize the chat interface since Astro scripts don't work in E2E tests
-    console.log('[CHAT HELPER] Attempting manual chat interface initialization...');
+    // Manually execute the chat initialization that Astro should do
+    console.log('[CHAT HELPER] Manually initializing chat interface...');
 
     try {
-      // Execute the chat initialization script manually
-      await this.page.addScriptTag({ path: './src/chat.js' });
-      console.log('[CHAT HELPER] Added chat script tag');
+      await this.page.evaluate(async () => {
+        // Import ChatInterface dynamically and initialize stores
+        try {
+          const chatModule = await import('/src/components/ChatInterface.svelte');
+          const ChatInterface = chatModule.default;
+          const { activeSessionStore, chatStateStore } = await import('/src/stores/chat.ts');
+          const { invoke } = await import('/src/utils/tauri-api.js');
+          
+          // Try to import svelte/store, but continue if it fails
+          let get;
+          try {
+            const svelteStore = await import('svelte/store');
+            get = svelteStore.get;
+          } catch (e) {
+            // Fallback implementation of get for stores if svelte/store not available
+            get = (store: any) => {
+              let value;
+              store.subscribe((v: any) => { value = v; })();
+              return value;
+            };
+          }
 
-      // Wait for initialization
-      await this.page.waitForTimeout(3000);
+        // Display username
+        const username = sessionStorage.getItem('username') || 'User';
+        const usernameDisplay = document.getElementById('username-display');
+        if (usernameDisplay) {
+          usernameDisplay.textContent = username;
+        }
 
-      // Check if chat interface appeared
-      const chatInterface = this.page.locator('[data-testid="chat-interface"]');
-      const isVisible = await chatInterface.isVisible({ timeout: 2000 }).catch(() => false);
+        // Load or create test session
+        let sessions = [];
+        try {
+          sessions = await invoke('get_chat_sessions');
+          console.log('📍 Chat init: Loaded sessions:', sessions);
+        } catch (error) {
+          console.log('📍 Chat init: No sessions, creating test session');
+        }
 
-      if (!isVisible) {
-        console.log('[CHAT HELPER] Chat interface still not visible after manual init, checking page content...');
-        const pageContent = await this.page.textContent('body');
-        console.log(`[CHAT HELPER] Page content includes 'chat': ${pageContent?.toLowerCase().includes('chat')}`);
-        console.log(`[CHAT HELPER] Page URL: ${this.page.url()}`);
+        // Set up active session
+        if (sessions && sessions.length > 0) {
+          activeSessionStore.setSession(sessions[0]);
+        } else {
+          const defaultSession = {
+            id: `test-session-${Date.now()}`,
+            title: 'Test Chat Session',
+            messages: [],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          activeSessionStore.setSession(defaultSession);
+        }
 
-        // For now, skip the interface check and just verify we're on the chat page
-        console.log('[CHAT HELPER] Skipping interface check - testing API level functionality instead');
-        return;
-      }
+        // Remove loading state and mount component
+        const chatRoot = document.getElementById('chat-root');
+        if (chatRoot) {
+          const loadingState = document.getElementById('loading-state');
+          if (loadingState) {
+            loadingState.remove();
+          }
+
+          // Mount ChatInterface
+          new ChatInterface({
+            target: chatRoot,
+            props: {
+              onSendMessage: async (content: string) => {
+                const activeSession = get(activeSessionStore);
+                if (!activeSession) {
+                  console.error('No active session');
+                  return;
+                }
+                console.log('📤 Sending message:', content, 'to session:', activeSession.id);
+                
+                // Add user message to store immediately
+                activeSessionStore.addMessage({
+                  id: `user-${Date.now()}`,
+                  role: 'user',
+                  content,
+                  timestamp: new Date().toISOString()
+                });
+
+                // Send via API
+                await invoke('send_chat_message', { 
+                  session_id: activeSession.id, 
+                  content 
+                });
+              },
+              onClose: () => console.log('Chat closed')
+            }
+          });
+
+          console.log('📍 Chat init: Component mounted successfully');
+        }
+      });
+
+      // Wait for component to actually mount
+      await this.page.waitForSelector('[data-testid="chat-interface"]', { timeout: 5000 });
+      console.log('[CHAT HELPER] Chat interface mounted and visible');
+
     } catch (error) {
       console.log(`[CHAT HELPER] Manual initialization failed: ${error}`);
-      console.log('[CHAT HELPER] Skipping interface check - testing API level functionality instead');
-      return;
+      console.log('[CHAT HELPER] Will fall back to API-only testing');
     }
-
-    await expect(this.page.locator('[data-testid="chat-interface"]')).toBeVisible();
-    console.log('[CHAT HELPER] Chat interface navigation complete');
   }
 
   async sendMessage(message: string) {

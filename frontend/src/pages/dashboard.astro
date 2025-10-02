@@ -218,6 +218,25 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
       </aside>
     </div>
   </main>
+
+  <script>
+    // Populate username from session storage
+    const username = sessionStorage.getItem('username');
+    const usernameDisplay = document.getElementById('username-display');
+    if (username && usernameDisplay) {
+      usernameDisplay.textContent = username;
+    }
+
+    // Logout functionality
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+      logoutButton.addEventListener('click', () => {
+        sessionStorage.removeItem('authenticated');
+        sessionStorage.removeItem('username');
+        window.location.href = '/login';
+      });
+    }
+  </script>
 </Layout>
 
 <style>

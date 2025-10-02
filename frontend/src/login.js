@@ -1,31 +1,5 @@
-// Login page JavaScript - separate file for E2E test compatibility
-import { invoke, checkEnvironment } from './utils/tauri-api.js';
-
-class LoginManager {
-  private form;
-  private usernameField;
-  private passwordField;
-  private loginButton;
-  private passwordToggle;
-  private isPasswordVisible = false;
-
-  constructor() {
-    console.log('🔍 LoginManager: Constructor called');
-    this.form = document.getElementById('login-form');
-    this.usernameField = document.getElementById('username');
-    this.passwordField = document.getElementById('password');
-    this.loginButton = document.getElementById('login-button');
-    this.passwordToggle = document.getElementById('password-toggle');
-
-    this.init();
-  }
-
-  private init() {
-    console.log('🔍 LoginManager: Initializing...');
-    this.bindEvents();
-    this.checkAuthConfiguration();
-    this.focusFirstField();
-  }
+// Simple test
+console.log('🔍 LOGIN.JS: Script is executing!');
 
   private bindEvents() {
     this.form.addEventListener('submit', (e) => {

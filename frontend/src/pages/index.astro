@@ -1,7 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import SessionGrid from '../components/SessionGrid.svelte';
-import ChatInterface from '../components/ChatInterface.svelte';
 ---
 
 <Layout title="OpenCode Nexus">
@@ -211,7 +209,11 @@ import ChatInterface from '../components/ChatInterface.svelte';
     if (sessionsSidebar) {
       sessionGridComponent = new SessionGrid({
         target: sessionsSidebar,
-        props: {}
+        props: {
+          sessions: [],
+          activeSessionId: null,
+          loading: false
+        }
       });
 
       // Set up event listeners

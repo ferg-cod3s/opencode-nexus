@@ -538,3 +538,175 @@ Examples:
 
 COOP+COEP enable cross-origin isolation, allowing features like SharedArrayBuffer and strengthening security boundaries. Third-party resources must be compliant (serve proper CORS/Corp headers) or they may be blocked under COEP.
 
+## 15. Vulnerability Reporting
+
+We take security vulnerabilities seriously. If you discover a security issue in OpenCode Nexus, please report it responsibly.
+
+### 15.1 Reporting Process
+
+#### 15.1.1 How to Report
+
+**DO NOT** create a public GitHub issue for security vulnerabilities.
+
+Instead, please report security issues through one of these channels:
+
+1. **GitHub Security Advisories** (Preferred)
+   - Navigate to the [Security tab](https://github.com/YOUR_REPO/security/advisories)
+   - Click "Report a vulnerability"
+   - Provide detailed information about the vulnerability
+
+2. **Email**
+   - Send details to: security@opencode-nexus.example.com
+   - Use PGP encryption if possible (key available on request)
+   - Include "SECURITY" in the subject line
+
+#### 15.1.2 Information to Include
+
+Please provide as much information as possible:
+
+- **Type of vulnerability** (e.g., authentication bypass, XSS, SQL injection)
+- **Affected component** (e.g., frontend, backend, API)
+- **Version affected** (specific version or commit hash)
+- **Steps to reproduce** (detailed reproduction steps)
+- **Proof of concept** (code, screenshots, or video)
+- **Impact assessment** (potential damage or exploitation)
+- **Suggested fix** (if you have recommendations)
+
+### 15.2 Response Process
+
+#### 15.2.1 Acknowledgment
+
+- **Initial Response:** Within 24 hours of report submission
+- **Status Updates:** Every 48 hours until resolution
+- **Resolution Timeline:** Critical issues within 7 days, others within 30 days
+
+#### 15.2.2 Investigation and Validation
+
+1. **Triage** (24 hours): Assess severity and impact
+2. **Validation** (48 hours): Confirm vulnerability existence
+3. **Impact Analysis** (72 hours): Determine scope and risk
+4. **Fix Development** (1-7 days): Develop and test patch
+
+#### 15.2.3 Disclosure Timeline
+
+- **Private Disclosure:** Immediate notification to reporter
+- **Coordinated Disclosure:** 90 days or upon fix release (whichever comes first)
+- **Public Disclosure:** Security advisory published with CVE (if applicable)
+
+### 15.3 Severity Classification
+
+We use the CVSS v3.1 scoring system:
+
+| Severity | CVSS Score | Response Time | Fix Timeline |
+|----------|------------|---------------|--------------|
+| Critical | 9.0-10.0   | < 24 hours    | < 7 days     |
+| High     | 7.0-8.9    | < 48 hours    | < 14 days    |
+| Medium   | 4.0-6.9    | < 72 hours    | < 30 days    |
+| Low      | 0.1-3.9    | < 7 days      | Next release |
+
+#### 15.3.1 Critical Vulnerabilities
+
+Examples requiring immediate attention:
+
+- Remote code execution (RCE)
+- Authentication bypass
+- SQL injection leading to data breach
+- Privilege escalation to admin/root
+- Data exfiltration vulnerabilities
+
+#### 15.3.2 High Vulnerabilities
+
+Examples requiring urgent attention:
+
+- Cross-site scripting (XSS) with data theft
+- Server-side request forgery (SSRF)
+- Insecure deserialization
+- Weak cryptography implementation
+- Session hijacking vulnerabilities
+
+### 15.4 Security Patch Process
+
+#### 15.4.1 Patch Development
+
+1. **Develop Fix:** Create minimal, targeted fix
+2. **Security Review:** Internal security team review
+3. **Testing:** Comprehensive testing in isolated environment
+4. **Backport:** Apply fix to supported versions
+
+#### 15.4.2 Patch Distribution
+
+1. **Security Advisory:** Published on GitHub Security tab
+2. **Release Notes:** Detailed changelog with CVE references
+3. **Notification:** Email to security mailing list
+4. **Update Mechanism:** Automatic update notification in app
+
+### 15.5 Vulnerability Disclosure Policy
+
+#### 15.5.1 Responsible Disclosure
+
+We commit to:
+
+- **Acknowledgment:** Credit reporters in security advisories (unless anonymity requested)
+- **Communication:** Keep reporters informed throughout process
+- **Transparency:** Public disclosure after fix is available
+- **Recognition:** Security hall of fame for responsible reporters
+
+#### 15.5.2 Safe Harbor
+
+We will not pursue legal action against security researchers who:
+
+- Make good faith effort to avoid privacy violations and service disruption
+- Do not access or modify data beyond what is necessary to demonstrate vulnerability
+- Report vulnerabilities promptly through proper channels
+- Give us reasonable time to fix issues before public disclosure
+- Do not exploit vulnerabilities for personal gain
+
+### 15.6 Security Contacts
+
+- **Security Team Email:** security@opencode-nexus.example.com
+- **PGP Key Fingerprint:** [To be added]
+- **GitHub Security:** https://github.com/YOUR_REPO/security/advisories
+- **Security Mailing List:** security-announce@opencode-nexus.example.com
+
+### 15.7 Security Updates
+
+Users can stay informed about security updates through:
+
+- **GitHub Security Advisories:** https://github.com/YOUR_REPO/security/advisories
+- **Security Mailing List:** Subscribe at security-announce@opencode-nexus.example.com
+- **Release Notes:** Check CHANGELOG.md for security fixes
+- **RSS Feed:** Subscribe to release notifications
+
+### 15.8 Bug Bounty Program
+
+Currently, we do not offer a formal bug bounty program. However, we:
+
+- Recognize and credit security researchers
+- Maintain a security hall of fame
+- May offer rewards for exceptional findings at our discretion
+
+We plan to establish a formal bug bounty program once the project reaches stable release (v1.0).
+
+### 15.9 Security Best Practices for Users
+
+#### 15.9.1 General Recommendations
+
+- **Keep Updated:** Always use the latest version
+- **Strong Passwords:** Use unique, complex passwords
+- **Enable MFA:** Enable multi-factor authentication
+- **Monitor Activity:** Regularly review access logs
+- **Report Issues:** Report suspicious activity immediately
+
+#### 15.9.2 Advanced Security
+
+- **Network Security:** Use VPN for remote access
+- **Firewall Rules:** Configure restrictive firewall rules
+- **Audit Logs:** Enable and monitor comprehensive logging
+- **Backup Data:** Maintain regular encrypted backups
+
+---
+
+**Last Updated:** 2025-10-02  
+**Version:** 0.0.2  
+**Contact:** security@opencode-nexus.example.com
+

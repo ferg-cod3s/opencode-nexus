@@ -32,7 +32,31 @@ export class AuthHelper {
       for (let i = 0; i < 5; i++) {
         const overlay = this.page.locator('vite-error-overlay');
         if (await overlay.isVisible({ timeout: 1000 })) {
+          console.log(`[AUTH HELPER] Vite error overlay found (attempt ${i + 1})`);
+
+          // Try to read the error message
+          try {
+            const errorText = await this.page.locator('vite-error-overlay').textContent();
+            console.log(`[AUTH HELPER] Vite error overlay content: ${errorText?.substring(0, 500)}...`);
+          } catch (e) {
+            console.log(`[AUTH HELPER] Could not read error overlay content: ${e}`);
+          }
+
           console.log(`[AUTH HELPER] Dismissing Vite error overlay (attempt ${i + 1})`);
+
+          // Try to remove the overlay from DOM
+          try {
+            await this.page.evaluate(() => {
+              const overlay = document.querySelector('vite-error-overlay');
+              if (overlay) {
+                overlay.remove();
+                console.log('Removed Vite error overlay from DOM');
+              }
+            });
+          } catch (e) {
+            console.log(`[AUTH HELPER] Could not remove overlay from DOM: ${e}`);
+          }
+
           await this.page.keyboard.press('Escape');
           await this.page.waitForTimeout(500);
 
@@ -70,10 +94,7 @@ export class AuthHelper {
     const scripts = await this.page.locator('script').count();
     console.log(`[AUTH HELPER] Number of script tags: ${scripts}`);
 
-    // Check page source for script content
-    const pageSource = await this.page.content();
-    const hasLoginScript = pageSource.includes('LoginManager');
-    console.log(`[AUTH HELPER] LoginManager script present: ${hasLoginScript}`);
+
 
     console.log('[AUTH HELPER] Login page navigation complete');
   }
@@ -98,6 +119,15 @@ export class AuthHelper {
     if (!options?.expectFailure) {
       console.log('[AUTH HELPER] Expecting redirect to dashboard...');
       await this.page.waitForURL('/dashboard', { timeout: 5000 });
+
+      // Wait for dashboard to load and JavaScript to execute
+      await this.page.waitForTimeout(1000);
+
+      // Check that we're on the dashboard
+      await expect(this.page).toHaveURL('/dashboard');
+      await expect(this.page.locator('[data-testid="dashboard-welcome"]')).toBeVisible();
+
+      // Check that username is displayed
       await expect(this.page.locator('[data-testid="user-menu"]')).toContainText(username);
       console.log('[AUTH HELPER] Login successful, on dashboard');
     } else {
@@ -115,6 +145,20 @@ export class AuthHelper {
       const overlay = this.page.locator('vite-error-overlay');
       if (await overlay.isVisible({ timeout: 1000 })) {
         console.log('[AUTH HELPER] Dismissing Vite error overlay before interaction');
+
+        // Try to remove the overlay from DOM
+        try {
+          await this.page.evaluate(() => {
+            const overlay = document.querySelector('vite-error-overlay');
+            if (overlay) {
+              overlay.remove();
+              console.log('Removed Vite error overlay from DOM');
+            }
+          });
+        } catch (e) {
+          console.log(`[AUTH HELPER] Could not remove overlay from DOM: ${e}`);
+        }
+
         await this.page.keyboard.press('Escape');
         await this.page.waitForTimeout(500);
 
