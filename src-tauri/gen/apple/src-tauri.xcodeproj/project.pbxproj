@@ -15,7 +15,6 @@
 		8BAE58FC874E17A897B24CA7 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C4DBBD4E3DBB6727DA351C93 /* UIKit.framework */; };
 		C6D8222776443B70F8A800AE /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = DA940F5654ABABF5DD67205F /* libapp.a */; };
 		D26E98997DD2446A171E18ED /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B21F52C49F82666C6AD1CC3 /* WebKit.framework */; };
-		D2A03076905D6808DCAEE41A /* libPods-src-tauri_iOS.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 9D95A1B0AE00CCD356C5AA2B /* libPods-src-tauri_iOS.a */; };
 		D4A12628A18800C44CCABC63 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8CF145E9FA8BF544D259F2A3 /* assets */; };
 		EBAFCF0753AE1DF4B3887532 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB132CD251817B7C847CFF59 /* CoreGraphics.framework */; };
 		F7D2863638B34FDD575FD6EF /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7E5EBFF9E91CDC85E8B1B3B3 /* main.mm */; };
@@ -24,7 +23,6 @@
 
 /* Begin PBXFileReference section */
 		0C5D7940F7C4BFDEA6173651 /* src-tauri_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "src-tauri_iOS.entitlements"; sourceTree = "<group>"; };
-		273A0A6121671E9CC86E7536 /* Pods-src-tauri_iOS.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-src-tauri_iOS.debug.xcconfig"; path = "Target Support Files/Pods-src-tauri_iOS/Pods-src-tauri_iOS.debug.xcconfig"; sourceTree = "<group>"; };
 		3B11FF6462200E094C233740 /* tunnel_integration_tests.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = tunnel_integration_tests.rs; sourceTree = "<group>"; };
 		50004EAA70162C2C6347D671 /* onboarding.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = onboarding.rs; sourceTree = "<group>"; };
 		5033C3F5EA2A8824CDD20E40 /* chat_manager.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = chat_manager.rs; sourceTree = "<group>"; };
@@ -36,7 +34,6 @@
 		8353BA8FAE79F1C0AE605FF6 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		8B21F52C49F82666C6AD1CC3 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		8CF145E9FA8BF544D259F2A3 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
-		9D95A1B0AE00CCD356C5AA2B /* libPods-src-tauri_iOS.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-src-tauri_iOS.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		9DF5DC9F31A9E8F620E988A6 /* server_manager.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = server_manager.rs; sourceTree = "<group>"; };
 		9F035DDAFF9F17CBB6A7DB34 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		A1773D327A07C0F3A7703285 /* web_server_manager.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = web_server_manager.rs; sourceTree = "<group>"; };
@@ -47,7 +44,6 @@
 		C4DBBD4E3DBB6727DA351C93 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
 		C7F47B185BC866CD1E02D365 /* message_stream.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = message_stream.rs; sourceTree = "<group>"; };
 		CF96B9DFC8E0F1987E583FD5 /* main.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = main.rs; sourceTree = "<group>"; };
-		D4CDA9582542C42F98360CC3 /* Pods-src-tauri_iOS.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-src-tauri_iOS.release.xcconfig"; path = "Target Support Files/Pods-src-tauri_iOS/Pods-src-tauri_iOS.release.xcconfig"; sourceTree = "<group>"; };
 		DA940F5654ABABF5DD67205F /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		DF9408128890E50F1D1A288B /* connection_manager.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = connection_manager.rs; sourceTree = "<group>"; };
 		E456CD77C81B82636E5858BB /* auth.rs */ = {isa = PBXFileReference; lastKnownFileType = text; path = auth.rs; sourceTree = "<group>"; };
@@ -70,7 +66,6 @@
 				62E86871ED5C510C94080892 /* Security.framework in Frameworks */,
 				8BAE58FC874E17A897B24CA7 /* UIKit.framework in Frameworks */,
 				D26E98997DD2446A171E18ED /* WebKit.framework in Frameworks */,
-				D2A03076905D6808DCAEE41A /* libPods-src-tauri_iOS.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -101,15 +96,6 @@
 			path = bindings;
 			sourceTree = "<group>";
 		};
-		1AD7B8318FABED8941488370 /* Pods */ = {
-			isa = PBXGroup;
-			children = (
-				273A0A6121671E9CC86E7536 /* Pods-src-tauri_iOS.debug.xcconfig */,
-				D4CDA9582542C42F98360CC3 /* Pods-src-tauri_iOS.release.xcconfig */,
-			);
-			path = Pods;
-			sourceTree = "<group>";
-		};
 		407DC60B14B595CDFA50CC1F = {
 			isa = PBXGroup;
 			children = (
@@ -122,7 +108,6 @@
 				E29BD28A837C22022D55CF0F /* src-tauri_iOS */,
 				8019F09973A31D32C666C8CA /* Frameworks */,
 				0588D61153560935A5638653 /* Products */,
-				1AD7B8318FABED8941488370 /* Pods */,
 			);
 			sourceTree = "<group>";
 		};
@@ -145,7 +130,6 @@
 				8353BA8FAE79F1C0AE605FF6 /* Security.framework */,
 				C4DBBD4E3DBB6727DA351C93 /* UIKit.framework */,
 				8B21F52C49F82666C6AD1CC3 /* WebKit.framework */,
-				9D95A1B0AE00CCD356C5AA2B /* libPods-src-tauri_iOS.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -203,7 +187,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 45B4C17272F63E12310475F6 /* Build configuration list for PBXNativeTarget "src-tauri_iOS" */;
 			buildPhases = (
-				7040CF60A1B74B119F25E57D /* [CP] Check Pods Manifest.lock */,
 				9156C836497BA67B29DC157A /* Build Rust Code */,
 				42C8C2DE3ECBA0B7B151FC69 /* Sources */,
 				FBCAAEEE550FE0D1282578D9 /* Resources */,
@@ -214,6 +197,8 @@
 			dependencies = (
 			);
 			name = "src-tauri_iOS";
+			packageProductDependencies = (
+			);
 			productName = "src-tauri_iOS";
 			productReference = E57129D792938A147AD30ECD /* OpenCode Nexus.app */;
 			productType = "com.apple.product-type.application";
@@ -237,7 +222,6 @@
 			);
 			mainGroup = 407DC60B14B595CDFA50CC1F;
 			minimizedProjectReferenceProxies = 1;
-			productRefGroup = 0588D61153560935A5638653 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -260,28 +244,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		7040CF60A1B74B119F25E57D /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-src-tauri_iOS-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
 		9156C836497BA67B29DC157A /* Build Rust Code */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -301,7 +263,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "cargo tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}";
+			shellScript = "export PATH=\"$PATH:/Users/johnferguson/.cargo/bin\" && cd \"$SRCROOT/../../\" && cargo build --target aarch64-apple-ios --release && mkdir -p \"$SRCROOT/Externals/arm64/Release\" && cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a \"$SRCROOT/Externals/arm64/Release/libapp.a\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -438,7 +400,6 @@
 		};
 		A275B0E8511F2886D3063F9E /* release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = D4CDA9582542C42F98360CC3 /* Pods-src-tauri_iOS.release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ARCHS = arm64;
@@ -453,9 +414,6 @@
 					"\".\"",
 				);
 				INFOPLIST_FILE = "src-tauri_iOS/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "OpenCode Nexus";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -474,7 +432,7 @@
 					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
 					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.agentic-codeflow.opencode-nexus;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.agentic-codeflow.opencode-nexus";
 				PRODUCT_NAME = "OpenCode Nexus";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -484,7 +442,6 @@
 		};
 		DFB2773EC31A549F9851C532 /* debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 273A0A6121671E9CC86E7536 /* Pods-src-tauri_iOS.debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ARCHS = arm64;
@@ -499,9 +456,6 @@
 					"\".\"",
 				);
 				INFOPLIST_FILE = "src-tauri_iOS/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "OpenCode Nexus";
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -520,7 +474,7 @@
 					"$(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME)",
 					"$(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.agentic-codeflow.opencode-nexus;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.agentic-codeflow.opencode-nexus";
 				PRODUCT_NAME = "OpenCode Nexus";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";

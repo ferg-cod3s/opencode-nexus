@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime};
 use tokio::sync::broadcast;
 use tauri::Emitter;
 
@@ -150,7 +150,7 @@ impl ConnectionManager {
     }
 
     pub async fn test_server_connection(&self, hostname: &str, port: u16, secure: bool) -> Result<ServerInfo, String> {
-        let url = format!("{}://{}:{}/app", if secure { "https" } else { "http" }, hostname, port);
+        let url = format!("{}://{}:{}/session", if secure { "https" } else { "http" }, hostname, port);
 
         match self.client.get(&url).send().await {
             Ok(response) => {
@@ -307,7 +307,7 @@ impl ConnectionManager {
                 };
 
                 if let Some(url) = url_to_check {
-                    let health_url = format!("{}/app", url);
+                    let health_url = format!("{}/session", url);
                     match reqwest::get(&health_url).await {
                         Ok(response) if response.status().is_success() => {
                             // Server is healthy

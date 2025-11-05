@@ -1,8 +1,6 @@
 mod onboarding;
 mod auth;
 mod connection_manager;
-#[cfg(not(target_os = "ios"))]
-mod web_server_manager;
 mod api_client;
 mod chat_client;
 mod message_stream;
@@ -10,8 +8,6 @@ mod message_stream;
 use auth::AuthManager;
 use onboarding::{OnboardingManager, OnboardingState, SystemRequirements};
 use connection_manager::{ConnectionManager, ServerInfo, ConnectionStatus, ServerConnection};
-#[cfg(not(target_os = "ios"))]
-use web_server_manager::{WebServerManager, WebServerInfo, WebServerConfig};
 use chat_client::{ChatClient, ChatSession, ChatMessage};
 use message_stream::MessageStream;
 
@@ -419,7 +415,7 @@ async fn get_saved_connections(app_handle: tauri::AppHandle) -> Result<Vec<Serve
 
 // Chat commands
 #[tauri::command]
-async fn create_chat_session(app_handle: tauri::AppHandle, title: Option<String>) -> Result<ChatSession, String> {
+async fn create_chat_session(_app_handle: tauri::AppHandle, title: Option<String>) -> Result<ChatSession, String> {
     let config_dir = get_config_dir()?;
     let server_url = get_server_url()?;
 
@@ -430,7 +426,7 @@ async fn create_chat_session(app_handle: tauri::AppHandle, title: Option<String>
 }
 
 #[tauri::command]
-async fn send_chat_message(app_handle: tauri::AppHandle, session_id: String, content: String) -> Result<(), String> {
+async fn send_chat_message(_app_handle: tauri::AppHandle, session_id: String, content: String) -> Result<(), String> {
     let config_dir = get_config_dir()?;
     let server_url = get_server_url()?;
 
@@ -443,7 +439,7 @@ async fn send_chat_message(app_handle: tauri::AppHandle, session_id: String, con
 }
 
 #[tauri::command]
-async fn get_chat_sessions(app_handle: tauri::AppHandle) -> Result<Vec<ChatSession>, String> {
+async fn get_chat_sessions(_app_handle: tauri::AppHandle) -> Result<Vec<ChatSession>, String> {
     let config_dir = get_config_dir()?;
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
@@ -455,7 +451,7 @@ async fn get_chat_sessions(app_handle: tauri::AppHandle) -> Result<Vec<ChatSessi
 }
 
 #[tauri::command]
-async fn get_chat_session_history(app_handle: tauri::AppHandle, session_id: String) -> Result<Vec<ChatMessage>, String> {
+async fn get_chat_session_history(_app_handle: tauri::AppHandle, session_id: String) -> Result<Vec<ChatMessage>, String> {
     let config_dir = get_config_dir()?;
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
@@ -584,93 +580,11 @@ async fn cleanup_expired_sessions() -> Result<usize, String> {
     Ok(cleaned_count)
 }
 
-// Web server management commands
-#[cfg(not(target_os = "ios"))]
-#[tauri::command]
-async fn get_web_server_info() -> Result<WebServerInfo, String> {
-    // For now, return a default stopped state
-    // TODO: Implement persistent web server state management
-    Ok(WebServerInfo {
-        status: web_server_manager::WebServerStatus::Stopped,
-        port: 3000,
-        host: "0.0.0.0".to_string(),
-        started_at: None,
-        last_error: None,
-        config: WebServerConfig::default(),
-    })
-}
 
-#[cfg(not(target_os = "ios"))]
-#[tauri::command]
-async fn start_web_server(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
 
-    log_info!("🌐 [WEB_SERVER] Starting web server...");
 
-    // Get onboarding state to check if setup is complete
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
 
-    // For client architecture, we don't need server path validation
-    // Create managers
-    let auth_manager = std::sync::Arc::new(std::sync::Mutex::new(
-        AuthManager::new(config_dir.clone()).map_err(|e| e.to_string())?
-    ));
 
-    // Create and start web server manager (TODO: Update for client architecture)
-    let mut web_server_manager = WebServerManager::new(auth_manager).map_err(|e| e.to_string())?;
-    web_server_manager.start_server().await.map_err(|e| e.to_string())?;
-
-    log_info!("🌐 [WEB_SERVER] Web server started successfully");
-    Ok(())
-}
-
-#[cfg(not(target_os = "ios"))]
-#[tauri::command]
-async fn stop_web_server() -> Result<(), String> {
-    log_info!("🌐 [WEB_SERVER] Stopping web server...");
-    // TODO: Implement persistent web server state management
-    // For now, just log the stop request
-    log_info!("🌐 [WEB_SERVER] Web server stop requested");
-    Ok(())
-}
-
-#[cfg(not(target_os = "ios"))]
-#[tauri::command]
-async fn update_web_server_config(_config: WebServerConfig) -> Result<(), String> {
-    log_info!("🌐 [WEB_SERVER] Updating web server config...");
-    // TODO: Implement persistent web server state management
-    // For now, just log the config update
-    log_info!("🌐 [WEB_SERVER] Web server config update requested");
-    Ok(())
-}
-
-// Stub implementations for iOS builds
-#[cfg(target_os = "ios")]
-#[tauri::command]
-async fn get_web_server_info() -> Result<String, String> {
-    Err("Web server functionality not available on iOS".to_string())
-}
-
-#[cfg(target_os = "ios")]
-#[tauri::command]
-async fn start_web_server(_app_handle: tauri::AppHandle) -> Result<(), String> {
-    Err("Web server functionality not available on iOS".to_string())
-}
-
-#[cfg(target_os = "ios")]
-#[tauri::command]
-async fn stop_web_server() -> Result<(), String> {
-    Err("Web server functionality not available on iOS".to_string())
-}
-
-#[cfg(target_os = "ios")]
-#[tauri::command]
-async fn update_web_server_config(_config: String) -> Result<(), String> {
-    Err("Web server functionality not available on iOS".to_string())
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -678,11 +592,12 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
+            // Onboarding commands
             get_onboarding_state,
             complete_onboarding,
             check_system_requirements,
-            // create_user removed for security - no public registration in desktop app
             create_owner_account, // Secure owner account creation during onboarding only
+            // Authentication commands
             authenticate_user,
             change_password,
             is_auth_configured,
@@ -705,17 +620,10 @@ pub fn run() {
             get_chat_sessions,
             get_chat_session_history,
             start_message_stream,
+            // Application commands
             get_application_logs,
             log_frontend_error,
-            clear_application_logs,
-            #[cfg(not(target_os = "ios"))]
-            get_web_server_info,
-            #[cfg(not(target_os = "ios"))]
-            start_web_server,
-            #[cfg(not(target_os = "ios"))]
-            stop_web_server,
-            #[cfg(not(target_os = "ios"))]
-            update_web_server_config
+            clear_application_logs
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
