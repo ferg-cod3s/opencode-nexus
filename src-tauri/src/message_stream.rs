@@ -1,5 +1,5 @@
 use crate::api_client::ApiClient;
-use crate::chat_manager::{ChatEvent, ChatMessage, MessageRole};
+use crate::chat_client::{ChatEvent, ChatMessage, MessageRole};
 use futures_util::StreamExt;
 use reqwest::Client;
 use serde::Deserialize;

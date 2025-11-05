@@ -1,16 +1,18 @@
 mod onboarding;
 mod auth;
-mod server_manager;
+mod connection_manager;
+#[cfg(not(target_os = "ios"))]
 mod web_server_manager;
 mod api_client;
-mod chat_manager;
+mod chat_client;
 mod message_stream;
 
 use auth::AuthManager;
 use onboarding::{OnboardingManager, OnboardingState, SystemRequirements};
-use server_manager::{ServerManager, ServerInfo, TunnelConfig, TunnelStatus};
+use connection_manager::{ConnectionManager, ServerInfo, ConnectionStatus, ServerConnection};
+#[cfg(not(target_os = "ios"))]
 use web_server_manager::{WebServerManager, WebServerInfo, WebServerConfig};
-use chat_manager::{ChatManager, ChatSession, ChatMessage};
+use chat_client::{ChatClient, ChatSession, ChatMessage};
 use message_stream::MessageStream;
 
 use tauri::Emitter;
@@ -166,148 +168,17 @@ async fn check_system_requirements() -> Result<SystemRequirements, String> {
 }
 
 #[tauri::command]
-async fn complete_onboarding(opencode_server_path: Option<String>) -> Result<(), String> {
+async fn complete_onboarding() -> Result<(), String> {
     let manager = OnboardingManager::new().map_err(|e| {
         format!("Failed to initialize onboarding manager: {}", e)
     })?;
-    
-    let path = opencode_server_path.map(std::path::PathBuf::from);
-    
-    manager.complete_onboarding(path).map_err(|e| {
-        // Provide specific error messages based on failure type
-        let error_msg = format!("{}", e);
-        if error_msg.contains("executable not found") {
-            format!("OpenCode server not found. Please ensure the path points to a valid OpenCode executable, or use the auto-download option.")
-        } else if error_msg.contains("non-functional") {
-            format!("OpenCode server found but not working. Please verify the installation or try downloading a fresh copy.")
-        } else if error_msg.contains("required to complete onboarding") {
-            format!("OpenCode server path is required. Please provide a valid server path or use auto-download.")
-        } else {
-            error_msg
-        }
+
+    manager.complete_onboarding().map_err(|e| {
+        format!("Failed to complete onboarding: {}", e)
     })
 }
 
-// App management commands
-#[tauri::command]
-async fn get_app_info(app_handle: tauri::AppHandle) -> Result<crate::server_manager::AppInfo, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to create onboarding manager: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to get onboarding state: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| {
-                let err = anyhow::anyhow!("Failed to create server manager: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })?;
-
-            server_manager.get_app_info().await.map_err(|e| {
-                let err = anyhow::anyhow!("Failed to get app info: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
-}
-
-#[tauri::command]
-async fn initialize_app(app_handle: tauri::AppHandle) -> Result<bool, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let onboarding_manager = OnboardingManager::new().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to create onboarding manager: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to get onboarding state: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| {
-                let err = anyhow::anyhow!("Failed to create server manager: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })?;
-
-            server_manager.initialize_app().await.map_err(|e| {
-                let err = anyhow::anyhow!("Failed to initialize app: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
-}
-
-#[tauri::command]
-async fn get_server_metrics(app_handle: tauri::AppHandle) -> Result<crate::server_manager::ServerMetrics, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let onboarding_manager = OnboardingManager::new().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to create onboarding manager: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to get onboarding state: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let _server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| {
-                let err = anyhow::anyhow!("Failed to create server manager: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })?;
-
-            // For now, return stubbed metrics - will be replaced with real API data in Phase 3
-            Ok(crate::server_manager::ServerMetrics {
-                cpu_usage: 15.5, // Placeholder - will be replaced with real API data
-                memory_usage: 1024 * 1024 * 256, // 256MB placeholder
-                uptime: std::time::Duration::from_secs(3600), // 1 hour placeholder
-                request_count: 150, // Placeholder
-                error_count: 2, // Placeholder
-            })
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
-}
 
 // SECURITY: create_user command removed to prevent unauthorized account creation
 // Desktop applications should use owner-only authentication, not public registration
@@ -477,598 +348,153 @@ async fn invalidate_session(session_id: String) -> Result<(), String> {
     auth_manager.invalidate_session(&session_id).map_err(|e| e.to_string())
 }
 
-// Server management commands
-#[tauri::command]
-async fn get_server_info(app_handle: tauri::AppHandle) -> Result<ServerInfo, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-    
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-    
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-            Ok(server_manager.get_server_info())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
+// Helper functions
+fn get_config_dir() -> Result<std::path::PathBuf, String> {
+    dirs::config_dir()
+        .map(|dir| dir.join("opencode-nexus"))
+        .ok_or_else(|| "Could not determine config directory".to_string())
 }
 
+fn get_server_url() -> Result<String, String> {
+    let config_dir = get_config_dir()?;
+    let connection_manager = ConnectionManager::new(config_dir, None)
+        .map_err(|e| format!("Failed to create connection manager: {}", e))?;
+    connection_manager.get_server_url()
+        .ok_or_else(|| "No server URL available".to_string())
+}
+
+// Connection management commands
 #[tauri::command]
-async fn start_opencode_server(app_handle: tauri::AppHandle) -> Result<(), String> {
+async fn connect_to_server(app_handle: tauri::AppHandle, hostname: String, port: u16, secure: bool) -> Result<(), String> {
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to create onboarding manager: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to get onboarding state: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| {
-                let err = anyhow::anyhow!("Failed to create server manager: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })?;
-            server_manager.start_server().await.map_err(|e| {
-                let err = anyhow::anyhow!("Failed to start OpenCode server: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })
-        } else {
-            let err = anyhow::anyhow!("OpenCode server path not configured");
-            sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        let err = anyhow::anyhow!("Onboarding not completed");
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        Err("Onboarding not completed".to_string())
-    }
+    let mut connection_manager = ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    connection_manager.connect_to_server(&hostname, port, secure).await
 }
 
 #[tauri::command]
-async fn stop_opencode_server(app_handle: tauri::AppHandle) -> Result<(), String> {
+async fn test_server_connection(app_handle: tauri::AppHandle, hostname: String, port: u16, secure: bool) -> Result<ServerInfo, String> {
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to create onboarding manager: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to get onboarding state: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| {
-                let err = anyhow::anyhow!("Failed to create server manager: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })?;
-            server_manager.stop_server().await.map_err(|e| {
-                let err = anyhow::anyhow!("Failed to stop OpenCode server: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })
-        } else {
-            let err = anyhow::anyhow!("OpenCode server path not configured");
-            sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        let err = anyhow::anyhow!("Onboarding not completed");
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        Err("Onboarding not completed".to_string())
-    }
+    let connection_manager = ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    connection_manager.test_server_connection(&hostname, port, secure).await
 }
 
 #[tauri::command]
-async fn restart_opencode_server(app_handle: tauri::AppHandle) -> Result<(), String> {
+async fn get_connection_status(app_handle: tauri::AppHandle) -> Result<ConnectionStatus, String> {
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to create onboarding manager: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to get onboarding state: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| {
-                let err = anyhow::anyhow!("Failed to create server manager: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })?;
-            server_manager.restart_server().await.map_err(|e| {
-                let err = anyhow::anyhow!("Failed to restart OpenCode server: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })
-        } else {
-            let err = anyhow::anyhow!("OpenCode server path not configured");
-            sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        let err = anyhow::anyhow!("Onboarding not completed");
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        Err("Onboarding not completed".to_string())
-    }
+    let connection_manager = ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    Ok(connection_manager.get_connection_status())
 }
 
 #[tauri::command]
-async fn update_server_config(_app_handle: tauri::AppHandle, port: Option<u16>, host: Option<String>) -> Result<(), String> {
+async fn disconnect_from_server(app_handle: tauri::AppHandle) -> Result<(), String> {
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir, binary_path, None).map_err(|e| e.to_string())?;
-            server_manager.update_server_config(port, host).map_err(|e| e.to_string())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
+    let mut connection_manager = ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    connection_manager.disconnect_from_server().await
 }
 
 #[tauri::command]
-async fn get_active_sessions(_app_handle: tauri::AppHandle) -> Result<Vec<crate::server_manager::OpenCodeSession>, String> {
+async fn get_saved_connections(app_handle: tauri::AppHandle) -> Result<Vec<ServerConnection>, String> {
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, None).map_err(|e| e.to_string())?;
-            server_manager.get_active_sessions().await.map_err(|e| e.to_string())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
+    let mut connection_manager = ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    connection_manager.load_connections().map_err(|e| e.to_string())?;
+    Ok(connection_manager.get_saved_connections())
 }
 
-#[tauri::command]
-async fn disconnect_session(_app_handle: tauri::AppHandle, session_id: String) -> Result<bool, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, None).map_err(|e| e.to_string())?;
-            server_manager.disconnect_session(&session_id).await.map_err(|e| e.to_string())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
-}
-
-#[tauri::command]
-async fn get_session_stats(_app_handle: tauri::AppHandle) -> Result<crate::server_manager::SessionStats, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, None).map_err(|e| e.to_string())?;
-            server_manager.get_session_stats().await.map_err(|e| e.to_string())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
-}
 
 // Chat commands
 #[tauri::command]
 async fn create_chat_session(app_handle: tauri::AppHandle, title: Option<String>) -> Result<ChatSession, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
+    let config_dir = get_config_dir()?;
+    let server_url = get_server_url()?;
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir.clone(), binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-
-            // Get API client from server manager
-            if let Some(api_client) = &server_manager.api_client {
-                let mut chat_manager = ChatManager::new(config_dir.clone());
-                chat_manager.set_api_client(api_client.clone());
-                chat_manager.create_session(title.as_deref()).await
-            } else {
-                Err("Server not running or API client not available".to_string())
-            }
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
+    let mut chat_client = ChatClient::new(config_dir.clone())?;
+    chat_client.set_server_url(server_url);
+    chat_client.load_sessions().map_err(|e| e.to_string())?;
+    chat_client.create_session(title.as_deref()).await
 }
 
 #[tauri::command]
 async fn send_chat_message(app_handle: tauri::AppHandle, session_id: String, content: String) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
+    let config_dir = get_config_dir()?;
+    let server_url = get_server_url()?;
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
+    let mut chat_client = ChatClient::new(config_dir.clone())?;
+    chat_client.set_server_url(server_url);
+    chat_client.load_sessions().map_err(|e| e.to_string())?;
 
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir.clone(), binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-
-            // Get API client from server manager
-            if let Some(api_client) = &server_manager.api_client {
-                let mut chat_manager = ChatManager::new(config_dir.clone());
-                chat_manager.set_api_client(api_client.clone());
-                // Send the message and rely on events/streaming for responses
-                let _ = chat_manager.send_message(&session_id, &content).await?;
-                Ok(())
-            } else {
-                Err("Server not running or API client not available".to_string())
-            }
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
+    // Send the message and rely on events/streaming for responses
+    chat_client.send_message(&session_id, &content).await
 }
 
 #[tauri::command]
 async fn get_chat_sessions(app_handle: tauri::AppHandle) -> Result<Vec<ChatSession>, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
+    let config_dir = get_config_dir()?;
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
+    let mut chat_client = ChatClient::new(config_dir.clone())?;
+    chat_client.load_sessions().map_err(|e| e.to_string())?;
 
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir.clone(), binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-
-            // Get API client from server manager
-            if let Some(api_client) = &server_manager.api_client {
-                let mut chat_manager = ChatManager::new(config_dir.clone());
-                chat_manager.set_api_client(api_client.clone());
-
-                // Load persisted sessions first
-                if let Err(e) = chat_manager.load_sessions() {
-                    eprintln!("Warning: Failed to load persisted sessions: {}", e);
-                }
-
-                // If no persisted sessions, try to fetch from server
-                if chat_manager.get_sessions().is_empty() {
-                    // Fetch sessions from OpenCode server API
-                    let sessions: Vec<ChatSession> = api_client
-                        .get("/session")
-                        .await
-                        .map_err(|e| format!("Failed to fetch sessions: {}", e))?;
-
-                    // Store fetched sessions
-                    for session in &sessions {
-                        chat_manager.get_sessions_mut().insert(session.id.clone(), session.clone());
-                    }
-
-                    // Persist them
-                    if let Err(e) = chat_manager.save_sessions() {
-                        eprintln!("Warning: Failed to persist fetched sessions: {}", e);
-                    }
-
-                    Ok(sessions)
-                } else {
-                    // Return persisted sessions
-                    let sessions: Vec<ChatSession> = chat_manager.get_sessions().values().cloned().collect();
-                    Ok(sessions)
-                }
-            } else {
-                Err("Server not running or API client not available".to_string())
-            }
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
+    // Return persisted sessions
+    let sessions: Vec<ChatSession> = chat_client.get_sessions().values().cloned().collect();
+    Ok(sessions)
 }
 
 #[tauri::command]
 async fn get_chat_session_history(app_handle: tauri::AppHandle, session_id: String) -> Result<Vec<ChatMessage>, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
+    let config_dir = get_config_dir()?;
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir.clone(), binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-
-            // Get API client from server manager
-            if let Some(api_client) = &server_manager.api_client {
-                let mut chat_manager = ChatManager::new(config_dir.clone());
-                chat_manager.set_api_client(api_client.clone());
-                chat_manager.get_session_history(&session_id).await
-            } else {
-                Err("Server not running or API client not available".to_string())
-            }
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
+    let mut chat_client = ChatClient::new(config_dir.clone())?;
+    chat_client.load_sessions().map_err(|e| e.to_string())?;
+    chat_client.get_session_history(&session_id).await
 }
 
 #[tauri::command]
 async fn start_message_stream(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
+    let config_dir = get_config_dir()?;
+    let server_url = get_server_url()?;
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
+    let mut chat_client = ChatClient::new(config_dir.clone())?;
+    chat_client.set_server_url(server_url.clone());
 
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir.clone(), binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    let event_sender = chat_client.event_sender.clone();
+    let mut message_stream = MessageStream::new(event_sender.clone());
 
-            // Get API client from server manager
-            if let Some(api_client) = &server_manager.api_client {
-                let mut chat_manager = ChatManager::new(config_dir.clone());
-                chat_manager.set_api_client(api_client.clone());
+    // Create API client for the message stream
+    let api_client = crate::api_client::ApiClient::new(&server_url)
+        .map_err(|e| format!("Failed to create API client: {}", e))?;
+    message_stream.set_api_client(api_client);
 
-                let event_sender = chat_manager.event_sender.clone();
-                let mut message_stream = MessageStream::new(event_sender);
-                message_stream.set_api_client(api_client.clone());
+    // Start the message stream
+    message_stream.start_streaming().await?;
 
-                // Start streaming and set up event forwarding to Tauri frontend
-                message_stream.start_streaming().await?;
+    let mut event_receiver = event_sender.subscribe();
 
-                // Set up event forwarding from broadcast channel to Tauri events
-                let mut event_receiver = chat_manager.event_sender.subscribe();
-                let app_handle_clone = app_handle.clone();
-
-                tokio::spawn(async move {
-                    while let Ok(chat_event) = event_receiver.recv().await {
-                        let _ = app_handle_clone.emit("chat-event", &chat_event);
-                    }
-                });
-
-                Ok(())
-            } else {
-                Err("Server not running or API client not available".to_string())
-            }
-        } else {
-            Err("OpenCode server path not configured".to_string())
+    // Listen for chat events and emit them to the frontend
+    tokio::spawn(async move {
+        while let Ok(chat_event) = event_receiver.recv().await {
+            let _ = app_handle.emit("chat-event", &chat_event);
         }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
+    });
+
+    Ok(())
 }
 
-// Tunnel management commands
-#[tauri::command]
-async fn start_cloudflared_tunnel(app_handle: tauri::AppHandle, config: TunnelConfig) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
 
-    let onboarding_manager = OnboardingManager::new().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to create onboarding manager: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to get onboarding state: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    if let Some(onboarding_config) = onboarding_state.config {
-        if let Some(binary_path) = onboarding_config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| {
-                let err = anyhow::anyhow!("Failed to create server manager: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })?;
-
-            server_manager.start_cloudflared_tunnel(&config).await.map_err(|e| {
-                let err = anyhow::anyhow!("Failed to start Cloudflared tunnel: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })
-        } else {
-            let err = anyhow::anyhow!("OpenCode server path not configured");
-            sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        let err = anyhow::anyhow!("Onboarding not completed");
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        Err("Onboarding not completed".to_string())
-    }
-}
-
-#[tauri::command]
-async fn stop_cloudflared_tunnel(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let onboarding_manager = OnboardingManager::new().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to create onboarding manager: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| {
-        let err = anyhow::anyhow!("Failed to get onboarding state: {}", e);
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        e.to_string()
-    })?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| {
-                let err = anyhow::anyhow!("Failed to create server manager: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })?;
-
-            server_manager.stop_cloudflared_tunnel().map_err(|e| {
-                let err = anyhow::anyhow!("Failed to stop Cloudflared tunnel: {}", e);
-                sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-                e.to_string()
-            })
-        } else {
-            let err = anyhow::anyhow!("OpenCode server path not configured");
-            sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        let err = anyhow::anyhow!("Onboarding not completed");
-        sentry::capture_message(&format!("{}", err), sentry::Level::Error);
-        Err("Onboarding not completed".to_string())
-    }
-}
-
-#[tauri::command]
-async fn get_tunnel_status(app_handle: tauri::AppHandle) -> Result<TunnelStatus, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-            Ok(server_manager.get_tunnel_status())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
-}
-
-#[tauri::command]
-async fn update_tunnel_config(app_handle: tauri::AppHandle, config: TunnelConfig) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(onboarding_config) = onboarding_state.config {
-        if let Some(binary_path) = onboarding_config.opencode_server_path {
-            let mut server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-            server_manager.update_tunnel_config(config).map_err(|e| e.to_string())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
-}
-
-#[tauri::command]
-async fn get_tunnel_config(app_handle: tauri::AppHandle) -> Result<Option<TunnelConfig>, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-            Ok(server_manager.get_tunnel_config())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
-}
-
-#[tauri::command]
-async fn get_tunnel_url(app_handle: tauri::AppHandle) -> Result<Option<String>, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            let server_manager = ServerManager::new(config_dir, binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-            Ok(server_manager.get_tunnel_url())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
-}
 
 #[tauri::command]
 async fn get_application_logs() -> Result<Vec<String>, String> {
@@ -1159,6 +585,7 @@ async fn cleanup_expired_sessions() -> Result<usize, String> {
 }
 
 // Web server management commands
+#[cfg(not(target_os = "ios"))]
 #[tauri::command]
 async fn get_web_server_info() -> Result<WebServerInfo, String> {
     // For now, return a default stopped state
@@ -1173,43 +600,34 @@ async fn get_web_server_info() -> Result<WebServerInfo, String> {
     })
 }
 
+#[cfg(not(target_os = "ios"))]
 #[tauri::command]
 async fn start_web_server(app_handle: tauri::AppHandle) -> Result<(), String> {
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
-    
+
     log_info!("🌐 [WEB_SERVER] Starting web server...");
-    
+
     // Get onboarding state to check if setup is complete
     let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
     let onboarding_state = onboarding_manager.get_onboarding_state().map_err(|e| e.to_string())?;
-    
-    if let Some(config) = onboarding_state.config {
-        if let Some(binary_path) = config.opencode_server_path {
-            // Create managers
-            let auth_manager = std::sync::Arc::new(std::sync::Mutex::new(
-                AuthManager::new(config_dir.clone()).map_err(|e| e.to_string())?
-            ));
-            
-            let server_manager = std::sync::Arc::new(std::sync::Mutex::new(
-                ServerManager::new(config_dir.clone(), binary_path, Some(app_handle.clone())).map_err(|e| e.to_string())?
-            ));
-            
-            // Create and start web server manager
-            let mut web_server_manager = WebServerManager::new(auth_manager, server_manager).map_err(|e| e.to_string())?;
-            web_server_manager.start_server().await.map_err(|e| e.to_string())?;
-            
-            log_info!("🌐 [WEB_SERVER] Web server started successfully");
-            Ok(())
-        } else {
-            Err("OpenCode server path not configured".to_string())
-        }
-    } else {
-        Err("Onboarding not completed".to_string())
-    }
+
+    // For client architecture, we don't need server path validation
+    // Create managers
+    let auth_manager = std::sync::Arc::new(std::sync::Mutex::new(
+        AuthManager::new(config_dir.clone()).map_err(|e| e.to_string())?
+    ));
+
+    // Create and start web server manager (TODO: Update for client architecture)
+    let mut web_server_manager = WebServerManager::new(auth_manager).map_err(|e| e.to_string())?;
+    web_server_manager.start_server().await.map_err(|e| e.to_string())?;
+
+    log_info!("🌐 [WEB_SERVER] Web server started successfully");
+    Ok(())
 }
 
+#[cfg(not(target_os = "ios"))]
 #[tauri::command]
 async fn stop_web_server() -> Result<(), String> {
     log_info!("🌐 [WEB_SERVER] Stopping web server...");
@@ -1219,6 +637,7 @@ async fn stop_web_server() -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(not(target_os = "ios"))]
 #[tauri::command]
 async fn update_web_server_config(_config: WebServerConfig) -> Result<(), String> {
     log_info!("🌐 [WEB_SERVER] Updating web server config...");
@@ -1226,6 +645,31 @@ async fn update_web_server_config(_config: WebServerConfig) -> Result<(), String
     // For now, just log the config update
     log_info!("🌐 [WEB_SERVER] Web server config update requested");
     Ok(())
+}
+
+// Stub implementations for iOS builds
+#[cfg(target_os = "ios")]
+#[tauri::command]
+async fn get_web_server_info() -> Result<String, String> {
+    Err("Web server functionality not available on iOS".to_string())
+}
+
+#[cfg(target_os = "ios")]
+#[tauri::command]
+async fn start_web_server(_app_handle: tauri::AppHandle) -> Result<(), String> {
+    Err("Web server functionality not available on iOS".to_string())
+}
+
+#[cfg(target_os = "ios")]
+#[tauri::command]
+async fn stop_web_server() -> Result<(), String> {
+    Err("Web server functionality not available on iOS".to_string())
+}
+
+#[cfg(target_os = "ios")]
+#[tauri::command]
+async fn update_web_server_config(_config: String) -> Result<(), String> {
+    Err("Web server functionality not available on iOS".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -1237,8 +681,6 @@ pub fn run() {
             get_onboarding_state,
             complete_onboarding,
             check_system_requirements,
-            get_app_info,
-            get_server_metrics,
             // create_user removed for security - no public registration in desktop app
             create_owner_account, // Secure owner account creation during onboarding only
             authenticate_user,
@@ -1251,31 +693,28 @@ pub fn run() {
             validate_persistent_session,
             invalidate_session,
             cleanup_expired_sessions,
-            get_server_info,
-            start_opencode_server,
-            stop_opencode_server,
-            restart_opencode_server,
-            update_server_config,
-            get_active_sessions,
-            disconnect_session,
-            get_session_stats,
+            // Connection management commands
+            connect_to_server,
+            test_server_connection,
+            get_connection_status,
+            disconnect_from_server,
+            get_saved_connections,
+            // Chat commands
             create_chat_session,
             send_chat_message,
             get_chat_sessions,
             get_chat_session_history,
             start_message_stream,
-            start_cloudflared_tunnel,
-            stop_cloudflared_tunnel,
-            get_tunnel_status,
-            update_tunnel_config,
-            get_tunnel_config,
-            get_tunnel_url,
             get_application_logs,
             log_frontend_error,
             clear_application_logs,
+            #[cfg(not(target_os = "ios"))]
             get_web_server_info,
+            #[cfg(not(target_os = "ios"))]
             start_web_server,
+            #[cfg(not(target_os = "ios"))]
             stop_web_server,
+            #[cfg(not(target_os = "ios"))]
             update_web_server_config
         ])
         .run(tauri::generate_context!())

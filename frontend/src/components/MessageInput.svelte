@@ -1,10 +1,16 @@
 <script lang="ts">
+  import { isOnline, queuedMessageCount } from '../stores/chat';
+
   export let disabled = false;
   export let placeholder = "Type your message...";
   export let onSend: ((content: string) => void) | undefined = undefined;
 
   let inputElement: HTMLTextAreaElement;
   let content = '';
+
+  $: effectivePlaceholder = !$isOnline
+    ? "Message will be queued for sending..."
+    : placeholder;
 
   function handleSubmit() {
     const trimmedContent = content.trim();
@@ -51,11 +57,12 @@
     <textarea
       bind:this={inputElement}
       bind:value={content}
-      {placeholder}
+      placeholder={effectivePlaceholder}
       {disabled}
       data-testid="message-input"
       aria-label="Type your message"
       aria-describedby="input-help"
+      class:offline={!$isOnline}
       on:keydown={handleKeydown}
       on:input={handleInput}
       on:paste={handlePaste}
@@ -83,9 +90,19 @@
     <span class="character-count" aria-live="polite">
       {content.length}/10000
     </span>
-    <span class="input-help-text">
-      Press Enter to send, Shift+Enter for new line
-    </span>
+    {#if !$isOnline}
+      <span class="offline-indicator" aria-live="polite">
+        📴 Offline - Message will be queued
+      </span>
+    {:else if $queuedMessageCount > 0}
+      <span class="queued-indicator" aria-live="polite">
+        {$queuedMessageCount} queued message{$queuedMessageCount === 1 ? '' : 's'}
+      </span>
+    {:else}
+      <span class="input-help-text">
+        Press Enter to send, Shift+Enter for new line
+      </span>
+    {/if}
   </div>
 </div>
 
@@ -105,17 +122,19 @@
 
   textarea {
     flex: 1;
-    padding: 0.75rem 1rem;
+    padding: 0.625rem 0.875rem; /* Mobile-first padding */
     border: 2px solid hsl(220, 20%, 90%);
-    border-radius: 24px;
+    border-radius: 20px; /* Mobile-friendly border radius */
     font-family: inherit;
-    font-size: 1rem;
+    font-size: 16px; /* Prevent zoom on iOS - critical for mobile */
     line-height: 1.4;
     resize: none;
-    min-height: 48px;
-    max-height: 200px;
+    min-height: 44px; /* Touch-friendly minimum height */
+    max-height: 120px; /* Lower max height for mobile */
     outline: none;
     transition: border-color 0.2s ease;
+    -webkit-appearance: none; /* Remove iOS styling */
+    appearance: none;
   }
 
   textarea:focus {
@@ -128,20 +147,27 @@
     cursor: not-allowed;
   }
 
+  textarea.offline {
+    border-color: hsl(45, 100%, 60%);
+    background: hsl(45, 100%, 97%);
+  }
+
   .send-btn {
-    width: 48px;
-    height: 48px;
+    width: 44px; /* Mobile-first: 44px minimum touch target */
+    height: 44px;
     border: none;
     border-radius: 50%;
     background: hsl(220, 90%, 60%);
     color: white;
-    font-size: 1.25rem;
+    font-size: 1.125rem; /* Slightly smaller for mobile */
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
     flex-shrink: 0;
+    margin-left: 0.5rem;
+    -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
   }
 
   .send-btn:hover:not(:disabled) {
@@ -179,6 +205,16 @@
 
   .input-help-text {
     font-style: italic;
+  }
+
+  .offline-indicator {
+    color: hsl(45, 100%, 40%);
+    font-weight: 500;
+  }
+
+  .queued-indicator {
+    color: hsl(220, 10%, 60%);
+    font-weight: 500;
   }
 
   .sr-only {
@@ -237,28 +273,64 @@
     }
   }
 
-  /* Mobile responsiveness */
-  @media (max-width: 768px) {
+  /* Mobile-first responsive design */
+  .message-input-container {
+    border-top: 1px solid hsl(220, 20%, 90%);
+    padding: 0.75rem; /* Mobile-first padding */
+    background: hsl(0, 0%, 100%);
+  }
+
+  .input-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    position: relative;
+  }
+
+  .input-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: hsl(220, 10%, 60%);
+    flex-direction: column; /* Mobile-first: stacked layout */
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  /* Tablet breakpoint (768px+) */
+  @media (min-width: 768px) {
     .message-input-container {
-      padding: 0.75rem;
+      padding: 1rem;
     }
 
     textarea {
-      font-size: 16px; /* Prevent zoom on iOS */
-      padding: 0.625rem 0.875rem;
-      min-height: 44px;
+      padding: 0.75rem 1rem;
+      border-radius: 24px;
+      font-size: 1rem;
+      min-height: 48px;
+      max-height: 200px;
     }
 
     .send-btn {
-      width: 44px;
-      height: 44px;
-      font-size: 1.125rem;
+      width: 48px;
+      height: 48px;
+      font-size: 1.25rem;
+      margin-left: 0.5rem;
     }
 
     .input-footer {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 0.25rem;
+      flex-direction: row; /* Horizontal layout on larger screens */
+      align-items: center;
+      gap: 0;
+    }
+  }
+
+  /* Desktop breakpoint (1024px+) */
+  @media (min-width: 1024px) {
+    .message-input-container {
+      padding: 1rem 1.5rem;
     }
   }
 </style>

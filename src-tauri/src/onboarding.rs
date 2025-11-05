@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemRequirements {
@@ -15,7 +14,6 @@ pub struct SystemRequirements {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OnboardingConfig {
     pub is_completed: bool,
-    pub opencode_server_path: Option<PathBuf>,
     pub owner_account_created: bool,
     pub owner_username: Option<String>,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -26,8 +24,6 @@ pub struct OnboardingConfig {
 pub struct OnboardingState {
     pub config: Option<OnboardingConfig>,
     pub system_requirements: SystemRequirements,
-    pub opencode_detected: bool,
-    pub opencode_path: Option<PathBuf>,
 }
 
 pub struct OnboardingManager {
@@ -271,61 +267,7 @@ impl OnboardingManager {
         false
     }
 
-    pub fn detect_opencode_server(&self) -> (bool, Option<PathBuf>) {
-        // Check common installation paths for OpenCode server
-        let common_paths = [
-            // Homebrew paths (most common)
-            "/opt/homebrew/bin/opencode",
-            "/usr/local/bin/opencode", 
-            // Global PATH commands
-            "opencode",
-            "opencode-server",
-            // Alternative homebrew locations
-            "/opt/homebrew/bin/opencode-server",
-            "/usr/local/bin/opencode-server",
-            // Local binary paths
-            "./opencode",
-            "./opencode-server",
-            // User local paths
-            "~/.local/bin/opencode",
-            "/usr/bin/opencode",
-            "/bin/opencode",
-        ];
 
-        for path_str in &common_paths {
-            let path_buf = if path_str.starts_with("~/") {
-                // Expand home directory
-                if let Some(home) = dirs::home_dir() {
-                    home.join(&path_str[2..])
-                } else {
-                    continue;
-                }
-            } else {
-                PathBuf::from(path_str)
-            };
-            
-            // Check if file exists first (for absolute paths)
-            if path_buf.is_absolute() && !path_buf.exists() {
-                continue;
-            }
-            
-            if let Ok(output) = Command::new(&path_buf)
-                .arg("--version")
-                .output()
-            {
-                if output.status.success() {
-                    // Convert back to absolute path if needed
-                    if let Ok(absolute_path) = path_buf.canonicalize() {
-                        return (true, Some(absolute_path));
-                    } else {
-                        return (true, Some(path_buf));
-                    }
-                }
-            }
-        }
-
-        (false, None)
-    }
 
     pub fn save_config(&self, config: &OnboardingConfig) -> Result<()> {
         let config_json = serde_json::to_string_pretty(config)?;
@@ -344,53 +286,14 @@ impl OnboardingManager {
         Ok(Some(config))
     }
 
-    // New validation method leveraging existing detection logic
-    fn validate_opencode_path(&self, path: &PathBuf) -> Result<bool> {
-        // Check file exists
-        if !path.exists() {
-            return Ok(false);
-        }
 
-        // Check executable permissions (Unix-like systems)
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let metadata = std::fs::metadata(path)?;
-            if metadata.permissions().mode() & 0o111 == 0 {
-                return Ok(false);
-            }
-        }
 
-        // Execute version command to verify functionality
-        match Command::new(path).arg("--version").output() {
-            Ok(output) => {
-                if output.status.success() {
-                    let version_output = String::from_utf8_lossy(&output.stdout);
-                    Ok(version_output.contains("OpenCode"))
-                } else {
-                    Ok(false)
-                }
-            }
-            Err(_) => Ok(false),
-        }
-    }
-
-    pub fn complete_onboarding(&self, opencode_server_path: Option<PathBuf>) -> Result<()> {
-        // Validate server path is provided and functional
-        let validated_path = if let Some(path) = opencode_server_path {
-            // Apply existing detection logic to user-provided path
-            if self.validate_opencode_path(&path)? {
-                path
-            } else {
-                return Err(anyhow!("Invalid OpenCode server path: executable not found or non-functional at {}", path.display()));
-            }
-        } else {
-            return Err(anyhow!("OpenCode server path is required to complete onboarding"));
-        };
+    pub fn complete_onboarding(&self) -> Result<()> {
+        // For the client version, onboarding is complete when the user has created an owner account
+        // No server path validation needed since we connect to remote servers
 
         let config = OnboardingConfig {
             is_completed: true,
-            opencode_server_path: Some(validated_path),
             owner_account_created: false, // Will be set to true when owner creates account
             owner_username: None, // Will be set when owner creates account
             created_at: chrono::Utc::now(),
@@ -434,7 +337,6 @@ impl OnboardingManager {
         // Update onboarding config to mark owner account as created
         let mut config = self.load_config()?.unwrap_or(OnboardingConfig {
             is_completed: false,
-            opencode_server_path: None,
             owner_account_created: false,
             owner_username: None,
             created_at: chrono::Utc::now(),
@@ -451,13 +353,10 @@ impl OnboardingManager {
     pub fn get_onboarding_state(&self) -> Result<OnboardingState> {
         let config = self.load_config()?;
         let system_requirements = self.check_system_requirements();
-        let (opencode_detected, opencode_path) = self.detect_opencode_server();
 
         Ok(OnboardingState {
             config,
             system_requirements,
-            opencode_detected,
-            opencode_path,
         })
     }
 }
@@ -465,7 +364,6 @@ impl OnboardingManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use tempfile::TempDir;
 
     struct TestOnboardingManager {
@@ -503,15 +401,7 @@ mod tests {
         assert!(requirements.disk_space_sufficient);
     }
 
-    #[test]
-    fn test_opencode_detection() {
-        let test_manager = TestOnboardingManager::new().unwrap();
-        let (detected, _path) = test_manager.manager.detect_opencode_server();
-        
-        // This will likely be false in test environment unless opencode is installed
-        // The important thing is that it doesn't panic
-        assert!(!detected || detected); // Either way is fine
-    }
+    // Removed test_opencode_detection since detect_opencode_server was removed for client architecture
 
     #[test]
     fn test_config_persistence() {
@@ -530,133 +420,68 @@ mod tests {
             std::fs::set_permissions(&valid_server, std::fs::Permissions::from_mode(0o755)).unwrap();
         }
         
-        // Complete onboarding with valid server
-        test_manager.manager.complete_onboarding(Some(valid_server.clone())).unwrap();
-        
+        // Complete onboarding (no server path needed for client)
+        test_manager.manager.complete_onboarding().unwrap();
+
         // Should not be first launch anymore
         assert!(!test_manager.manager.is_first_launch());
-        
+
         // Should be able to load config
         let config = test_manager.manager.load_config().unwrap().unwrap();
         assert!(config.is_completed);
-        assert_eq!(config.opencode_server_path.unwrap(), valid_server);
     }
 
     #[test]
     fn test_onboarding_state() {
         let test_manager = TestOnboardingManager::new().unwrap();
         let state = test_manager.manager.get_onboarding_state().unwrap();
-        
+
         // Should be None for first launch
         assert!(state.config.is_none());
-        
+
         // System requirements should be checked
         assert!(state.system_requirements.os_compatible);
-        
-        // OpenCode detection should run without error
-        assert!(!state.opencode_detected || state.opencode_detected);
     }
 
     #[test]
-    fn test_complete_onboarding_blocks_invalid_path() {
+    fn test_complete_onboarding() {
         let test_manager = TestOnboardingManager::new().unwrap();
 
-        // Test with non-existent path
-        let invalid_path = test_manager.manager.config_dir.join("nonexistent");
-        let result = test_manager.manager.complete_onboarding(Some(invalid_path));
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("executable not found"));
-    }
-
-    #[test]
-    fn test_complete_onboarding_blocks_non_executable() {
-        let test_manager = TestOnboardingManager::new().unwrap();
-
-        // Create non-executable file
-        let non_executable = test_manager.manager.config_dir.join("not_executable");
-        std::fs::write(&non_executable, "not an executable").unwrap();
-
-        let result = test_manager.manager.complete_onboarding(Some(non_executable));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_complete_onboarding_blocks_wrong_executable() {
-        let test_manager = TestOnboardingManager::new().unwrap();
-
-        // Create executable that's not OpenCode
-        let fake_executable = test_manager.manager.config_dir.join("fake_opencode");
-        
-        // Create a script that returns success but doesn't output "OpenCode"
-        #[cfg(unix)]
-        {
-            std::fs::write(&fake_executable, "#!/bin/bash\necho 'Some Other Tool v1.0.0'\nexit 0\n").unwrap();
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&fake_executable, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
-        
-        #[cfg(windows)]
-        {
-            // For Windows, create a batch file
-            std::fs::write(&fake_executable.with_extension("bat"), "@echo off\necho Some Other Tool v1.0.0\nexit /b 0\n").unwrap();
-        }
-
-        #[cfg(unix)]
-        let test_path = fake_executable;
-        #[cfg(windows)]
-        let test_path = fake_executable.with_extension("bat");
-
-        let result = test_manager.manager.complete_onboarding(Some(test_path));
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("executable not found"));
-    }
-
-    #[test]
-    fn test_complete_onboarding_accepts_valid_server() {
-        let test_manager = TestOnboardingManager::new().unwrap();
-
-        // Create mock OpenCode server
-        let valid_server = test_manager.manager.config_dir.join("opencode");
-        std::fs::write(&valid_server, "#!/bin/bash\necho 'OpenCode Server v1.0.0'\n").unwrap();
-        
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&valid_server, std::fs::Permissions::from_mode(0o755)).unwrap();
-        }
-
-        let result = test_manager.manager.complete_onboarding(Some(valid_server.clone()));
+        // Complete onboarding (no server path needed for client)
+        let result = test_manager.manager.complete_onboarding();
         assert!(result.is_ok());
 
-        // Verify config was saved with correct path
+        // Verify config was saved
         let config = test_manager.manager.load_config().unwrap().unwrap();
         assert!(config.is_completed);
-        assert_eq!(config.opencode_server_path.unwrap(), valid_server);
     }
 
     #[test]
-    fn test_complete_onboarding_requires_server_path() {
+    fn test_create_owner_account() {
         let test_manager = TestOnboardingManager::new().unwrap();
 
-        // Test with no server path provided
-        let result = test_manager.manager.complete_onboarding(None);
+        // Test creating owner account (password must meet security requirements)
+        let result = test_manager.manager.create_owner_account("testuser", "TestPass123");
+        assert!(result.is_ok());
+
+        // Verify config was updated
+        let config = test_manager.manager.load_config().unwrap().unwrap();
+        assert!(config.owner_account_created);
+        assert_eq!(config.owner_username.unwrap(), "testuser");
+    }
+
+    #[test]
+    fn test_create_owner_account_blocks_duplicate_creation() {
+        let test_manager = TestOnboardingManager::new().unwrap();
+
+        // Create first owner account
+        test_manager.manager.create_owner_account("testuser", "TestPass123").unwrap();
+
+        // Try to create another owner account - should fail
+        let result = test_manager.manager.create_owner_account("differentuser", "DifferentPass456");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("required to complete onboarding"));
+        assert!(result.unwrap_err().to_string().contains("Owner account already exists"));
     }
 
-    #[test]
-    fn test_validate_opencode_path() {
-        let test_manager = TestOnboardingManager::new().unwrap();
 
-        // Test non-existent path
-        let non_existent = PathBuf::from("/non/existent/path");
-        let result = test_manager.manager.validate_opencode_path(&non_existent).unwrap();
-        assert!(!result);
-
-        // Test file that exists but isn't executable
-        let non_executable = test_manager.manager.config_dir.join("text_file");
-        std::fs::write(&non_executable, "just text").unwrap();
-        let result = test_manager.manager.validate_opencode_path(&non_executable).unwrap();
-        assert!(!result);
-    }
 }

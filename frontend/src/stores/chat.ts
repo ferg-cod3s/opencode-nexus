@@ -1,5 +1,8 @@
 import { writable, derived, get } from 'svelte/store';
 import type { ChatSession, ChatMessage, ChatEvent } from '../types/chat';
+import { MessageRole } from '../types/chat';
+import { OfflineStorage, ConnectionMonitor, MessageStatus, type OfflineMessage } from '../utils/offline-storage';
+import { messageSyncManager } from '../utils/message-sync-manager';
 
 // Chat sessions store
 function createSessionsStore() {
@@ -62,7 +65,7 @@ function createActiveSessionStore() {
         if (!session || session.messages.length === 0) return session;
         const messages = [...session.messages];
         const lastMessage = messages[messages.length - 1];
-        if (lastMessage.role === "assistant") {
+        if (lastMessage.role === MessageRole.Assistant) {
           messages[messages.length - 1] = {
             ...lastMessage,
             content: lastMessage.content + content
@@ -71,7 +74,7 @@ function createActiveSessionStore() {
             // Create new streaming message
             messages.push({
               id: `streaming-${Date.now()}`,
-              role: "assistant",
+              role: MessageRole.Assistant,
               content,
               timestamp: new Date().toISOString()
             });
@@ -92,7 +95,10 @@ function createChatStateStore() {
     loading: false,
     error: null as string | null,
     connected: false,
-    isStreaming: false
+    isStreaming: false,
+    isOnline: ConnectionMonitor.getIsOnline(),
+    hasQueuedMessages: false,
+    syncInProgress: false
   });
 
   return {
@@ -109,12 +115,24 @@ function createChatStateStore() {
     setStreaming: (isStreaming: boolean) => {
       update(state => ({ ...state, isStreaming }));
     },
+    setOnline: (isOnline: boolean) => {
+      update(state => ({ ...state, isOnline }));
+    },
+    setHasQueuedMessages: (hasQueuedMessages: boolean) => {
+      update(state => ({ ...state, hasQueuedMessages }));
+    },
+    setSyncInProgress: (syncInProgress: boolean) => {
+      update(state => ({ ...state, syncInProgress }));
+    },
     reset: () => {
       update(() => ({
         loading: false,
         error: null,
         connected: false,
-        isStreaming: false
+        isStreaming: false,
+        isOnline: ConnectionMonitor.getIsOnline(),
+        hasQueuedMessages: false,
+        syncInProgress: false
       }));
     }
   };
@@ -125,7 +143,8 @@ function createCompositionStore() {
   const { subscribe, set, update } = writable({
     draft: '',
     attachments: [] as string[],
-    isComposing: false
+    isComposing: false,
+    queuedMessageCount: 0
   });
 
   return {
@@ -151,11 +170,15 @@ function createCompositionStore() {
     setComposing: (isComposing: boolean) => {
       update(state => ({ ...state, isComposing }));
     },
+    setQueuedMessageCount: (count: number) => {
+      update(state => ({ ...state, queuedMessageCount: count }));
+    },
     reset: () => {
       set({
         draft: '',
         attachments: [],
-        isComposing: false
+        isComposing: false,
+        queuedMessageCount: 0
       });
     }
   };
@@ -198,6 +221,26 @@ export const isConnected = derived(
   $chatState => $chatState.connected
 );
 
+export const isOnline = derived(
+  chatStateStore,
+  $chatState => $chatState.isOnline
+);
+
+export const hasQueuedMessages = derived(
+  chatStateStore,
+  $chatState => $chatState.hasQueuedMessages
+);
+
+export const syncInProgress = derived(
+  chatStateStore,
+  $chatState => $chatState.syncInProgress
+);
+
+export const queuedMessageCount = derived(
+  compositionStore,
+  $composition => $composition.queuedMessageCount
+);
+
 // Chat actions - higher level functions that coordinate multiple stores
 export const chatActions = {
   // Initialize chat system
@@ -215,15 +258,39 @@ export const chatActions = {
     }
   },
 
-  // Load sessions from backend
-  loadSessions: async (sessionLoader: () => Promise<ChatSession[]>) => {
+  // Load sessions from backend or cache
+  loadSessions: async (sessionLoader?: () => Promise<ChatSession[]>) => {
     chatStateStore.setLoading(true);
     try {
-      const sessions = await sessionLoader();
+      const isOnline = get(chatStateStore).isOnline;
+      let sessions: ChatSession[] = [];
+
+      if (isOnline && sessionLoader) {
+        // Online: load from backend and cache
+        sessions = await sessionLoader();
+        // Store sessions in offline cache
+        for (const session of sessions) {
+          await OfflineStorage.storeSession(session);
+        }
+      } else {
+        // Offline: load from cache
+        sessions = await OfflineStorage.getStoredSessions();
+        if (sessions.length === 0) {
+          chatStateStore.setError('No cached conversations available. Please connect to load conversations.');
+        }
+      }
+
       sessionsStore.setSessions(sessions);
-      
-      // Set first session as active if none selected
+
+      // Load queued messages for the current session
       const currentSession = get(activeSessionStore);
+      if (currentSession) {
+        const queuedMessages = await OfflineStorage.getQueuedMessagesForSession(currentSession.id);
+        compositionStore.setQueuedMessageCount(queuedMessages.length);
+        chatStateStore.setHasQueuedMessages(queuedMessages.length > 0);
+      }
+
+      // Set first session as active if none selected
       if (!currentSession && sessions.length > 0) {
         activeSessionStore.setSession(sessions[0]);
       }
@@ -255,7 +322,7 @@ export const chatActions = {
 
   // Send message
   sendMessage: async (
-    content: string, 
+    content: string,
     messageSender: (sessionId: string, content: string) => Promise<void>
   ) => {
     const activeSession = get(activeSessionStore);
@@ -264,40 +331,73 @@ export const chatActions = {
       return;
     }
 
+    const isOnline = get(chatStateStore).isOnline;
+
     // Add user message immediately
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
-      role: "user",
+      role: MessageRole.User,
       content,
       timestamp: new Date().toISOString()
     };
 
     activeSessionStore.addMessage(userMessage);
     compositionStore.clearDraft();
-    
-    try {
-      chatStateStore.setStreaming(true);
-      await messageSender(activeSession.id, content);
-      // Response will come via handleChatEvent
-    } catch (error) {
-      chatStateStore.setError(`Failed to send message: ${error}`);
-    } finally {
-      chatStateStore.setStreaming(false);
+
+    if (isOnline) {
+      // Online: send immediately
+      try {
+        chatStateStore.setStreaming(true);
+        await messageSender(activeSession.id, content);
+        // Store the updated session
+        await OfflineStorage.storeSession(activeSession);
+        // Response will come via handleChatEvent
+      } catch (error) {
+        chatStateStore.setError(`Failed to send message: ${error}`);
+        // Queue message for retry when connection is restored
+        await OfflineStorage.queueMessage(activeSession.id, content);
+        chatStateStore.setHasQueuedMessages(true);
+        compositionStore.setQueuedMessageCount(
+          get(compositionStore).queuedMessageCount + 1
+        );
+      } finally {
+        chatStateStore.setStreaming(false);
+      }
+    } else {
+      // Offline: queue message
+      try {
+        await OfflineStorage.queueMessage(activeSession.id, content);
+        chatStateStore.setHasQueuedMessages(true);
+        compositionStore.setQueuedMessageCount(
+          get(compositionStore).queuedMessageCount + 1
+        );
+      } catch (error) {
+        chatStateStore.setError(`Failed to queue message: ${error}`);
+      }
     }
   },
 
   // Handle chat events from backend
-  handleChatEvent: (event: ChatEvent) => {
+  handleChatEvent: async (event: ChatEvent) => {
     if (event.SessionCreated) {
-      sessionsStore.addSession(event.SessionCreated.session);
+      const session = event.SessionCreated.session;
+      sessionsStore.addSession(session);
+      // Cache the new session
+      await OfflineStorage.storeSession(session);
     } else if (event.MessageReceived) {
       const { session_id, message } = event.MessageReceived;
       const activeSession = get(activeSessionStore);
-      
+
       if (activeSession && activeSession.id === session_id) {
         activeSessionStore.addMessage(message);
+        // Update cached session
+        const updatedSession = {
+          ...activeSession,
+          messages: [...activeSession.messages, message]
+        };
+        await OfflineStorage.storeSession(updatedSession);
       }
-      
+
       // Update session in sessions store
       sessionsStore.updateSession(session_id, {
         messages: [...(activeSession?.messages || []), message]
@@ -305,7 +405,7 @@ export const chatActions = {
     } else if (event.MessageChunk) {
       const { session_id, chunk } = event.MessageChunk;
       const activeSession = get(activeSessionStore);
-      
+
       if (activeSession && activeSession.id === session_id) {
         activeSessionStore.appendToLastMessage(chunk);
       }
@@ -341,6 +441,66 @@ export const chatActions = {
     }
   },
 
+  // Sync queued messages when connection is restored
+  syncQueuedMessages: async (messageSender?: (sessionId: string, content: string) => Promise<void>) => {
+    try {
+      const result = await messageSyncManager.startSync(messageSender);
+
+      // Update queued message count
+      const allQueued = await OfflineStorage.getQueuedMessages();
+      const queuedCount = allQueued.length;
+      compositionStore.setQueuedMessageCount(queuedCount);
+      chatStateStore.setHasQueuedMessages(queuedCount > 0);
+
+      if (result.sent > 0) {
+        console.log(`Synced ${result.sent} queued messages`);
+      }
+
+      if (result.failed > 0) {
+        chatStateStore.setError(`${result.failed} messages failed to sync`);
+      }
+
+      return result;
+    } catch (error) {
+      chatStateStore.setError(`Failed to sync messages: ${error}`);
+      return { sent: 0, failed: 0, success: false, conflicts: 0, duration: 0, errors: [], sessionUpdates: [] };
+    }
+  },
+
+  // Initialize offline functionality
+  initializeOffline: () => {
+    // Monitor connection status
+    ConnectionMonitor.addListener((isOnline) => {
+      chatStateStore.setOnline(isOnline);
+    });
+
+    // Load cached data on initialization
+    chatActions.loadSessions();
+  },
+
+  // Get offline storage stats
+  getOfflineStats: async () => {
+    try {
+      return await OfflineStorage.getStorageStats();
+    } catch (error) {
+      console.error('Failed to get offline stats:', error);
+      return null;
+    }
+  },
+
+  // Clear offline data
+  clearOfflineData: async () => {
+    try {
+      await OfflineStorage.clearAllData();
+      chatStateStore.setHasQueuedMessages(false);
+      compositionStore.setQueuedMessageCount(0);
+      // Reload sessions (will be empty now)
+      await chatActions.loadSessions();
+    } catch (error) {
+      chatStateStore.setError(`Failed to clear offline data: ${error}`);
+    }
+  },
+
   // Clear error
   clearError: () => {
     chatStateStore.setError(null);
@@ -362,14 +522,18 @@ export const chatStore = {
   state: chatStateStore,
   composition: compositionStore,
   actions: chatActions,
-  
+
   // Derived stores
   activeSessions,
   hasActiveSessions,
   currentSessionMessages,
   isLoading,
   chatError,
-  isConnected
+  isConnected,
+  isOnline,
+  hasQueuedMessages,
+  syncInProgress,
+  queuedMessageCount
 };
 
 // Type exports for external use

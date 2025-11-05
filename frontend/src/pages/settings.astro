@@ -389,8 +389,8 @@ import Layout from '../layouts/Layout.astro';
 
   // Settings state
   let tunnelSettings = {
-    custom_domain: '',
-    auth_token: '',
+    custom_domain: '' as string | null,
+    auth_token: '' as string | null,
     auto_start: false
   };
 

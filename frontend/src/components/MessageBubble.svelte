@@ -36,10 +36,11 @@
 
 <style>
   .message-bubble {
-    max-width: 80%;
-    margin-bottom: 1rem;
+    max-width: 85%; /* Mobile-first: wider on small screens */
+    margin-bottom: 0.75rem; /* Reduced margin for mobile */
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   .message-bubble.user {
@@ -121,16 +122,50 @@
     }
   }
 
-  /* Mobile responsiveness */
-  @media (max-width: 768px) {
+  /* Mobile-first responsive design */
+  .message-content {
+    padding: 0.625rem 0.875rem; /* Mobile-first padding */
+    border-radius: 16px; /* Mobile-friendly border radius */
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.4;
+    font-size: 0.875rem; /* Mobile-first font size */
+    min-height: 44px; /* Ensure touch-friendly minimum height */
+    display: flex;
+    align-items: center;
+  }
+
+  .message-footer {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    opacity: 0.7;
+    padding: 0 0.25rem;
+  }
+
+  /* Tablet breakpoint (768px+) */
+  @media (min-width: 768px) {
     .message-bubble {
-      max-width: 90%;
+      max-width: 80%;
+      margin-bottom: 1rem;
     }
 
     .message-content {
-      padding: 0.625rem 0.875rem;
-      font-size: 0.875rem;
+      padding: 0.75rem 1rem;
+      border-radius: 18px;
+      font-size: 1rem;
+      min-height: auto; /* Remove min-height constraint on larger screens */
     }
 
+    .message-footer {
+      margin-top: 0.25rem;
+      font-size: 0.75rem;
+    }
+  }
+
+  /* Desktop breakpoint (1024px+) */
+  @media (min-width: 1024px) {
+    .message-bubble {
+      max-width: 75%;
+    }
   }
 </style>

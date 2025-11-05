@@ -1,224 +1,253 @@
-# TODO
+# TODO - OpenCode Client Pivot
 
-## 🚀 Project Tasks
+## 🚀 Project Tasks - CLIENT PIVOT (Mobile-Focused)
 
-### 🔴 High Priority
+### 🎯 **PROJECT PIVOT STATUS**
+**From**: Desktop server management app → **To**: Mobile client connecting to OpenCode servers
+**Timeline**: 8 weeks to MVP
+**Status**: Implementation Plan Created (`thoughts/plans/opencode-client-pivot-implementation-plan.md`)
 
-- [x] **✅ Chat Interface Integration Complete** (Priority: Completed)
-  - [x] ✅ Backend chat session management with OpenCode API integration
-  - [x] ✅ Real-time message streaming with SSE implementation
-  - [x] ✅ Chat UI components with modern design and syntax highlighting  
-  - [x] ✅ Frontend chat UI connected to Tauri backend commands
-  - [x] ✅ Message streaming display functional in frontend
-  - [x] ✅ Chat session persistence across app restarts
-  - [x] ✅ Accessibility (WCAG 2.2 AA) compliance
-  - [ ] 🟡 Fix duplicate test functions blocking compilation (non-critical)
-  - [ ] 🟡 Add file context sharing for coding questions (nice-to-have)
-  - [x] ✅ E2E test structure (324 tests created, functional implementation complete)
+### ✅ **iOS TestFlight Deployment - COMPLETED**
+- [x] **iOS Environment Setup**: Installed iOS Rust targets, CocoaPods, Xcode project generation
+- [x] **App Store Connect**: Created "OpenCode Nexus" app (com.agentic-codeflow.opencode-nexus)
+- [x] **Code Signing**: Configured development team (PCJU8QD9FN) and bundle ID
+- [x] **Build Fixes**: Resolved conditional compilation for iOS (excluded web server dependencies)
+- [x] **TestFlight Build**: Successfully generated IPA file (3.2MB) ready for upload
+- [x] **Upload Status**: IPA generated at `src-tauri/gen/apple/build/OpenCode Nexus.ipa` - requires manual upload to TestFlight due to authentication setup
 
-- [x] **Integrate OpenCode Server Process Management** (Priority: High) ✅ COMPLETED
-  - [x] Implement server lifecycle management (start/stop/restart)
-  - [x] Add process monitoring and health checks
-  - [x] Handle server configuration management
-  - [x] Implement automatic server recovery
-  - [x] **BONUS**: Real-time event streaming for server status updates
-  - [x] **BONUS**: Comprehensive session tracking and management
+### 🔴 High Priority - Phase 1 (Weeks 1-2): Architecture Foundation
 
-- [x] \*\*🚨 CRITICAL: Implement Cloudflared Tunnel Integration\*\* \(Priority: High - BLOCKING REMOTE ACCESS\) ✅ COMPLETED
-  - [x] ✅ Real cloudflared process management implemented \(UI controls connected\)
-  - [x] ✅ Tunnel management backend connected to real cloudflared binary
-  - [x] ✅ Tunnel configuration persistence implemented
-  - [x] ✅ Real tunnel status monitoring implemented \(real-time updates\)
-  - [x] ✅ Tunnel UI controls in dashboard (connected to stub functions)
-  - [ ] 🟡 Add Tailscale VPN support (planned for Phase 4)
-  - [ ] 🟡 Add secure authentication for remote access tunnel
+- [ ] **🚨 CRITICAL: Replace Server Manager with Connection Manager** (Priority: Critical)
+  - [ ] Rename `src-tauri/src/server_manager.rs` → `src-tauri/src/connection_manager.rs`
+  - [ ] Remove all process management code (start/stop/restart server)
+  - [ ] Remove Cloudflared tunnel integration
+  - [ ] Implement HTTP client for server communication
+  - [ ] Add server connection testing and health checks
+  - [ ] Add auto-reconnection logic with exponential backoff
 
-- [x] **Complete Dashboard Functionality** (Priority: High) ✅ COMPLETED
-  - [x] Implement real server status monitoring (currently stubbed)
-  - [x] Add actual system metrics collection
-  - [x] Connect server control buttons to backend
-  - [x] Implement real-time metrics updates
-  - [x] Add log viewing with actual server logs
-  - [x] **BONUS**: Real-time event streaming from backend to frontend
-  - [x] **BONUS**: Reactive Svelte store for activity feed
-  - [x] **BONUS**: Enhanced accessibility with keyboard navigation
+- [ ] **Update Tauri Commands for Client** (Priority: High)
+  - [ ] Remove: `start_opencode_server`, `stop_opencode_server`, `restart_opencode_server`
+  - [ ] Add: `connect_to_server(hostname, port)`, `test_server_connection()`, `get_connection_status()`
+  - [ ] Update command handlers in `src-tauri/src/lib.rs`
 
-- [x] **Security and Authentication** (Priority: High) ✅ COMPLETED
-  - [x] Implement user authentication system with Argon2 hashing
-  - [x] Add account lockout protection (5 failed attempts)
-  - [x] Implement secure IPC communication via Tauri
-  - [x] Add comprehensive audit logging for login attempts
-  - [x] Password strength validation and security features
-  - [x] **BONUS**: Persistent user sessions (30-day expiration)
-  - [x] **BONUS**: Session cleanup for expired sessions
+- [ ] **Rewrite Chat Backend for Client** (Priority: High)
+  - [ ] Update `src-tauri/src/chat_manager.rs` → `src-tauri/src/chat_client.rs`
+  - [ ] Replace local server integration with OpenCode SDK (`@opencode-ai/sdk`)
+  - [ ] Implement session management via HTTP API calls
+  - [ ] Add real-time event streaming from server
+  - [ ] Remove local process dependencies
 
-- [x] **Session Management System** (Priority: High) ✅ COMPLETED
-  - [x] Implement persistent user sessions across app restarts
-  - [x] Add OpenCode server session tracking with real API integration
-  - [x] Create session disconnect functionality
-  - [x] Implement session statistics and monitoring
-  - [x] Add real-time session updates via event streaming
+- [ ] **Update Configuration System** (Priority: High)
+  - [ ] Replace server binary configuration with server connection profiles
+  - [ ] Add connection history and favorites
+  - [ ] Update onboarding flow for server connection instead of server setup
+  - [ ] Add SSL/TLS preference settings
 
-- [x] **Testing Infrastructure** (Priority: High) ✅ COMPLETED
-  - [x] Set up TDD workflow with comprehensive test suites
-  - [x] Implement unit tests for Rust backend (15+ auth tests, 5+ onboarding tests)
-  - [x] Add integration tests for Tauri + Astro frontend (24 onboarding tests)
-  - [x] Set up E2E testing structure with Playwright
-  - [x] Add accessibility testing (WCAG 2.2 AA compliance verified)
+### 🟡 Medium Priority - Phase 2 (Weeks 3-4): Chat Client Implementation
 
-### 🟡 Medium Priority
+- [ ] **Mobile Chat UI Redesign** (Priority: High)
+  - [ ] Update `frontend/src/pages/chat.astro` for mobile-first responsive design
+  - [ ] Redesign `ChatInterface.svelte` with touch-optimized controls (44px touch targets)
+  - [ ] Update `MessageInput.svelte` for mobile keyboard handling
+  - [ ] Add swipe gestures for navigation
+  - [ ] Implement responsive text sizing and layouts
 
-- [x] **User Onboarding and Setup Wizard** (Priority: Medium) ✅ COMPLETED
-  - [x] Create welcome screen and introduction with 6-step wizard
-  - [x] Implement system requirements check (OS, memory, disk, network, permissions)
-  - [x] Add guided OpenCode server setup (auto-download or existing binary)
-  - [x] Create security configuration wizard with username/password setup
-  - [x] Add remote access setup flow (Cloudflared integration planned)
-  - [x] Cross-platform system detection (macOS, Linux, Windows)
-  - [x] Configuration persistence and error handling
+- [ ] **Real-time Message Streaming** (Priority: High)
+  - [ ] Implement Server-Sent Events client for `/event` endpoint
+  - [ ] Add Tauri event bridge for real-time updates to frontend
+  - [ ] Implement streaming message display with typing indicators
+  - [ ] Add error recovery for connection drops
 
-- [ ] **Advanced Features** (Priority: Medium)
-  - [ ] Multi-instance management
-  - [ ] Performance monitoring and alerts
-  - [ ] Backup and recovery system
-  - [ ] Configuration import/export
+- [x] **✅ COMPLETED: Offline Conversation Caching** (Priority: High)
+  - [x] Implement localStorage-based conversation storage with 50MB quota
+  - [x] Add offline message composition and queuing system
+  - [x] Create automatic sync when connection restored
+  - [x] Add offline/online status indicators in UI
+  - [x] Update chat stores to use cached data when offline
+  - [x] Implement storage cleanup and compression for large messages
+  - [ ] Test streaming performance and reliability
+
+- [ ] **Session Management Client** (Priority: Medium)
+  - [ ] Implement session creation via `POST /session`
+  - [ ] Add session listing and history via `GET /session`
+  - [ ] Implement session switching and persistence
+  - [ ] Add session deletion and cleanup
+  - [ ] Test session management across app restarts
+
+### 🟢 Low Priority - Phase 3 (Weeks 5-6): Mobile Features & Polish
+
+- [ ] **Connection Configuration UI** (Priority: Medium)
+  - [ ] Create `ServerConnection.svelte` component for domain/IP + port input
+  - [ ] Add `ConnectionStatus.svelte` for real-time connection indicators
+  - [ ] Implement connection history and favorites
+  - [ ] Add connection quality monitoring (latency, status)
+  - [ ] Add SSL/TLS detection and security warnings
+
+- [ ] **Offline Capabilities** (Priority: Medium)
+  - [ ] Implement conversation caching for offline access
+  - [ ] Add offline indicators and graceful degradation
+  - [ ] Implement sync when connection restored
+  - [ ] Add offline queue for messages
+  - [ ] Test offline/online transitions
+
+- [ ] **PWA Support** (Priority: Low)
+  - [ ] Add service worker for offline access
+  - [ ] Create web app manifest for installation
+  - [ ] Implement install prompts for mobile devices
+  - [ ] Add basic push notification infrastructure
+  - [ ] Test PWA functionality across platforms
+
+### 🔵 Future Features - Phase 4+ (Post-MVP)
+
+- [ ] **Server Discovery** (Priority: Low)
+  - [ ] Implement server browser/discovery functionality
+  - [ ] Add server favorites and quick connect
+  - [ ] Implement server health monitoring
+  - [ ] Add server version compatibility checking
+
+- [ ] **Advanced Mobile Features** (Priority: Low)
+  - [ ] Voice input for messages
+  - [ ] Image/file sharing in conversations
+  - [ ] Conversation search and filtering
+  - [ ] Dark/light theme switching
+  - [ ] Multi-language support
+
+### 🟡 Medium Priority - Phase 3 (Weeks 5-6): Testing & Documentation
+
+- [ ] **Update Test Suite for Client** (Priority: High)
+  - [ ] Create `src-tauri/src/tests/connection_tests.rs` for connection management
+  - [ ] Update chat tests for client-server communication
+  - [ ] Add mobile UI interaction tests
+  - [ ] Implement offline functionality tests
+  - [ ] Update E2E tests for client flows (remove server management tests)
+
+- [ ] **Documentation Updates** (Priority: High)
+  - [ ] Rewrite `docs/PRD.md` for client-focused vision
+  - [ ] Update `docs/ARCHITECTURE.md` for client architecture
+  - [ ] Rewrite `docs/USER-FLOWS.md` for mobile client flows
+  - [ ] Update `docs/TESTING.md` for client testing strategy
+  - [ ] Update `docs/SECURITY.md` for client connection security
+
+- [ ] **Mobile-Specific Testing** (Priority: Medium)
+  - [ ] Test on iOS Safari and Chrome Mobile
+  - [ ] Test on Android Chrome and Firefox Mobile
+  - [ ] Implement touch gesture testing
+  - [ ] Add network condition simulation tests
+  - [ ] Validate PWA functionality
+
+### 🟢 Low Priority - Phase 4 (Weeks 7-8): Production & Polish
+
+- [ ] **Performance Optimization** (Priority: Medium)
+  - [ ] Optimize frontend bundle size (<1MB target)
+  - [ ] Implement mobile performance optimizations
+  - [ ] Add memory management and cleanup
+  - [ ] Optimize startup time (<2s target)
+  - [ ] Test on low-end mobile devices
+
+- [ ] **Production Readiness** (Priority: High)
+  - [ ] Final security audit for client connections
+  - [ ] Cross-platform build testing (macOS, Windows, Linux)
+  - [ ] Mobile browser compatibility validation
+  - [ ] Accessibility compliance verification (WCAG 2.2 AA)
+  - [ ] Performance benchmarking and optimization
 
 - [ ] **DevOps and CI/CD** (Priority: Medium)
-  - [ ] Set up GitHub Actions workflows
-  - [ ] Implement automated testing pipeline
-  - [ ] Add security scanning (Snyk, Cargo Audit)
-  - [ ] Set up cross-platform builds
-  - [ ] Implement automated releases
+  - [ ] Update GitHub Actions for client build process
+  - [ ] Implement automated testing pipeline for client
+  - [ ] Add security scanning for client dependencies
+  - [ ] Set up cross-platform mobile testing
+  - [ ] Implement automated releases for client app
 
-- [ ] **Documentation and Help** (Priority: Medium)
-  - [ ] Complete all docs in /docs/ directory
-  - [ ] Add in-app help system
-  - [ ] Create user tutorials and guides
-  - [ ] Add troubleshooting documentation
+## 📋 Development Standards Compliance - CLIENT PIVOT
 
-### 🟢 Low Priority
-
-- [ ] **Performance Optimization** (Priority: Low)
-  - [ ] Frontend bundle optimization
-  - [ ] Backend performance tuning
-  - [ ] Memory usage optimization
-  - [ ] Startup time improvement
-
-- [x] **User Experience Enhancements** (Priority: Low) ✅ PARTIALLY COMPLETED
-  - [ ] Dark/light theme support
-  - [ ] Customizable dashboard layouts
-  - [ ] Keyboard shortcuts
-  - [x] **COMPLETED**: Accessibility improvements (WCAG 2.2 AA compliance)
-  - [x] **COMPLETED**: Keyboard navigation in activity feed
-  - [x] **COMPLETED**: Screen reader support with ARIA live regions
-  - [x] **COMPLETED**: Semantic HTML structure
-
-- [ ] **Community and Ecosystem** (Priority: Low)
-  - [ ] Create contributing guidelines
-  - [ ] Set up community forums
-  - [ ] Add plugin system architecture
-  - [ ] Create developer documentation
-
-## 📋 Development Standards Compliance
-
-### ✅ Completed
+### ✅ Completed Foundation (Retained)
 - [x] Project scaffold with Tauri + Astro + Svelte + Bun
-- [x] Comprehensive documentation structure
-- [x] Security model and architecture planning
+- [x] Comprehensive documentation structure (needs updates for client)
+- [x] Security model and architecture planning (needs client updates)
 - [x] Testing strategy with TDD approach - **FULLY IMPLEMENTED**
 - [x] DevOps pipeline planning
 - [x] **Test-Driven Development implementation** - 29 tests written first
 - [x] **Security audit and compliance** - Argon2 hashing, account lockout, secure IPC
 - [x] **Accessibility compliance (WCAG 2.2 AA)** - All UI components verified
-- [x] **OpenCode server integration research** - Complete API documentation reviewed
 - [x] **UI/UX design and prototyping** - Full onboarding, login, and dashboard implemented
-- [x] **Tauri + Astro Integration** - Fixed frontend loading issues, resolved port configuration
-- [x] **Real System Requirements Checking** - Backend verification for OS, memory, disk, network
-- [x] **Complete Session Management System** - Chat session creation, loading, and management
-- [x] **Enhanced Dashboard and Navigation** - Chat session statistics, seamless routing
 
-### 🔄 In Progress
-- [x] **Debug Runtime Error** - Investigating blocking runtime error in session management
-- [ ] Performance benchmarking
-- [ ] Production deployment testing
+### 🔄 In Progress - Client Pivot
+- [ ] **Connection Manager Implementation** - Replace server management with client connections
+- [ ] **Chat Client Rewrite** - Update for remote server communication
+- [ ] **Mobile UI Optimization** - Touch-friendly interface redesign
+- [ ] **Testing Suite Updates** - Client-focused test cases
 
-### ⏳ Pending
-- [ ] Final security penetration testing
-- [ ] Production environment configuration
-- [ ] Cloudflared tunnel real implementation
+### ⏳ Pending - Client Features
+- [ ] **Server Connection UI** - Domain/IP input and connection management
+- [ ] **Offline Capabilities** - Conversation caching and sync
+- [ ] **PWA Support** - Mobile app installation and offline access
+- [ ] **Mobile Performance** - Optimization for mobile devices
 
-## 🎯 Milestones
+## 🎯 New Milestones - Client Implementation
 
-### Milestone 1: Core Infrastructure (Week 1-2) ✅ COMPLETED
-- [x] Basic Tauri + Astro integration with full command handlers
-- [x] OpenCode server process management (backend ready, UI stubbed)
-- [x] Basic UI framework with accessibility and responsive design
-- [x] **BONUS**: Complete authentication system with security features
-- [x] **BONUS**: Full onboarding wizard with system detection
+### Milestone 1: Architecture Foundation (Weeks 1-2)
+- [ ] Replace server manager with connection manager
+- [ ] Update Tauri commands for client operations
+- [ ] Rewrite chat backend for remote server communication
+- [ ] Update configuration system for server connections
 
-### Milestone 2: Server Management (Week 3-4) ✅ COMPLETED
-- [x] Server lifecycle controls (start/stop/restart buttons connected)
-- [x] Health monitoring with real server status
-- [x] Configuration management with live updates
-- [x] **COMPLETED**: Server status dashboard UI
-- [x] **COMPLETED**: System metrics display framework
-- [x] **BONUS COMPLETED**: Real-time event streaming
-- [x] **BONUS COMPLETED**: Reactive activity feed with Svelte store
-- [x] **BONUS COMPLETED**: Session management and monitoring
+### Milestone 2: Chat Client Core (Weeks 3-4)
+- [ ] Implement mobile-optimized chat UI
+- [ ] Add real-time message streaming from server
+- [ ] Complete session management for remote sessions
+- [ ] Test chat functionality with OpenCode servers
 
-### Milestone 3: Remote Access \(Week 5-6\) ✅ COMPLETED
-- [x] Secure tunnel integration \(Cloudflared\) ✅ IMPLEMENTED
-- [ ] Authentication system ✅ **ALREADY COMPLETED**
-- [ ] Remote web interface (tunnel status monitoring)
+### Milestone 3: Mobile Features (Weeks 5-6)
+- [ ] Build server connection configuration UI
+- [ ] Implement offline conversation capabilities
+- [ ] Add PWA support for mobile installation
+- [ ] Complete mobile-specific optimizations
 
-### Milestone 4: Production Ready (Week 7-8)
-- [x] **PARTIALLY COMPLETE**: Comprehensive testing (29 tests written)
-- [x] **PARTIALLY COMPLETE**: Security hardening (auth system secure)
-- [ ] Documentation completion
-- [ ] Release preparation
-- [ ] Final integration testing
+### Milestone 4: Production Ready (Weeks 7-8)
+- [ ] Update and run comprehensive test suite
+- [ ] Complete documentation for client architecture
+- [ ] Perform mobile browser compatibility testing
+- [ ] Final security and performance validation
 
-## 🔍 OpenCode Server Integration Notes
+## 🔍 OpenCode Client Integration Notes
 
-Based on [OpenCode server documentation](https://opencode.ai/docs/server/):
+Based on [OpenCode server documentation](https://opencode.ai/docs/server/) and [SDK](https://opencode.ai/docs/sdk/):
 
-### Key Endpoints to Integrate
-- **Server Management**: `/app`, `/app/init`
-- **Session Management**: `/session/*` endpoints
-- **File Operations**: `/find/*`, `/file/*` endpoints
-- **Real-time Updates**: `/event` SSE stream
-- **Authentication**: `/auth/*` endpoints
+### Key Client APIs to Implement
+- **App Info**: `GET /app` - Server information and capabilities
+- **Session Management**: `POST /session`, `GET /session`, `DELETE /session/:id`
+- **Chat Messages**: `POST /session/:id/message` - Send messages and receive AI responses
+- **Real-time Events**: `GET /event` - Server-sent events for live updates
+- **File Operations**: `GET /find`, `GET /file` - Search and read project files
 
-### Default Configuration
-- **Port**: 4096 (default)
-- **Hostname**: 127.0.0.1 (default)
-- **API**: OpenAPI 3.1 specification at `/doc`
+### Client Architecture Requirements
+- **SDK Integration**: Use `@opencode-ai/sdk` for type-safe API calls
+- **Connection Management**: HTTP/HTTPS client with reconnection logic
+- **Mobile Optimization**: Touch-friendly UI with responsive design
+- **Offline Support**: Cache conversations and handle network interruptions
+- **Security**: Secure connections with SSL/TLS validation
 
-### Integration Requirements
-- [x] **COMPLETED**: OpenCode server binary management (path detection and validation)
-- [x] **COMPLETED**: Server configuration framework (port, hostname in onboarding)
-- [x] **COMPLETED**: Create session management interface (full session tracking)
-- [ ] Implement file search and viewing
-- [x] **COMPLETED**: Add real-time event streaming (backend to frontend)
-- [x] **COMPLETED**: Handle authentication and permissions (full auth system)
-- [x] **BONUS COMPLETED**: Persistent user sessions across app restarts
+### Implementation Dependencies
+- [ ] `@opencode-ai/sdk` - Official OpenCode client library
+- [ ] `reqwest` - HTTP client for Rust backend
+- [ ] `eventsource-client` - Server-sent events handling
+- [ ] Mobile UI components for touch interactions
 
-## 📝 Notes
+## 📝 Client Pivot Notes
 
-- **TDD Requirement**: ✅ **ACHIEVED** - All major features have tests written before implementation (29 tests total)
-- **Security First**: ✅ **ACHIEVED** - Argon2 hashing, account lockout, secure IPC, comprehensive security features
-- **Accessibility**: ✅ **ACHIEVED** - WCAG 2.2 AA compliance verified across all UI components + enhanced with real-time features
-- **Real-time Streaming**: ✅ **ACHIEVED** - Event-driven architecture with reactive Svelte stores
-- **Session Management**: ✅ **ACHIEVED** - Complete session tracking for both users and OpenCode server
-- **Documentation**: Keep all docs updated with code changes
-- **Testing**: ✅ **ACHIEVED** - 80-90% code coverage for critical paths (29 tests covering all major functionality)
-- **Performance**: ✅ **ACHIEVED** - Event streaming eliminates polling, optimized for real-time updates
+- **TDD Requirement**: ✅ **MAINTAINED** - Continue TDD approach for all new client features
+- **Security First**: ✅ **MAINTAINED** - Client connections need secure validation and error handling
+- **Accessibility**: ✅ **MAINTAINED** - WCAG 2.2 AA compliance required for mobile interfaces
+- **Mobile Focus**: 🆕 **NEW** - All UI decisions prioritize mobile experience
+- **Server Independence**: 🆕 **NEW** - No local server management, connect to any OpenCode server
+- **SDK Utilization**: 🆕 **NEW** - Leverage official OpenCode SDK for reliable API integration
+- **Documentation**: Update all docs for client architecture and mobile focus
+- **Testing**: Update test suite for client-server communication patterns
 
 ---
 
-**Last Updated**: 2025-09-04
-**Next Review**: Daily (debugging active)
-\*\*Status\*\*: ✅ MVP COMPLETE - All Components Operational
-\*\*Progress\*\*: 100% Complete \(Full OpenCode Nexus functionality\)
-\*\*Current Focus\*\*: Production deployment and user onboarding
-\*\*Next Priority\*\*: Production deployment and user onboarding
+**Last Updated**: November 4, 2025
+**Status**: 🚀 CLIENT PIVOT - Implementation Plan Created
+**Progress**: 0% Complete (Planning Phase)
+**Current Focus**: Phase 1 - Architecture Foundation
+**Next Priority**: Begin connection manager implementation

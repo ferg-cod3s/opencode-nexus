@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OpenCode Nexus",
+  "version": "0.1.0",
+  "identifier": "com.agentic-codeflow.opencode-nexus",
+  "build": {
+    "beforeDevCommand": "cd frontend && bun run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "cd frontend && bun run build",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "OpenCode Nexus",
+        "width": 800,
+        "height": 600
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules' tauri:; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: http: ws: tauri: ipc: http://ipc.localhost; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; worker-src 'self' blob:",
+      "devCsp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval' http: https: tauri:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' ws: http: https: tauri: ipc:; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; worker-src 'self' blob:",
+      "headers": {
+        "Cross-Origin-Opener-Policy": "same-origin",
+        "Cross-Origin-Embedder-Policy": "require-corp",
+        "X-Content-Type-Options": "nosniff"
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  }
+}

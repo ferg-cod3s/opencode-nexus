@@ -1,4 +1,6 @@
 ---
+import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
+
 export interface Props {
   title: string;
 }
@@ -13,6 +15,8 @@ const { title } = Astro.props;
     <meta name="description" content="OpenCode Nexus - Secure local OpenCode server management" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <meta name="generator" content={Astro.generator} />
     <title>{title}</title>
     
@@ -20,6 +24,21 @@ const { title } = Astro.props;
     <script>
       // Initialize logging on every page load
       import('../utils/init.ts').catch(console.error);
+    </script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
     </script>
     
     <!-- Preload critical fonts -->
@@ -34,10 +53,25 @@ const { title } = Astro.props;
     <!-- Theme colors -->
     <meta name="theme-color" content="#1e40af" />
     <meta name="msapplication-TileColor" content="#1e40af" />
+
+    <!-- PWA and Mobile Optimization -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="OpenCode Nexus" />
+    <meta name="msapplication-config" content="/browserconfig.xml" />
+    <meta name="application-name" content="OpenCode Nexus" />
+
+    <!-- Viewport and touch optimization -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="format-detection" content="telephone=no" />
   </head>
   <body>
     <slot />
-    
+
+    <!-- Global offline banner -->
+    <GlobalOfflineBanner client:load />
+
     <!-- Screen reader announcements -->
     <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
   </body>

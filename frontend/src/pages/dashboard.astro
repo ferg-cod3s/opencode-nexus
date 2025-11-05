@@ -1,6 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import ActivityFeed from '../components/ActivityFeed.svelte';
+import DashboardOfflineStatus from '../components/DashboardOfflineStatus.svelte';
+// import PWAInstallPrompt from '../components/PWAInstallPrompt.svelte';
+import SyncControls from '../components/SyncControls.svelte';
+import SyncHistory from '../components/SyncHistory.svelte';
+import SyncProgress from '../components/SyncProgress.svelte';
 ---
 
 <Layout title="OpenCode Nexus - Dashboard">
@@ -26,12 +31,15 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
     <div id="sr-announcements" aria-live="assertive" aria-atomic="true" class="sr-only"></div>
 
     <div class="dashboard-content" data-testid="server-dashboard">
-      <div class="welcome-section" data-testid="dashboard-welcome">
-        <h2 id="welcome-message">Welcome back!</h2>
-        <p class="welcome-subtitle">Your OpenCode server management dashboard</p>
-      </div>
+       <div class="welcome-section" data-testid="dashboard-welcome">
+         <h2 id="welcome-message">Welcome back!</h2>
+         <p class="welcome-subtitle">Your OpenCode server management dashboard</p>
+       </div>
 
-      <section class="status-grid" aria-label="System status overview">
+<!-- PWA Install Prompt -->
+        <!-- <PWAInstallPrompt client:load /> -->
+
+       <section class="status-grid" aria-label="System status overview">
         <!-- Server Status Card -->
         <article class="status-card" id="server-status-card" role="region" aria-labelledby="server-status-heading">
           <header class="card-header">
@@ -183,6 +191,17 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
           </div>
         </article>
 
+        <!-- Message Sync Card -->
+        <article class="status-card" id="sync-card" role="region" aria-labelledby="sync-heading">
+          <header class="card-header">
+            <h2 id="sync-heading">Message Synchronization</h2>
+          </header>
+          <div class="card-content">
+            <SyncControls client:only />
+            <SyncHistory client:only />
+          </div>
+        </article>
+
         <!-- Recent Activity Card -->
         <article class="status-card" id="activity-card">
           <header class="card-header">
@@ -217,6 +236,9 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
         </nav>
       </aside>
     </div>
+
+    <!-- Sync Progress Overlay -->
+    <SyncProgress client:only />
   </main>
 </Layout>
 

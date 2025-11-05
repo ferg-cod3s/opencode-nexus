@@ -101,22 +101,19 @@ import Layout from '../layouts/Layout.astro';
   import ChatInterface from '../components/ChatInterface.svelte';
   import SessionGrid from '../components/SessionGrid.svelte';
   import { mount } from 'svelte';
-  import type { ChatSession, ChatMessage, ChatEvent } from '../types/chat';
+  import { get } from 'svelte/store';
+  import type { ChatSession, ChatEvent } from '../types/chat';
+  import { chatStore } from '../stores/chat';
 
-  // State management
+  // State management using chat stores
   let chatInterfaceComponent: any = null;
   let sessionGridComponent: any = null;
-  let currentSession: ChatSession | null = null;
-  let sessions: ChatSession[] = [];
-  let loading = false;
-  let error: string | null = null;
 
   // DOM elements
   const chatRoot = document.getElementById('chat-root')!;
   async function initializeChat() {
     try {
       console.log('🔍 Chat page: Starting initialization...');
-      loading = true;
 
       // Check authentication
       console.log('🔍 Chat page: Checking authentication...');
@@ -142,8 +139,13 @@ import Layout from '../layouts/Layout.astro';
 
       console.log('🔍 Chat page: All checks passed, loading chat interface...');
 
+      // Initialize offline functionality
+      chatStore.actions.initializeOffline();
+
       // Load existing chat sessions
-      await loadSessions();
+      await chatStore.actions.loadSessions(async () => {
+        return await invoke<ChatSession[]>('get_chat_sessions') || [];
+      });
 
       // Set up event listeners for real-time updates
       await setupEventListeners();
@@ -151,79 +153,22 @@ import Layout from '../layouts/Layout.astro';
       // Start message streaming for real-time AI responses
       await startMessageStreaming();
 
-        loading = false;
+      // Mount components
+      mountComponents();
 
-        // Mount components
-        mountComponents();
-
-        // Hide loading state only on success
-        chatRoot.classList.add("loaded");
+      // Hide loading state only on success
+      chatRoot.classList.add("loaded");
 
       console.log('🔍 Chat page: Initialization complete');
 
     } catch (e) {
       console.error('❌ Chat page: Failed to initialize chat:', e);
-      error = `Failed to initialize chat: ${e}`;
-      showError(error);
-      loading = false; // Only set loading to false on error
+      const errorMessage = `Failed to initialize chat: ${e}`;
+      showError(errorMessage);
     }
   }
 
-  async function loadSessions() {
-    try {
-      sessions = await invoke<ChatSession[]>('get_chat_sessions') || [];
-      console.log(`Loaded ${sessions.length} chat sessions`);
-      
-      // If no sessions exist, create a default one
-      if (sessions.length === 0) {
-        await createNewSession();
-      } else {
-        // Load the most recent session
-        currentSession = sessions[0];
-        await loadSessionHistory(currentSession.id);
-      }
-    } catch (e) {
-      console.error('Failed to load sessions:', e);
-      throw new Error(`Failed to load sessions: ${e}`);
-    }
-  }
 
-  async function createNewSession(title?: string) {
-    try {
-      const newSession = await invoke<ChatSession>('create_chat_session', {
-        title: title || `Chat ${new Date().toLocaleDateString()}`
-      });
-      
-      sessions = [newSession, ...sessions];
-      currentSession = newSession;
-      
-      console.log('Created new session:', newSession.id);
-      updateComponents();
-      
-      return newSession;
-    } catch (e) {
-      console.error('Failed to create session:', e);
-      throw new Error(`Failed to create session: ${e}`);
-    }
-  }
-
-  async function loadSessionHistory(sessionId: string) {
-    try {
-      if (!currentSession) return;
-      
-      const messages = await invoke<ChatMessage[]>('get_chat_session_history', { session_id: sessionId });
-      if (messages) {
-        currentSession.messages = messages || [];
-        updateComponents();
-      }
-    } catch (e) {
-      console.error('Failed to load session history:', e);
-      // Don't throw here - we can work with empty messages
-      if (currentSession) {
-        currentSession.messages = [];
-      }
-    }
-  }
 
   async function setupEventListeners() {
     try {
@@ -255,50 +200,11 @@ import Layout from '../layouts/Layout.astro';
 
   function handleChatEvent(event: ChatEvent) {
     console.log('Received chat event:', event);
-
-    if (event.SessionCreated) {
-      const newSession = event.SessionCreated.session;
-      sessions = [newSession, ...sessions.filter(s => s.id !== newSession.id)];
-      updateComponents();
-    } else if (event.MessageReceived) {
-      const { session_id, message } = event.MessageReceived;
-      if (currentSession && currentSession.id === session_id) {
-        currentSession.messages = [...currentSession.messages, message];
-        updateComponents();
-      }
-    } else if (event.MessageChunk) {
-      const { session_id, chunk } = event.MessageChunk;
-      if (currentSession && currentSession.id === session_id) {
-        handleStreamingChunk(chunk);
-      }
-    } else if (event.Error) {
-      error = event.Error.message;
-      showError(error);
-    }
-  }
-
-  function handleStreamingChunk(chunk: string) {
-    if (!currentSession) return;
-
-    const messages = currentSession.messages;
-    const lastMessage = messages[messages.length - 1];
-
-    if (lastMessage && lastMessage.role === "assistant") {
-      // Append to existing assistant message
-      lastMessage.content += chunk;
-    } else {
-      // Create new streaming message
-      const streamingMessage: ChatMessage = {
-        id: `streaming-${Date.now()}`,
-        role: "assistant",
-        content: chunk,
-        timestamp: new Date().toISOString()
-      };
-      currentSession.messages = [...messages, streamingMessage];
-    }
-
+    chatStore.actions.handleChatEvent(event);
     updateComponents();
   }
+
+
 
   function mountComponents() {
     // Clear loading state
@@ -323,23 +229,28 @@ import Layout from '../layouts/Layout.astro';
     appLayout.appendChild(chatMain);
     chatRoot.appendChild(appLayout);
 
+    // Get current store values
+    const currentSessions = get(chatStore.activeSessions);
+    const currentActiveSession = get(chatStore.activeSession);
+    const currentLoading = get(chatStore.isLoading);
+
     // Mount SessionGrid using Svelte 5 mount API
     sessionGridComponent = mount(SessionGrid, {
       target: sessionsSidebar,
       props: {
-        sessions,
-        activeSessionId: currentSession?.id || null,
-        loading
+        sessions: currentSessions,
+        activeSessionId: currentActiveSession?.id || null,
+        loading: currentLoading
       }
     });
 
     // Mount ChatInterface using Svelte 5 mount API
-    if (currentSession) {
+    if (currentActiveSession) {
       chatInterfaceComponent = mount(ChatInterface, {
         target: chatMain,
         props: {
-          session: currentSession,
-          loading
+          session: currentActiveSession,
+          loading: currentLoading
         }
       });
     }
@@ -347,76 +258,23 @@ import Layout from '../layouts/Layout.astro';
 
   function updateComponents() {
     if (sessionGridComponent) {
-      sessionGridComponent.sessions = sessions;
-      sessionGridComponent.activeSessionId = currentSession?.id || null;
-      sessionGridComponent.loading = loading;
+      sessionGridComponent.sessions = get(chatStore.activeSessions);
+      sessionGridComponent.activeSessionId = get(chatStore.activeSession)?.id || null;
+      sessionGridComponent.loading = get(chatStore.isLoading);
     }
 
-    if (chatInterfaceComponent && currentSession) {
-      chatInterfaceComponent.session = currentSession;
-      chatInterfaceComponent.loading = loading;
-    }
-  }
-
-  async function handleSendMessage(event: CustomEvent<{ content: string }>) {
-    if (!currentSession) return;
-
-    try {
-      loading = true;
-      
-      const userMessage: ChatMessage = {
-        id: `temp-${Date.now()}`,
-        role: "user",
-        content: event.detail.content,
-        timestamp: new Date().toISOString()
-      };
-
-      // Add user message immediately
-      currentSession.messages = [...currentSession.messages, userMessage];
-      updateComponents();
-
-      // Send to backend
-      await invoke<void>('send_chat_message', {
-        session_id: currentSession.id,
-        content: event.detail.content
-      });
-
-      // Response will come via event stream
-      
-    } catch (e) {
-      console.error('Failed to send message:', e);
-      error = `Failed to send message: ${e}`;
-      showError(error);
-    } finally {
-      loading = false;
-      updateComponents();
-    }
-  }
-
-  function handleSelectSession(event: CustomEvent<{ session: ChatSession }>) {
-    const session = event.detail.session;
-    currentSession = session;
-    loadSessionHistory(session.id);
-  }
-
-  function handleDeleteSession(event: CustomEvent<{ sessionId: string }>) {
-    const sessionId = event.detail.sessionId;
-    sessions = sessions.filter(s => s.id !== sessionId);
-    
-    if (currentSession && currentSession.id === sessionId) {
-      currentSession = sessions[0] || null;
-      if (currentSession) {
-        loadSessionHistory(currentSession.id);
+    if (chatInterfaceComponent) {
+      const currentActiveSession = get(chatStore.activeSession);
+      if (currentActiveSession) {
+        chatInterfaceComponent.session = currentActiveSession;
+        chatInterfaceComponent.loading = get(chatStore.isLoading);
       }
     }
-    
-    updateComponents();
   }
 
-  function handleCloseChat() {
-    // Navigate back to dashboard
-    window.location.href = '/dashboard';
-  }
+
+
+
 
   function showError(errorMessage: string) {
     const errorDiv = document.createElement('div');
