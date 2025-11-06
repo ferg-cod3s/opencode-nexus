@@ -37,6 +37,11 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "iOS": {
+      "developmentTeam": "YOUR_TEAM_ID",
+      "bundle-version": "1",
+      "minimumSystemVersion": "14.0"
+    }
   }
 }

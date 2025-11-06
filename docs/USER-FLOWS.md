@@ -1,12 +1,12 @@
 # User Flows
 **Project:** OpenCode Nexus  
 **Version:** 0.0.1  
-**Last Updated:** 2025-09-01
-**Status:** Planning Phase
+**Last Updated:** 2025-11-06
+**Status:** Client Implementation Phase
 
 ## 1. User Journey Overview
 
-This document outlines the complete user experience for OpenCode Nexus, from initial discovery through daily usage and advanced configuration. Each flow is designed with accessibility, security, and user experience as top priorities.
+This document outlines the complete user experience for OpenCode Nexus, a desktop client application for interacting with OpenCode AI servers. Each flow is designed with accessibility, security, and user experience as top priorities, focusing on seamless AI-powered development assistance.
 
 ## 2. First-Time User Experience
 
@@ -38,17 +38,17 @@ Welcome Screen
       ↓
 System Requirements Check
       ↓
-OpenCode Server Setup
+OpenCode Server Connection
       ↓
-Security Configuration
+Authentication Setup
       ↓
-Remote Access Setup
+Chat Interface Introduction
       ↓
-Dashboard Introduction
+Start Using OpenCode
 ```
 
 **Step 1: Welcome Screen**
-- **Content:** Project overview, mission statement, key benefits
+- **Content:** Project overview, AI capabilities, key benefits
 - **Actions:** "Get Started" button, "Learn More" link
 - **Accessibility:** Screen reader support, keyboard navigation
 
@@ -57,25 +57,20 @@ Dashboard Introduction
 - **Checks:** OS version, available memory, disk space, network access
 - **Actions:** "Continue" if requirements met, "Fix Issues" if not
 
-**Step 3: OpenCode Server Setup**
-- **Content:** Server binary selection and configuration
-- **Options:** Auto-download latest version, use existing binary, custom path
-- **Actions:** "Download Server", "Select Binary", "Continue"
+**Step 3: OpenCode Server Connection**
+- **Content:** Connect to existing OpenCode server or find public instances
+- **Options:** Connect to local server, connect to remote server, browse public servers
+- **Actions:** "Connect to Server", "Browse Servers", "Continue"
 
-**Step 4: Security Configuration**
-- **Content:** Authentication and access control setup
-- **Options:** Local authentication, OAuth integration, SSO setup
+**Step 4: Authentication Setup**
+- **Content:** Authentication and access token configuration
+- **Options:** API key authentication, OAuth integration, anonymous access
 - **Actions:** "Configure Auth", "Skip for Now", "Continue"
 
-**Step 5: Remote Access Setup**
-- **Content:** Secure tunnel configuration
-- **Options:** Cloudflared (recommended), Tailscale, VPN, skip
-- **Actions:** "Setup Cloudflared", "Configure Tailscale", "Skip"
-
-**Step 6: Dashboard Introduction**
-- **Content:** Quick tour of main features
-- **Features:** Server status, logs, settings, help
-- **Actions:** "Take Tour", "Skip Tour", "Finish Setup"
+**Step 5: Chat Interface Introduction**
+- **Content:** Quick tour of chat features and AI interaction
+- **Features:** Code completion, file context sharing, conversation history
+- **Actions:** "Take Tour", "Skip Tour", "Start Chatting"
 
 ## 3. Daily Usage Flows
 
@@ -85,9 +80,9 @@ User opens OpenCode Nexus
          ↓
 Application loads and initializes
          ↓
-Dashboard displays with current status
+Chat interface displays with connection status
          ↓
-User can interact with all features
+User can start interacting with AI
 ```
 
 **User Actions:**
@@ -96,193 +91,211 @@ User can interact with all features
 
 **System Responses:**
 - Splash screen with loading progress
-- Automatic status check of OpenCode server
-- Dashboard refresh with current metrics
-- Notification of any system issues or updates
+- Automatic connection check to OpenCode server
+- Chat interface refresh with connection status
+- Notification of any connection issues or updates
 
-### 3.2 Server Management
+### 3.2 AI Chat Interaction
 ```
-Dashboard View
-      ↓
-Server Status Check
-      ↓
-Start/Stop/Restart Server
-      ↓
-Monitor Performance
-      ↓
-View Logs
-```
-
-**Start Server Flow:**
-1. **User Action:** Click "Start Server" button
-2. **System Response:** Show loading state, progress indicator
-3. **Process:** Launch OpenCode server process
-4. **Success:** Update status to "Running", show success notification
-5. **Failure:** Display error message with troubleshooting steps
-
-**Stop Server Flow:**
-1. **User Action:** Click "Stop Server" button
-2. **System Response:** Show confirmation dialog
-3. **Process:** Gracefully terminate server process
-4. **Success:** Update status to "Stopped", show confirmation
-5. **Failure:** Display error message, offer force-kill option
-
-**Restart Server Flow:**
-1. **User Action:** Click "Restart Server" button
-2. **System Response:** Show restart progress
-3. **Process:** Stop server, wait for cleanup, start server
-4. **Success:** Update status, show restart confirmation
-5. **Failure:** Display error, offer manual restart option
-
-### 3.3 Remote Access Management
-```
-Remote Access Dashboard
-         ↓
-Tunnel Status Check
-         ↓
-Enable/Disable Tunnel
-         ↓
-Configure Access Control
-         ↓
-Share Access Information
+Chat Interface
+       ↓
+Type Message or Code Question
+       ↓
+Send to OpenCode Server
+       ↓
+Receive AI Response
+       ↓
+Continue Conversation
 ```
 
-**Enable Remote Access Flow:**
-1. **User Action:** Click "Enable Remote Access"
-2. **System Response:** Show tunnel setup wizard
-3. **Configuration:** Select tunnel provider, configure settings
-4. **Authentication:** Set up access credentials
-5. **Success:** Display public URL and QR code
-6. **Sharing:** Copy link, scan QR code, or share via email
+**Send Message Flow:**
+1. **User Action:** Type message and click "Send" or press Enter
+2. **System Response:** Show typing indicator, message in sending state
+3. **Process:** Send request to OpenCode server via API
+4. **Success:** Display AI response, update conversation history
+5. **Failure:** Display error message with retry options
 
-**Disable Remote Access Flow:**
-1. **User Action:** Click "Disable Remote Access"
-2. **System Response:** Show confirmation dialog
-3. **Process:** Terminate tunnel, revoke access
-4. **Success:** Update status, show confirmation
-5. **Cleanup:** Remove public access, update security status
+**Code Context Sharing Flow:**
+1. **User Action:** Drag/drop file or use file picker to share code
+2. **System Response:** Show file upload progress
+3. **Processing:** Extract code content and send with context
+4. **Success:** AI responds with code-aware assistance
+5. **Error:** Display file processing error, suggest alternatives
 
-### 3.4 Configuration Management
+**Conversation History Flow:**
+1. **User Action:** Navigate conversation history or search past chats
+2. **System Response:** Display conversation list with timestamps
+3. **Interaction:** Click to resume previous conversation
+4. **Context:** AI maintains context from previous messages
+5. **Management:** Options to delete, export, or favorite conversations
+
+### 3.3 Server Connection Management
+```
+Connection Status Dashboard
+         ↓
+Server Health Check
+         ↓
+Switch Between Servers
+         ↓
+Configure Connection Settings
+         ↓
+Manage Authentication
+```
+
+**Connect to Server Flow:**
+1. **User Action:** Click "Connect to Server" or select from server list
+2. **System Response:** Show connection dialog with server options
+3. **Configuration:** Enter server URL, port, and authentication details
+4. **Authentication:** Provide API key or OAuth credentials
+5. **Success:** Update connection status, enable chat functionality
+
+**Switch Server Flow:**
+1. **User Action:** Click server selector in status bar
+2. **System Response:** Show list of configured servers
+3. **Selection:** Choose different server or add new one
+4. **Transition:** Save current conversation, connect to new server
+5. **Confirmation:** Display new server status and capabilities
+
+**Connection Troubleshooting Flow:**
+1. **Detection:** Automatic detection of connection issues
+2. **Diagnostics:** Run connection tests and server health checks
+3. **User Guidance:** Provide specific error messages and solutions
+4. **Recovery:** Offer automatic reconnection or manual configuration
+5. **Fallback:** Suggest alternative servers or offline mode
+
+### 3.4 Application Configuration
 ```
 Settings Menu
-      ↓
+       ↓
 Configuration Categories
-      ↓
+       ↓
 Edit Settings
-      ↓
+       ↓
 Save Changes
-      ↓
+       ↓
 Apply Configuration
 ```
 
 **Server Configuration:**
-- **Server Path:** Binary location and version management
-- **Resource Limits:** Memory, CPU, and disk usage limits
-- **Environment Variables:** Custom configuration parameters
-- **Logging Options:** Log levels, rotation, and storage
+- **Server List:** Manage multiple OpenCode server connections
+- **Connection Settings:** Timeouts, retry logic, proxy configuration
+- **Authentication:** API keys, OAuth tokens, certificate management
+- **Sync Options:** Conversation sync across devices
 
-**Security Configuration:**
-- **Authentication:** User accounts, passwords, MFA settings
-- **Access Control:** IP whitelisting, time-based access
-- **Encryption:** TLS settings, certificate management
-- **Audit Logging:** Activity tracking and compliance settings
+**Chat Configuration:**
+- **AI Preferences:** Model selection, temperature, response length
+- **Code Context:** File type handling, syntax highlighting, context limits
+- **Conversation Settings:** Auto-save, history length, export formats
+- **Interface Options:** Theme, font size, layout preferences
 
-**Remote Access Configuration:**
-- **Tunnel Settings:** Provider configuration and credentials
-- **Access Control:** User permissions and restrictions
-- **Network Settings:** Port configuration and firewall rules
-- **Monitoring:** Connection logging and alerting
+**Privacy and Security:**
+- **Data Handling:** Local storage, encryption settings, data retention
+- **Authentication Security:** Key storage, token refresh, MFA options
+- **Network Security:** TLS settings, certificate validation, proxy support
+- **Privacy Controls:** Telemetry, crash reporting, usage analytics
 
 ## 4. Advanced User Flows
 
-### 4.1 Multi-Instance Management
+### 4.1 Multi-Server Management
 ```
-Instance Dashboard
+Server Dashboard
          ↓
-Create New Instance
+Add New Server Connection
          ↓
-Configure Instance Settings
+Configure Server Settings
          ↓
-Start/Stop Individual Instances
+Switch Between Servers
          ↓
-Monitor All Instances
-```
-
-**Create Instance Flow:**
-1. **User Action:** Click "Create Instance"
-2. **System Response:** Show instance creation wizard
-3. **Configuration:** Name, resources, configuration
-4. **Validation:** Check resource availability
-5. **Creation:** Launch new instance
-6. **Success:** Add to instance list, show status
-
-**Instance Management Flow:**
-1. **User Action:** Select instance from list
-2. **System Response:** Show instance details
-3. **Actions:** Start, stop, restart, configure, delete
-4. **Monitoring:** Real-time status and metrics
-5. **Logs:** Instance-specific log viewing
-
-### 4.2 Performance Monitoring
-```
-Performance Dashboard
-         ↓
-Resource Usage Monitoring
-         ↓
-Performance Metrics
-         ↓
-Alert Configuration
-         ↓
-Optimization Recommendations
+Monitor All Connections
 ```
 
-**Resource Monitoring:**
-- **CPU Usage:** Real-time CPU utilization graphs
-- **Memory Usage:** Memory consumption and trends
-- **Disk I/O:** Storage performance metrics
-- **Network Usage:** Bandwidth and connection statistics
+**Add Server Flow:**
+1. **User Action:** Click "Add Server" or configure new connection
+2. **System Response:** Show server connection wizard
+3. **Configuration:** Server URL, authentication, capabilities
+4. **Validation:** Test connection and verify server compatibility
+5. **Creation:** Save server configuration
+6. **Success:** Add to server list, show connection status
 
-**Performance Alerts:**
-1. **User Action:** Configure alert thresholds
-2. **System Response:** Show alert configuration options
-3. **Settings:** CPU, memory, disk, network thresholds
-4. **Notifications:** Email, in-app, or system notifications
-5. **Actions:** Automatic responses to threshold breaches
+**Server Management Flow:**
+1. **User Action:** Select server from connection list
+2. **System Response:** Show server details and capabilities
+3. **Actions:** Connect, disconnect, configure, remove, test
+4. **Monitoring:** Connection status, response times, server info
+5. **Usage:** Track API usage and conversation history per server
 
-### 4.3 Troubleshooting and Support
+### 4.2 Advanced AI Features
 ```
-Help and Support Menu
+Advanced Features Dashboard
          ↓
-Diagnostic Tools
+Custom Prompts and Templates
          ↓
-Error Reporting
+Code Project Integration
          ↓
-Support Resources
+Workflow Automation
          ↓
-Community Help
+Performance Analytics
 ```
 
-**Diagnostic Flow:**
-1. **User Action:** Click "Run Diagnostics"
-2. **System Response:** Show diagnostic progress
-3. **Checks:** System health, network connectivity, server status
-4. **Results:** Display findings and recommendations
-5. **Actions:** Auto-fix issues or provide manual steps
+**Custom Prompts Management:**
+- **Prompt Library:** Create, save, and organize custom prompts
+- **Template System:** Build reusable prompt templates for common tasks
+- **Variables and Context:** Dynamic prompt variables and code context injection
+- **Sharing:** Export/import prompts and templates
 
-**Error Reporting Flow:**
-1. **User Action:** Click "Report Issue"
-2. **System Response:** Show issue reporting form
-3. **Information:** Error description, steps to reproduce
-4. **Attachments:** Logs, screenshots, system information
-5. **Submission:** Send report to support team
+**Code Project Integration:**
+1. **User Action:** Connect local code project to OpenCode
+2. **System Response:** Scan project structure and analyze codebase
+3. **Indexing:** Create searchable index of code files and documentation
+4. **Context Awareness:** AI gains deep understanding of project structure
+5. **Smart Assistance:** Provide project-aware code suggestions and explanations
+
+**Workflow Automation:**
+- **Automated Reviews:** Schedule AI code reviews for commits
+- **Documentation Generation:** Auto-generate docs from code comments
+- **Test Generation:** Create unit tests based on code analysis
+- **Refactoring Suggestions:** Identify and suggest code improvements
+
+### 4.3 Collaboration and Sharing
+```
+Collaboration Menu
+         ↓
+Share Conversations
+         ↓
+Team Workspaces
+         ↓
+Knowledge Base
+         ↓
+Community Integration
+```
+
+**Conversation Sharing Flow:**
+1. **User Action:** Click "Share Conversation" from chat interface
+2. **System Response:** Show sharing options and privacy settings
+3. **Configuration:** Choose sharing scope (public, team, private)
+4. **Formatting:** Generate shareable link or export format
+5. **Distribution:** Copy link, send via email, or post to community
+
+**Team Workspace Flow:**
+- **Workspace Creation:** Set up team spaces for shared AI interactions
+- **Member Management:** Invite team members and set permissions
+- **Shared Knowledge:** Build team-specific knowledge base and prompts
+- **Collaborative Chats:** Work together on AI-assisted development tasks
+
+**Community Integration:**
+1. **User Action:** Access community features from main menu
+2. **System Response:** Show community portal with shared resources
+3. **Participation:** Share useful conversations, prompts, and solutions
+4. **Learning:** Access community-curated best practices and examples
+5. **Contribution:** Contribute to shared knowledge base and help others
 
 ## 5. Error Handling Flows
 
-### 5.1 Server Startup Failures
+### 5.1 Server Connection Failures
 ```
-Start Server Request
+Connect to Server Request
          ↓
-Startup Process Begins
+Connection Process Begins
          ↓
 Failure Detection
          ↓
@@ -294,26 +307,26 @@ Recovery Options
 ```
 
 **Error Scenarios:**
-- **Port Conflict:** Another service using required port
-- **Permission Denied:** Insufficient system permissions
-- **Resource Unavailable:** Insufficient memory or disk space
-- **Configuration Error:** Invalid server configuration
-- **Binary Issues:** Corrupted or incompatible server binary
+- **Network Unreachable:** Server URL not accessible
+- **Authentication Failed:** Invalid API key or expired token
+- **Server Overloaded:** OpenCode server not responding
+- **Incompatible Version:** Server version not supported
+- **Rate Limited:** Too many requests to server
 
 **Recovery Actions:**
-- **Automatic:** Retry with different port, check permissions
-- **Manual:** User-guided troubleshooting steps
-- **Fallback:** Use alternative configuration or resources
+- **Automatic:** Retry with exponential backoff, test alternative endpoints
+- **Manual:** User-guided troubleshooting steps and configuration checks
+- **Fallback:** Switch to different server or offline mode
 
-### 5.2 Network and Remote Access Issues
+### 5.2 AI Chat and API Issues
 ```
-Remote Access Request
+Send Chat Message Request
          ↓
-Connection Attempt
+API Call to OpenCode Server
          ↓
 Failure Detection
          ↓
-Diagnostic Check
+Error Analysis
          ↓
 User Notification
          ↓
@@ -321,67 +334,68 @@ Alternative Options
 ```
 
 **Common Issues:**
-- **Tunnel Failure:** Cloudflared or Tailscale connection issues
-- **Authentication Errors:** Invalid credentials or expired tokens
-- **Network Blocking:** Firewall or ISP restrictions
-- **Service Unavailable:** Tunnel provider service issues
+- **API Timeout:** Server taking too long to respond
+- **Context Too Large:** Code or conversation exceeds server limits
+- **Invalid Response:** Malformed or unexpected AI response
+- **Quota Exceeded:** User or server API limits reached
+- **Content Filter:** AI response blocked by content policies
 
 **Recovery Options:**
-- **Retry:** Automatic retry with exponential backoff
-- **Alternative Provider:** Switch to different tunnel service
-- **Manual Configuration:** User-provided network settings
-- **Local Access Only:** Fallback to local-only operation
+- **Retry:** Automatic retry with shorter context or different parameters
+- **Context Reduction:** Automatically trim conversation or code context
+- **Alternative Server:** Switch to different OpenCode server
+- **Offline Mode:** Use local AI capabilities or cached responses
 
 ## 6. Accessibility Considerations
 
 ### 6.1 Keyboard Navigation
-- **Tab Order:** Logical tab sequence through all interactive elements
-- **Shortcuts:** Keyboard shortcuts for common actions
-- **Focus Management:** Clear focus indicators and logical focus flow
-- **Skip Links:** Skip to main content and navigation options
+- **Tab Order:** Logical tab sequence through chat interface and settings
+- **Shortcuts:** Keyboard shortcuts for sending messages, navigating conversations
+- **Focus Management:** Clear focus indicators in chat input and response areas
+- **Skip Links:** Skip to chat input, conversation history, and main navigation
 
 ### 6.2 Screen Reader Support
-- **Semantic HTML:** Proper heading structure and landmarks
-- **ARIA Labels:** Descriptive labels for all interactive elements
-- **Status Updates:** Live region updates for dynamic content
-- **Error Announcements:** Clear error messages and suggestions
+- **Semantic HTML:** Proper heading structure for chat messages and UI elements
+- **ARIA Labels:** Descriptive labels for chat controls and status indicators
+- **Live Regions:** Real-time announcement of AI responses and connection status
+- **Code Reading:** Proper announcement of code blocks and syntax highlighting
 
 ### 6.3 Visual Accessibility
-- **High Contrast:** Support for high contrast themes
-- **Color Independence:** Information not conveyed by color alone
-- **Text Scaling:** Support for large text and zoom
-- **Focus Indicators:** Clear, high-contrast focus indicators
+- **High Contrast:** Support for high contrast themes in chat interface
+- **Color Independence:** Message status not conveyed by color alone
+- **Text Scaling:** Support for large text in chat messages and code blocks
+- **Focus Indicators:** Clear, high-contrast focus indicators for interactive elements
 
 ## 7. Mobile and Touch Experience
 
 ### 7.1 Touch Interface
-- **Touch Targets:** Minimum 44px touch targets for all interactive elements
-- **Gesture Support:** Swipe, pinch, and tap gestures where appropriate
-- **Responsive Design:** Adaptive layouts for different screen sizes
-- **Touch Feedback:** Visual and haptic feedback for touch interactions
+- **Touch Targets:** Minimum 44px touch targets for chat controls and navigation
+- **Gesture Support:** Swipe to navigate conversations, pinch to zoom code blocks
+- **Responsive Design:** Adaptive chat layouts for different screen sizes
+- **Touch Feedback:** Visual and haptic feedback for message sending and interactions
 
 ### 7.2 Mobile-Specific Features
-- **PWA Support:** Installable web app with offline capabilities
-- **Mobile Notifications:** Push notifications for important events
-- **QR Code Access:** Easy mobile access via QR code scanning
-- **Touch-Optimized UI:** Larger buttons and simplified navigation
+- **Voice Input:** Speech-to-text for composing chat messages
+- **Mobile Notifications:** Push notifications for AI responses and mentions
+- **Camera Integration:** Capture code screenshots for AI analysis
+- **Touch-Optimized Chat:** Larger input areas and simplified mobile interface
 
 ## 8. User Flow Validation
 
 ### 8.1 Usability Testing
-- **User Testing:** Real user testing with diverse user groups
-- **Accessibility Testing:** Testing with assistive technologies
-- **Performance Testing:** Load time and responsiveness validation
-- **Cross-Platform Testing:** Testing on all supported platforms
+- **User Testing:** Real user testing with developers and AI enthusiasts
+- **Accessibility Testing:** Testing with screen readers and keyboard-only navigation
+- **Performance Testing:** Chat response times and application responsiveness
+- **Cross-Platform Testing:** Testing on desktop, mobile, and tablet platforms
 
 ### 8.2 Continuous Improvement
-- **User Feedback:** Regular collection and analysis of user feedback
-- **Analytics:** Usage analytics to identify pain points
-- **A/B Testing:** Testing alternative flow designs
-- **Iterative Design:** Continuous refinement based on user data
+- **User Feedback:** Regular collection of chat experience and AI interaction feedback
+- **Analytics:** Usage analytics to identify conversation patterns and pain points
+- **A/B Testing:** Testing different chat interface designs and AI interaction patterns
+- **Iterative Design:** Continuous refinement based on user behavior and AI capabilities
 
 ## 9. Conclusion
 
-The user flows for OpenCode Nexus are designed to provide an intuitive, accessible, and secure experience for users of all technical levels. By focusing on clear navigation, helpful feedback, and comprehensive error handling, we ensure that users can successfully manage their OpenCode servers and access them remotely with confidence.
+The user flows for OpenCode Nexus are designed to provide an intuitive, accessible, and secure experience for developers interacting with AI-powered development assistance. By focusing on natural conversation flows, helpful AI responses, and comprehensive error handling, we ensure that users can effectively leverage OpenCode's capabilities to enhance their development workflow.
 
-Regular user testing and feedback collection will drive continuous improvement of these flows, ensuring that OpenCode Nexus remains user-friendly and accessible as the application evolves.
+Regular user testing and feedback collection will drive continuous improvement of these flows, ensuring that OpenCode Nexus remains user-friendly and accessible as AI capabilities and user needs evolve.

@@ -1,12 +1,12 @@
 # Testing Strategy
 **Project:** OpenCode Nexus  
 **Version:** 0.0.1 
-**Last Updated:** 2025-09-01
-**Status:** Planning Phase
+**Last Updated:** 2025-11-06
+**Status:** Client Implementation Phase
 
 ## 1. Testing Philosophy
 
-OpenCode Nexus follows a **Test-Driven Development (TDD)** approach as mandated by your global rules. Testing is not an afterthought but a fundamental part of the development process that drives design decisions and ensures code quality.
+OpenCode Nexus follows a **Test-Driven Development (TDD)** approach as mandated by your global rules. Testing is not an afterthought but a fundamental part of development process that drives design decisions and ensures code quality for our AI client application.
 
 ### 1.1 Core Testing Principles
 
@@ -15,7 +15,8 @@ OpenCode Nexus follows a **Test-Driven Development (TDD)** approach as mandated 
 - **Quality Assurance:** All tests must pass before code is merged
 - **Continuous Testing:** Automated testing in CI/CD pipeline
 - **Accessibility Testing:** WCAG 2.2 AA compliance validation
-- **Security Testing:** Regular vulnerability and penetration testing
+- **Security Testing:** Regular vulnerability and AI-specific security testing
+- **AI Safety Testing:** Testing for prompt injection and AI response validation
 
 ### 1.2 Testing Pyramid
 
@@ -33,8 +34,8 @@ OpenCode Nexus follows a **Test-Driven Development (TDD)** approach as mandated 
 ```
 
 - **Unit Tests:** Fast, isolated, comprehensive (70% of tests)
-- **Integration Tests:** Component interaction testing (20% of tests)
-- **End-to-End Tests:** Full user journey validation (10% of tests)
+- **Integration Tests:** Component and API interaction testing (20% of tests)
+- **End-to-End Tests:** Full user journey and AI interaction validation (10% of tests)
 
 ## 2. Testing Categories
 
@@ -44,29 +45,44 @@ OpenCode Nexus follows a **Test-Driven Development (TDD)** approach as mandated 
 **Tools:** Vitest, Testing Library, Svelte Testing Library
 
 **Test Scope:**
-- **Svelte Components:** Individual component functionality
-- **Utility Functions:** Helper functions and business logic
-- **State Management:** Application state and data flow
-- **Form Validation:** Input validation and error handling
+- **Chat Components:** Chat interface, message display, input handling
+- **Connection Components:** Server status, connection management UI
+- **Utility Functions:** Helper functions for API communication and data processing
+- **State Management:** Chat state, connection state, application state
+- **Form Validation:** Server configuration, authentication forms
 - **Accessibility:** ARIA labels, keyboard navigation, screen reader support
 
 **Example Test Structure:**
 ```typescript
-// Component.test.ts
+// ChatInterface.test.ts
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import { describe, it, expect } from 'vitest';
-import ServerStatus from './ServerStatus.svelte';
+import ChatInterface from './ChatInterface.svelte';
 
-describe('ServerStatus Component', () => {
-  it('should display server status correctly', () => {
-    render(ServerStatus, { props: { status: 'running' } });
-    expect(screen.getByText('Server is running')).toBeInTheDocument();
+describe('ChatInterface Component', () => {
+  it('should display chat messages correctly', () => {
+    render(ChatInterface, { 
+      props: { 
+        messages: [
+          { role: 'user', content: 'Hello, AI!' },
+          { role: 'assistant', content: 'Hello! How can I help you today?' }
+        ]
+      } 
+    });
+    expect(screen.getByText('Hello, AI!')).toBeInTheDocument();
+    expect(screen.getByText('Hello! How can I help you today?')).toBeInTheDocument();
   });
 
-  it('should handle status changes', async () => {
-    const { component } = render(ServerStatus, { props: { status: 'stopped' } });
-    component.status = 'running';
-    expect(screen.getByText('Server is running')).toBeInTheDocument();
+  it('should handle message sending', async () => {
+    const { component } = render(ChatInterface, { props: { messages: [] } });
+    const input = screen.getByPlaceholderText('Type your message...');
+    
+    await fireEvent.input(input, { target: { value: 'Test message' } });
+    await fireEvent.click(screen.getByText('Send'));
+    
+    expect(component.messages).toContainEqual(
+      expect.objectContaining({ role: 'user', content: 'Test message' })
+    );
   });
 });
 ```
@@ -75,11 +91,12 @@ describe('ServerStatus Component', () => {
 **Tools:** Rust built-in test framework, Mockall, Tokio Test
 
 **Test Scope:**
-- **Process Management:** OpenCode server lifecycle functions
-- **IPC Communication:** Tauri frontend-backend communication
-- **Configuration Management:** Settings and configuration handling
-- **Security Functions:** Authentication, authorization, encryption
-- **Error Handling:** Error scenarios and recovery logic
+- **API Client Functions:** OpenCode server communication functions
+- **Authentication:** API key management, token validation
+- **Configuration Management:** Server connections, application settings
+- **Security Functions:** Credential storage, encryption, data protection
+- **Error Handling:** Network errors, API errors, recovery logic
+- **AI Response Processing:** Response validation and sanitization
 
 **Example Test Structure:**
 ```rust
@@ -89,19 +106,31 @@ mod tests {
     use mockall::predicate::*;
 
     #[tokio::test]
-    async fn test_start_opencode_server() {
-        let mock_process = MockProcess::new();
-        mock_process.expect_start().times(1).returning(|| Ok(()));
+    async fn test_send_chat_message() {
+        let mock_client = MockOpenCodeClient::new();
+        mock_client
+            .expect_send_message()
+            .with(eq("Hello, AI!"))
+            .times(1)
+            .returning(|_| Ok(OpenCodeResponse {
+                content: "Hello! How can I help you?".to_string(),
+                role: "assistant".to_string(),
+            }));
         
-        let result = start_opencode_server(&mock_process).await;
+        let result = send_chat_message(&mock_client, "Hello, AI!").await;
         assert!(result.is_ok());
+        assert_eq!(result.unwrap().content, "Hello! How can I help you?");
     }
 
     #[test]
-    fn test_validate_configuration() {
-        let config = ServerConfig::default();
-        let result = validate_configuration(&config);
+    fn test_api_key_validation() {
+        let valid_key = "sk-opencode-1234567890abcdef";
+        let result = validate_api_key(valid_key);
         assert!(result.is_ok());
+        
+        let invalid_key = "invalid-key";
+        let result = validate_api_key(invalid_key);
+        assert!(result.is_err());
     }
 }
 ```
@@ -112,75 +141,92 @@ mod tests {
 **Tools:** Vitest, Testing Library, MSW (Mock Service Worker)
 
 **Test Scope:**
-- **Component Interaction:** Multiple components working together
-- **API Integration:** Frontend-backend communication
-- **State Management:** Application state across components
-- **Routing:** Navigation and page transitions
-- **Form Workflows:** Complete form submission and validation
+- **Chat Integration:** Complete chat workflow with mocked AI responses
+- **Server Connection:** Connection management and status updates
+- **Component Interaction:** Chat interface, connection status, settings working together
+- **State Management:** Chat state, connection state across components
+- **API Integration:** Frontend-backend communication for AI interactions
 
 **Example Test Structure:**
 ```typescript
-// Dashboard.test.ts
+// ChatIntegration.test.ts
 import { render, screen, waitFor } from '@testing-library/svelte';
 import { rest } from 'msw';
 import { setupServer } from 'msw/node';
-import Dashboard from './Dashboard.svelte';
+import ChatInterface from './ChatInterface.svelte';
 
 const server = setupServer(
-  rest.get('/api/server/status', (req, res, ctx) => {
-    return res(ctx.json({ status: 'running', uptime: 3600 }));
+  rest.post('/api/chat', (req, res, ctx) => {
+    return res(ctx.json({
+      content: 'This is a mock AI response',
+      role: 'assistant',
+      timestamp: Date.now()
+    }));
   })
 );
 
-describe('Dashboard Integration', () => {
+describe('Chat Integration', () => {
   beforeAll(() => server.listen());
   afterEach(() => server.resetHandlers());
   afterAll(() => server.close());
 
-  it('should display server status from API', async () => {
-    render(Dashboard);
+  it('should send message and receive AI response', async () => {
+    render(ChatInterface);
+    
+    const input = screen.getByPlaceholderText('Type your message...');
+    await fireEvent.input(input, { target: { value: 'Hello, AI!' } });
+    await fireEvent.click(screen.getByText('Send'));
     
     await waitFor(() => {
-      expect(screen.getByText('Server is running')).toBeInTheDocument();
-      expect(screen.getByText('Uptime: 1 hour')).toBeInTheDocument();
+      expect(screen.getByText('This is a mock AI response')).toBeInTheDocument();
     });
   });
 });
 ```
 
 #### 2.2.2 Backend Integration Tests
-**Tools:** Rust integration tests, Testcontainers, Wiremock
+**Tools:** Rust integration tests, Wiremock, Testcontainers
 
 **Test Scope:**
-- **Process Integration:** OpenCode server process management
-- **Network Integration:** Tunnel and remote access functionality
-- **File System Integration:** Configuration and log file handling
-- **External Service Integration:** Cloudflared, Tailscale APIs
-- **Database Integration:** Configuration and user data storage
+- **API Integration:** Complete OpenCode server API communication
+- **Authentication Integration:** API key authentication and token management
+- **File System Integration:** Configuration files, conversation storage
+- **Network Integration:** Connection management, error handling
+- **AI Response Processing:** Response validation and sanitization
 
 **Example Test Structure:**
 ```rust
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use testcontainers::*;
-    use testcontainers_modules::redis::Redis;
+    use wiremock::{MockServer, Mock, ResponseTemplate};
+    use wiremock::matchers::{method, path, body_json};
 
     #[tokio::test]
-    async fn test_opencode_server_lifecycle() {
-        let docker = clients::Cli::default();
-        let redis = docker.run(Redis::default());
+    async fn test_complete_chat_workflow() {
+        let mock_server = MockServer::start().await;
         
-        let config = ServerConfig {
-            redis_url: format!("redis://localhost:{}", redis.get_host_port_ipv4(6379)),
-            ..Default::default()
-        };
+        Mock::given(method("POST"))
+            .and(path("/api/v1/chat"))
+            .and(body_json(serde_json::json!({
+                "message": "Hello, AI!",
+                "context": []
+            })))
+            .respond_with(ResponseTemplate::success(200).set_body_json(serde_json::json!({
+                "content": "Hello! How can I help you?",
+                "role": "assistant",
+                "timestamp": 1699123456789
+            })))
+            .mount(&mock_server)
+            .await;
         
-        // Test complete server lifecycle
-        let server = OpenCodeServer::new(config);
-        assert!(server.start().await.is_ok());
-        assert!(server.is_running().await);
-        assert!(server.stop().await.is_ok());
+        let client = OpenCodeClient::new(&mock_server.uri(), "test-api-key");
+        let response = client.send_message("Hello, AI!", &[]).await;
+        
+        assert!(response.is_ok());
+        let resp = response.unwrap();
+        assert_eq!(resp.content, "Hello! How can I help you?");
+        assert_eq!(resp.role, "assistant");
     }
 }
 ```
@@ -192,11 +238,11 @@ mod integration_tests {
 
 **Test Scope:**
 - **Application Launch:** Startup and initialization
-- **User Onboarding:** Complete first-time setup flow
-- **Server Management:** Start, stop, restart, monitor
-- **Remote Access:** Tunnel setup and remote connection
-- **Settings Configuration:** All configuration options
-- **Error Handling:** Error scenarios and recovery
+- **User Onboarding:** Complete first-time setup flow for AI client
+- **Server Connection:** Connect to OpenCode servers, manage connections
+- **Chat Interface:** Complete AI conversation workflows
+- **Settings Configuration:** Server configuration, authentication settings
+- **Error Handling:** Connection errors, AI response errors, recovery
 
 **Example Test Structure:**
 ```typescript
@@ -204,7 +250,7 @@ mod integration_tests {
 import { test, expect } from '@playwright/test';
 
 test.describe('Desktop Application', () => {
-  test('complete user onboarding flow', async ({ page }) => {
+  test('complete user onboarding and chat flow', async ({ page }) => {
     // Launch application
     await page.goto('http://localhost:1420');
     
@@ -216,24 +262,26 @@ test.describe('Desktop Application', () => {
     await expect(page.getByText('System Requirements')).toBeVisible();
     await page.click('text=Continue');
     
-    // OpenCode server setup
-    await expect(page.getByText('OpenCode Server Setup')).toBeVisible();
-    await page.click('text=Download Server');
-    await page.waitForSelector('text=Download Complete');
+    // OpenCode server connection
+    await expect(page.getByText('Connect to OpenCode Server')).toBeVisible();
+    await page.fill('[data-testid="server-url"]', 'https://api.opencode.ai');
+    await page.fill('[data-testid="api-key"]', 'sk-opencode-test-key');
+    await page.click('text=Connect');
+    await page.waitForSelector('text=Connected Successfully');
     
-    // Security configuration
-    await page.click('text=Configure Authentication');
-    await page.fill('[data-testid="username"]', 'testuser');
-    await page.fill('[data-testid="password"]', 'securepass123');
-    await page.click('text=Continue');
+    // Chat interface introduction
+    await expect(page.getByText('Chat Interface')).toBeVisible();
+    await page.click('text=Start Chatting');
     
-    // Remote access setup
-    await page.click('text=Setup Cloudflared');
-    await page.waitForSelector('text=Tunnel Active');
+    // Chat functionality verification
+    await expect(page.getByPlaceholderText('Type your message...')).toBeVisible();
+    await page.fill('[data-testid="chat-input"]', 'Hello, AI! Can you help me with my code?');
+    await page.click('text=Send');
+    await page.waitForSelector('text=AI Response');
     
-    // Dashboard verification
-    await expect(page.getByText('Dashboard')).toBeVisible();
-    await expect(page.getByText('Server Status: Running')).toBeVisible();
+    // Verify conversation history
+    await expect(page.getByText('Hello, AI! Can you help me with my code?')).toBeVisible();
+    await expect(page.getByText(/AI Response/)).toBeVisible();
   });
 });
 ```
@@ -243,10 +291,10 @@ test.describe('Desktop Application', () => {
 
 **Test Scope:**
 - **Cross-Browser Compatibility:** Chrome, Firefox, Safari, Edge
-- **Responsive Design:** Mobile, tablet, desktop layouts
-- **Progressive Web App:** PWA installation and offline functionality
-- **Accessibility:** WCAG 2.2 AA compliance validation
-- **Performance:** Core Web Vitals and performance metrics
+- **Responsive Design:** Mobile, tablet, desktop layouts for chat interface
+- **Progressive Web App:** PWA installation and offline chat functionality
+- **Accessibility:** WCAG 2.2 AA compliance validation for chat interface
+- **Performance:** Core Web Vitals and chat performance metrics
 
 **Example Test Structure:**
 ```typescript
@@ -254,24 +302,24 @@ test.describe('Desktop Application', () => {
 import { test, expect } from '@playwright/test';
 
 test.describe('Web Interface', () => {
-  test('responsive design across devices', async ({ page }) => {
+  test('responsive chat interface across devices', async ({ page }) => {
     // Desktop view
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto('http://localhost:4321');
-    await expect(page.locator('.dashboard')).toHaveClass(/desktop/);
+    await expect(page.locator('.chat-interface')).toHaveClass(/desktop/);
     
     // Tablet view
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.reload();
-    await expect(page.locator('.dashboard')).toHaveClass(/tablet/);
+    await expect(page.locator('.chat-interface')).toHaveClass(/tablet/);
     
     // Mobile view
     await page.setViewportSize({ width: 375, height: 667 });
     await page.reload();
-    await expect(page.locator('.dashboard')).toHaveClass(/mobile/);
+    await expect(page.locator('.chat-interface')).toHaveClass(/mobile/);
   });
 
-  test('PWA functionality', async ({ page, context }) => {
+  test('chat functionality and PWA features', async ({ page, context }) => {
     await page.goto('http://localhost:4321');
     
     // Check PWA manifest
@@ -279,6 +327,11 @@ test.describe('Web Interface', () => {
       return JSON.parse(document.querySelector('link[rel="manifest"]')?.getAttribute('href') || '{}');
     });
     expect(manifest.name).toBe('OpenCode Nexus');
+    
+    // Test chat functionality
+    await page.fill('[data-testid="chat-input"]', 'Test message');
+    await page.click('text=Send');
+    await expect(page.getByText('Test message')).toBeVisible();
     
     // Test offline functionality
     await context.route('**/*', route => route.abort());

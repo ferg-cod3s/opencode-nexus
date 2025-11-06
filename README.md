@@ -1,38 +1,46 @@
 # OpenCode Nexus
 
-A secure, cross-platform desktop application for running and remotely accessing your OpenCode server, powered by Tauri (Rust), Astro + Svelte (Bun), and secure tunneling.
+A secure, cross-platform client application for connecting to OpenCode servers, powered by Tauri v2 (Rust), Astro + Svelte (Bun), and real-time API integration.
 
 ## 🚀 Features
 
-- **One-Click OpenCode Server Management** - Start, stop, and monitor your local OpenCode server
-- **Secure Remote Access** - Access your server from anywhere via Cloudflared, Tailscale, or VPN
-- **Modern Web Interface** - Beautiful, responsive UI built with Astro and Svelte
-- **Cross-Platform** - Works on macOS, Windows, and Linux
-- **Privacy First** - Your code and data never leave your machine
-- **Built-in Security** - Authentication, encryption, and access control
+- **Native OpenCode Client** - Connect to existing OpenCode servers with a beautiful native interface
+- **Real-Time Chat Interface** - Seamless AI conversation experience with instant message streaming
+- **Cross-Platform Support** - iOS (TestFlight ready), Android (prepared), and Desktop (macOS, Windows, Linux)
+- **Secure Authentication** - Argon2 password hashing, account lockout protection, encrypted local storage
+- **Session Management** - Persistent conversation history with search and context preservation
+- **Accessibility First** - WCAG 2.2 AA compliant with full screen reader and keyboard navigation support
 
 ## 🛠️ Tech Stack
 
-- **Backend:** Tauri (Rust) for desktop integration and security
-- **Frontend:** Astro with Svelte islands for modern, responsive UI
+- **Backend:** Tauri v2 (Rust) for cross-platform client integration and API communication
+- **Frontend:** Astro with Svelte islands for modern, responsive chat interface
 - **Package Manager:** Bun for frontend dependencies and runtime
-- **Remote Access:** Cloudflared, Tailscale, or VPN integration
-- **Security:** TLS encryption, authentication, and access control
+- **API Integration:** RESTful API client with Server-Sent Events for real-time streaming
+- **Security:** Argon2 authentication, TLS 1.3, encrypted local storage
 
 ## 📋 Prerequisites
 
-- **Operating System:** macOS 10.15+, Windows 10+, or Ubuntu 18.04+
+- **OpenCode Server:** Access to an existing OpenCode server instance
+- **Operating System:** iOS 14.0+, macOS 10.15+, Windows 10+, or Ubuntu 18.04+
 - **Memory:** 4GB RAM minimum, 8GB recommended
-- **Storage:** 2GB available disk space
-- **Network:** Internet connection for initial setup and remote access
+- **Storage:** 1GB available disk space
+- **Network:** Internet connection for server communication
 
 ## 🚀 Quick Start
 
 ### Installation
 
+#### iOS (TestFlight)
+1. **Request TestFlight access** through the [GitHub Issues](https://github.com/opencode-nexus/opencode-nexus/issues)
+2. **Install** TestFlight app from the App Store
+3. **Accept invitation** and install OpenCode Nexus
+4. **Launch** and configure your OpenCode server connection
+
+#### Desktop
 1. **Download** the latest release for your platform from the [releases page](https://github.com/opencode-nexus/opencode-nexus/releases)
 2. **Install** the application following platform-specific instructions
-3. **Launch** OpenCode Nexus and follow the setup wizard
+3. **Launch** OpenCode Nexus and connect to your OpenCode server
 
 ### Development Setup
 
@@ -125,10 +133,10 @@ This project follows **Test-Driven Development (TDD)** as required by our develo
 
 OpenCode Nexus is built with security by design:
 
-- **Authentication:** Multi-factor authentication support
-- **Encryption:** TLS 1.3 for all communications, AES-256 for data at rest
-- **Access Control:** Role-based permissions and IP whitelisting
-- **Secure Tunnels:** Cloudflared, Tailscale, or VPN integration
+- **Authentication:** Argon2 password hashing with account lockout protection
+- **Encryption:** TLS 1.3 for all server communications, AES-256 for local data
+- **Session Security:** Secure session management with automatic timeout
+- **Data Privacy:** Local data storage with encryption, no data sharing without consent
 - **Audit Logging:** Comprehensive activity logging and monitoring
 
 ## 🤝 Contributing
@@ -178,22 +186,22 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🗺️ Roadmap
 
-- **v0.1.0** - Basic OpenCode server management
-- **v0.2.0** - Secure remote access via tunnels
-- **v0.3.0** - Multi-instance management
+- **v0.1.0** - iOS client with TestFlight distribution ✅
+- **v0.2.0** - Android client release
+- **v0.3.0** - Desktop client enhancements
 - **v1.0.0** - Production-ready with enterprise features
 
 ## 🙏 Acknowledgments
 
-- **OpenCode Team** - For the amazing OpenCode server
-- **Tauri Team** - For the excellent desktop framework
+- **OpenCode Team** - For the amazing OpenCode AI coding assistant
+- **Tauri Team** - For the excellent cross-platform framework
 - **Astro Team** - For the modern web framework
 - **Svelte Team** - For the reactive component framework
 - **Bun Team** - For the fast JavaScript runtime
 
 ---
 
-**OpenCode Nexus** - Democratizing access to AI-powered coding assistance while maintaining privacy and security.
+**OpenCode Nexus** - Democratizing access to AI-powered coding assistance through beautiful, secure native clients.
 
 Made with ❤️ by the OpenCode Nexus community.
 

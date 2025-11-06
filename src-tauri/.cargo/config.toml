@@ -1,0 +1,81 @@
+# iOS Build Configuration for OpenCode Nexus
+# Fixes cross-compilation linker issues
+
+[build]
+# Default target for iOS builds
+target = "aarch64-apple-ios"
+
+# iOS-specific configuration
+[target.aarch64-apple-ios]
+# Use iOS SDK instead of macOS
+rustflags = [
+    "-C", "link-arg=-L$(SDKROOT)/usr/lib",
+    "-C", "link-arg=-L$(SDKROOT)/usr/lib/swift",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Foundation",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=UIKit",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=CoreGraphics",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Metal",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=QuartzCore",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Security",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=WebKit"
+]
+
+# iOS Simulator configuration
+[target.aarch64-apple-ios-sim]
+rustflags = [
+    "-C", "link-arg=-L$(SDKROOT)/usr/lib",
+    "-C", "link-arg=-L$(SDKROOT)/usr/lib/swift",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Foundation",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=UIKit",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=CoreGraphics",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Metal",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=QuartzCore",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Security",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=WebKit"
+]
+
+# x86_64 iOS Simulator configuration
+[target.x86_64-apple-ios]
+rustflags = [
+    "-C", "link-arg=-L$(SDKROOT)/usr/lib",
+    "-C", "link-arg=-L$(SDKROOT)/usr/lib/swift",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Foundation",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=UIKit",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=CoreGraphics",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Metal",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=QuartzCore",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Security",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=WebKit"
+]
+
+[env]
+# iOS deployment target
+IPHONEOS_DEPLOYMENT_TARGET = "14.0"
+
+# Set SDKROOT for iOS builds
+SDKROOT = "/Applications/Xcode-beta.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.0.sdk"
+
+# Prevent linking with macOS System library
+CARGO_CFG_TARGET_OS = "ios"
+CARGO_CFG_TARGET_VENDOR = "apple"

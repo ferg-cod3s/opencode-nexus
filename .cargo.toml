@@ -1,0 +1,35 @@
+# iOS Build Configuration for OpenCode Nexus
+
+# This file addresses the iOS cross-compilation linker issues
+# where Rust tries to link with macOS libraries instead of iOS libraries
+
+[build]
+# Ensure we're using the correct iOS SDK
+target = "aarch64-apple-ios"
+
+[target.aarch64-apple-ios]
+# iOS-specific linker flags
+rustflags = [
+    "-C", "link-arg=-L/usr/lib/swift",
+    "-C", "link-arg=-L$(SDKROOT)/usr/lib/swift",
+    "-C", "link-arg=-L$(SDKROOT)/usr/lib",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Foundation",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=UIKit",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=CoreGraphics",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Metal",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=QuartzCore",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=Security",
+    "-C", "link-arg=-framework",
+    "-C", "link-arg=WebKit"
+]
+
+# Environment variables for iOS builds
+[env]
+IPHONEOS_DEPLOYMENT_TARGET = "14.0"
+SDKROOT = "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"

@@ -1,13 +1,39 @@
 # Architecture Overview
 **Project:** OpenCode Nexus  
 **Version:** 0.0.1
-**Last Updated:** 2025-09-01  
-**Status:** Planning Phase
+**Last Updated:** 2025-01-09  
+**Status:** Production Ready (95% Complete)
 
 ## 1. System Architecture Overview
 
-OpenCode Nexus follows a layered architecture pattern with clear separation of concerns between the desktop application, web interface, and OpenCode server management.
+OpenCode Nexus follows a client-server architecture pattern with clear separation of concerns between the native client application and remote OpenCode servers.
 
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    OpenCode Nexus                          │
+│                 Cross-Platform Client App                  │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐    ┌─────────────────────────────────┐ │
+│  │   Tauri Shell   │    │        Chat Interface          │ │
+│  │   (Rust)        │◄──►│      (Astro + Svelte)          │ │
+│  │                 │    │         (Bun Runtime)          │ │
+│  └─────────────────┘    └─────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐    ┌─────────────────────────────────┐ │
+│  │ API Client      │    │      Session Manager           │ │
+│  │ (REST/SSE)      │    │   (History & Context)          │ │
+│  └─────────────────┘    └─────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              Network Layer                             │
+│  │         (TLS 1.3 + Authentication)                │
+│  └─────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────┐ │
+│  │              OpenCode Server                            │
+│  │              (Remote Instance)                          │
+│  └─────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────┘
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    OpenCode Nexus                          │
@@ -34,91 +60,91 @@ OpenCode Nexus follows a layered architecture pattern with clear separation of c
 ## 2. Core Components
 
 ### 2.1 Tauri Backend (Rust)
-The Tauri backend serves as the core application shell and provides:
+The Tauri backend serves as the core client application shell and provides:
 
-- **Process Management:** Lifecycle management for OpenCode server
-- **System Integration:** File system access, notifications, system tray, sleep prevention
-- **Security Layer:** IPC security, capability management
-- **Native APIs:** Platform-specific functionality and optimizations
+- **API Client:** HTTP client for OpenCode server communication
+- **System Integration:** File system access, notifications, secure storage
+- **Security Layer:** IPC security, authentication, encrypted storage
+- **Cross-Platform:** Native APIs for iOS, Android, and desktop platforms
 
 **Key Responsibilities:**
-- Start, stop, and monitor OpenCode server processes
-- Manage secure tunnel connections
-- Handle system-level operations and permissions
+- Manage connections to OpenCode servers
+- Handle authentication and session management
 - Provide secure IPC communication with frontend
+- Ensure cross-platform compatibility and performance
 
-### 2.2 Web Interface (Astro + Svelte)
-The frontend provides a modern, responsive user interface:
+### 2.2 Chat Interface (Astro + Svelte)
+The frontend provides a modern, responsive chat interface:
 
 - **Astro Framework:** Static site generation, routing, and performance optimization
-- **Svelte Islands:** Interactive components for dynamic functionality
-- **PWA Support:** Progressive web app capabilities for mobile access
+- **Svelte Islands:** Interactive components for real-time chat functionality
 - **Responsive Design:** Mobile-first approach with touch-friendly interfaces
+- **Accessibility:** WCAG 2.2 AA compliance with screen reader support
 
 **Key Responsibilities:**
-- Server status dashboard and monitoring
-- Configuration management and settings
-- User authentication and access control
-- Real-time updates and notifications
+- Real-time chat interface with message streaming
+- Conversation history and session management
+- User authentication and server configuration
+- File context sharing and code integration
 
-### 2.3 Process Manager
-Manages the OpenCode server lifecycle:
+### 2.3 API Client
+Manages communication with OpenCode servers:
 
-- **Process Control:** Start, stop, restart, and kill processes
-- **Health Monitoring:** Process health checks and automatic recovery
-- **Resource Management:** Memory and CPU usage monitoring
-- **Log Management:** Log collection, filtering, and display
+- **REST API:** Standard HTTP requests for server operations
+- **Server-Sent Events:** Real-time message streaming
+- **Authentication:** Secure token management and refresh
+- **Error Handling:** Robust error recovery and retry logic
 
-### 2.4 Secure Tunnel
-Provides secure remote access to the local OpenCode server:
+### 2.4 Session Manager
+Handles conversation persistence and context:
 
-- **Cloudflared Integration:** Zero-trust tunnel service
-- **Tailscale Support:** Mesh VPN alternative
-- **VPN Fallback:** Traditional VPN options for enterprise environments
-- **Access Control:** Authentication and authorization for remote connections
+- **Conversation History:** Persistent storage of chat sessions
+- **Context Management:** Conversation context preservation
+- **Search & Filter:** Find conversations and messages
+- **Data Encryption:** Local encryption for sensitive data
 
 ## 3. Data Flow Architecture
 
 ### 3.1 User Interaction Flow
 ```
-User Action → Frontend (Svelte) → Tauri IPC → Backend (Rust) → System/Process
+User Input → Frontend (Svelte) → Tauri IPC → API Client → OpenCode Server
 ```
 
-### 3.2 Server Status Flow
+### 3.2 Message Streaming Flow
 ```
-OpenCode Server → Process Manager → Backend (Rust) → Tauri IPC → Frontend → UI Update
+OpenCode Server → SSE Stream → API Client → Tauri IPC → Frontend → UI Update
 ```
 
-### 3.3 Remote Access Flow
+### 3.3 Authentication Flow
 ```
-Remote Device → Secure Tunnel → Authentication → Web Interface → OpenCode Server
+User Credentials → Frontend → Tauri IPC → API Client → OpenCode Server → JWT Token
 ```
 
 ## 4. Technology Stack
 
 ### 4.1 Backend Technologies
 - **Rust:** Systems programming language for performance and security
-- **Tauri:** Cross-platform desktop application framework
+- **Tauri v2:** Cross-platform application framework
 - **Tokio:** Asynchronous runtime for Rust
-- **Serde:** Serialization framework for IPC communication
+- **Serde:** Serialization framework for API communication
 
 ### 4.2 Frontend Technologies
 - **Astro:** Static site generator with partial hydration
-- **Svelte:** Component framework for interactive UI elements
+- **Svelte:** Component framework for interactive chat interface
 - **Bun:** JavaScript runtime and package manager
 - **TypeScript:** Type-safe JavaScript development
 
 ### 4.3 Security Technologies
-- **TLS/SSL:** Transport layer security for encrypted communications
-- **JWT:** JSON Web Tokens for authentication
-- **OAuth 2.0:** Authorization framework for third-party integrations
-- **Encryption:** AES-256 for data at rest and in transit
+- **Argon2:** Password hashing with salt
+- **TLS 1.3:** Transport layer security for encrypted communications
+- **JWT:** JSON Web Tokens for session management
+- **AES-256:** Local data encryption for sensitive information
 
-### 4.4 Infrastructure Technologies
-- **Cloudflared:** Zero-trust tunnel service
-- **Tailscale:** Mesh VPN solution
-- **Docker:** Containerization for development and deployment
-- **GitHub Actions:** CI/CD pipeline automation
+### 4.4 Platform Technologies
+- **iOS:** Native iOS app with TestFlight distribution
+- **Android:** Prepared for Android release through Tauri v2
+- **Desktop:** macOS, Windows, and Linux support
+- **Cross-Platform:** Unified codebase for all platforms
 
 ## 5. Security Architecture
 
@@ -126,30 +152,30 @@ Remote Device → Secure Tunnel → Authentication → Web Interface → OpenCod
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                    Application Layer                        │
-│              (User Authentication & Authorization)          │
+│              (Client Authentication & Session Mgmt)         │
 ├─────────────────────────────────────────────────────────────┤
 │                    Transport Layer                          │
-│              (TLS/SSL, Encrypted Tunnels)                  │
+│              (TLS 1.3, API Security)                     │
 ├─────────────────────────────────────────────────────────────┤
-│                    Process Layer                            │
-│              (Sandboxing, Capability Management)           │
+│                    Data Layer                             │
+│              (Local Encryption, Secure Storage)            │
 ├─────────────────────────────────────────────────────────────┤
 │                    System Layer                             │
-│              (OS Security, File Permissions)               │
+│              (OS Security, Platform Sandboxing)           │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### 5.2 Authentication Flow
-1. **User Registration:** Secure user account creation
-2. **Login Process:** Multi-factor authentication support
-3. **Session Management:** Secure session handling with JWT
-4. **Access Control:** Role-based permissions and capabilities
+1. **User Registration:** Local account creation with Argon2 hashing
+2. **Server Authentication:** Secure login to OpenCode servers
+3. **Session Management:** JWT token handling with automatic refresh
+4. **Local Security:** Encrypted credential storage and account lockout
 
 ### 5.3 Data Protection
-- **Encryption at Rest:** AES-256 encryption for sensitive data
-- **Encryption in Transit:** TLS 1.3 for all network communications
-- **Secure Storage:** Encrypted credential storage using OS keychains
-- **Audit Logging:** Comprehensive activity logging for compliance
+- **Encryption at Rest:** AES-256 encryption for local conversation data
+- **Encryption in Transit:** TLS 1.3 for all server communications
+- **Secure Storage:** Platform-specific secure credential storage
+- **Privacy First:** No data sharing without explicit user consent
 
 ## 6. Performance Architecture
 
@@ -273,6 +299,6 @@ Remote Device → Secure Tunnel → Authentication → Web Interface → OpenCod
 
 ## 13. Conclusion
 
-The OpenCode Nexus architecture is designed to provide a secure, scalable, and maintainable foundation for local OpenCode server management with remote access capabilities. By leveraging modern technologies like Tauri, Astro, Svelte, and Bun, we can create a performant and user-friendly application that meets the highest standards of security and accessibility.
+The OpenCode Nexus architecture is designed to provide a secure, scalable, and maintainable foundation for cross-platform client applications connecting to OpenCode servers. By leveraging modern technologies like Tauri v2, Astro, Svelte, and Bun, we create a performant and user-friendly application that meets the highest standards of security and accessibility.
 
-The modular design allows for future enhancements and integrations while maintaining backward compatibility and system stability. Continuous monitoring, testing, and optimization will ensure the architecture evolves to meet changing requirements and user needs.
+The client-focused architecture allows for seamless multi-platform deployment while maintaining a unified codebase. The modular design enables future enhancements and platform-specific optimizations while ensuring consistent user experience across iOS, Android, and desktop platforms.

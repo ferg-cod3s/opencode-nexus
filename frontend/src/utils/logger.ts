@@ -1,5 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
-
 export interface LogEntry {
   level: 'info' | 'warn' | 'error' | 'debug';
   message: string;
@@ -10,6 +8,7 @@ export interface LogEntry {
 
 export class Logger {
   private static instance: Logger;
+  private tauriInvoke: any = null;
   
   private constructor() {
     // Set up global error handlers
@@ -21,6 +20,19 @@ export class Logger {
       Logger.instance = new Logger();
     }
     return Logger.instance;
+  }
+
+  private async getTauriInvoke() {
+    if (!this.tauriInvoke) {
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        this.tauriInvoke = invoke;
+      } catch (error) {
+        console.warn('Tauri API not available, falling back to console only');
+        this.tauriInvoke = null;
+      }
+    }
+    return this.tauriInvoke;
   }
 
   private setupGlobalErrorHandlers() {
@@ -68,11 +80,14 @@ export class Logger {
 
   private async logToBackend(level: string, message: string, details?: string): Promise<void> {
     try {
-      await invoke('log_frontend_error', {
-        level,
-        message,
-        details: details || null
-      });
+      const invoke = await this.getTauriInvoke();
+      if (invoke) {
+        await invoke('log_frontend_error', {
+          level,
+          message,
+          details: details || null
+        });
+      }
     } catch (error) {
       // Fallback to console if backend logging fails
       console.warn('Failed to log to backend:', error);
@@ -81,7 +96,11 @@ export class Logger {
 
   public async getLogs(): Promise<string[]> {
     try {
-      return await invoke<string[]>('get_application_logs');
+      const invoke = await this.getTauriInvoke();
+      if (invoke) {
+        return await invoke('get_application_logs') as Promise<string[]>;
+      }
+      return [];
     } catch (error) {
       console.error('Failed to get logs:', error);
       return [];
@@ -90,8 +109,11 @@ export class Logger {
 
   public async clearLogs(): Promise<void> {
     try {
-      await invoke('clear_application_logs');
-      this.info('Application logs cleared by user');
+      const invoke = await this.getTauriInvoke();
+      if (invoke) {
+        await invoke('clear_application_logs');
+        await this.info('Application logs cleared by user');
+      }
     } catch (error) {
       console.error('Failed to clear logs:', error);
       throw error;
