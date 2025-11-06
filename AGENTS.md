@@ -137,8 +137,8 @@ src/
 
 ### Development Process
 1. **Read Implementation Plan**: Check [thoughts/plans/opencode-nexus-mvp-implementation.md](thoughts/plans/opencode-nexus-mvp-implementation.md) for current phase requirements
-2. **Consult Architecture Docs**: Review [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/SECURITY.md](docs/SECURITY.md), and [docs/TESTING.md](docs/TESTING.md)
-3. **Write Tests First**: Create failing tests before any implementation (TDD mandatory per [docs/TESTING.md](docs/TESTING.md))
+2. **Consult Architecture Docs**: Review [docs/client/ARCHITECTURE.md](docs/client/ARCHITECTURE.md), [docs/client/SECURITY.md](docs/client/SECURITY.md), and [docs/client/TESTING.md](docs/client/TESTING.md)
+3. **Write Tests First**: Create failing tests before any implementation (TDD mandatory per [docs/client/TESTING.md](docs/client/TESTING.md))
 4. **Implement Feature**: Write minimal code to pass tests following established patterns in [src-tauri/src/](src-tauri/src/)
 5. **Update Progress**: Mark completed tasks in [TODO.md](TODO.md) and add new ones discovered using TodoWrite tool
 6. **Document & Commit**: Follow comprehensive documentation and commit workflow (see below)
@@ -358,10 +358,10 @@ let config_path = config_dir()
 ## Documentation References
 
 ### Essential Reading (Required)
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System architecture and Tauri patterns
-- **[docs/SECURITY.md](docs/SECURITY.md)** - Security model, Argon2 authentication, threat assessment  
-- **[docs/TESTING.md](docs/TESTING.md)** - TDD approach (mandatory), test patterns, quality assurance
-- **[docs/PRD.md](docs/PRD.md)** - Product requirements and feature specifications
+- **[docs/client/ARCHITECTURE.md](docs/client/ARCHITECTURE.md)** - Client-only system architecture and Tauri patterns
+- **[docs/client/SECURITY.md](docs/client/SECURITY.md)** - Client connection security and data protection
+- **[docs/client/TESTING.md](docs/client/TESTING.md)** - Mobile testing approach and touch interaction testing
+- **[docs/client/PRD.md](docs/client/PRD.md)** - Mobile-first client requirements and feature specifications
 
 ### Current Implementation Status
 - **[TODO.md](TODO.md)** - Current progress (60% complete), task tracking, critical chat interface gap
@@ -378,6 +378,6 @@ let config_path = config_dir()
 **Critical Reminders**: 
 - 🚨 **Chat interface implementation is highest priority** - blocks MVP completion
 - Security and accessibility are non-negotiable (WCAG 2.2 AA compliance verified)
-- Always follow TDD principles per [docs/TESTING.md](docs/TESTING.md) 
+- Always follow TDD principles per [docs/client/TESTING.md](docs/client/TESTING.md) 
 - Update [TODO.md](TODO.md) and commit completed work following documentation workflow
 - Consult [docs/](docs/) for all architectural and security decisions

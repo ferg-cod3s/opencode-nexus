@@ -75,15 +75,14 @@ cargo tauri build
 
 ## 📚 Documentation
 
-Comprehensive documentation is available in the `/docs/` directory:
+Comprehensive documentation is available in the `/docs/client/` directory:
 
-- **[Product Requirements Document](docs/PRD.md)** - Project goals, features, and requirements
-- **[Architecture Overview](docs/ARCHITECTURE.md)** - System design and technical architecture
-- **[User Flows](docs/USER-FLOWS.md)** - User experience and interaction flows
-- **[Security Model](docs/SECURITY.md)** - Security architecture and best practices
-- **[Testing Strategy](docs/TESTING.md)** - Testing approach and quality assurance
-- **[DevOps & Deployment](docs/DEVOPS.md)** - CI/CD pipeline and deployment
-- **[Onboarding Guide](docs/ONBOARDING.md)** - Getting started and user guide
+- **[Product Requirements Document](docs/client/PRD.md)** - Mobile-first client goals, features, and requirements
+- **[Architecture Overview](docs/client/ARCHITECTURE.md)** - Client-only system design and technical architecture
+- **[User Flows](docs/client/USER-FLOWS.md)** - Mobile touch interactions and offline user flows
+- **[Security Model](docs/client/SECURITY.md)** - Client connection security and data protection
+- **[Testing Strategy](docs/client/TESTING.md)** - Mobile testing approach and touch interaction testing
+- **[Documentation Overview](docs/client/README.md)** - Complete client documentation guide
 
 ## 🔧 Development
 
