@@ -4,8 +4,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
-use tokio::sync::broadcast;
 use tauri::Emitter;
+use tokio::sync::broadcast;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Copy)]
 pub enum ConnectionStatus {
@@ -70,10 +70,7 @@ pub struct ConnectionManager {
 }
 
 impl ConnectionManager {
-    pub fn new(
-        config_dir: PathBuf,
-        app_handle: Option<tauri::AppHandle>,
-    ) -> Result<Self, String> {
+    pub fn new(config_dir: PathBuf, app_handle: Option<tauri::AppHandle>) -> Result<Self, String> {
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .build()
@@ -93,10 +90,18 @@ impl ConnectionManager {
         })
     }
 
-    pub async fn connect_to_server(&mut self, hostname: &str, port: u16, secure: bool) -> Result<(), String> {
+    pub async fn connect_to_server(
+        &mut self,
+        hostname: &str,
+        port: u16,
+        secure: bool,
+    ) -> Result<(), String> {
         // Check if already connected
         let current_status = *self.connection_status.lock().unwrap();
-        if matches!(current_status, ConnectionStatus::Connected | ConnectionStatus::Connecting) {
+        if matches!(
+            current_status,
+            ConnectionStatus::Connected | ConnectionStatus::Connecting
+        ) {
             return Err("Already connected to a server".to_string());
         }
 
@@ -114,7 +119,12 @@ impl ConnectionManager {
         let server_info = self.test_server_connection(hostname, port, secure).await?;
 
         // Store the server URL
-        let server_url = format!("{}://{}:{}", if secure { "https" } else { "http" }, hostname, port);
+        let server_url = format!(
+            "{}://{}:{}",
+            if secure { "https" } else { "http" },
+            hostname,
+            port
+        );
         *self.server_url.lock().unwrap() = Some(server_url.clone());
 
         // Update status to connected
@@ -130,7 +140,10 @@ impl ConnectionManager {
         };
 
         let connection_id = connection.name.clone();
-        self.connections.lock().unwrap().insert(connection_id.clone(), connection);
+        self.connections
+            .lock()
+            .unwrap()
+            .insert(connection_id.clone(), connection);
         *self.current_connection.lock().unwrap() = Some(connection_id.clone());
 
         // Save connections to disk
@@ -140,7 +153,11 @@ impl ConnectionManager {
         let _ = self.event_sender.send(ConnectionEvent {
             timestamp: SystemTime::now(),
             event_type: ConnectionEventType::Connected,
-            message: format!("Connected to {} (version: {})", server_info.name, server_info.version.unwrap_or_else(|| "unknown".to_string())),
+            message: format!(
+                "Connected to {} (version: {})",
+                server_info.name,
+                server_info.version.unwrap_or_else(|| "unknown".to_string())
+            ),
         });
 
         // Start health monitoring
@@ -149,8 +166,18 @@ impl ConnectionManager {
         Ok(())
     }
 
-    pub async fn test_server_connection(&self, hostname: &str, port: u16, secure: bool) -> Result<ServerInfo, String> {
-        let url = format!("{}://{}:{}/session", if secure { "https" } else { "http" }, hostname, port);
+    pub async fn test_server_connection(
+        &self,
+        hostname: &str,
+        port: u16,
+        secure: bool,
+    ) -> Result<ServerInfo, String> {
+        let url = format!(
+            "{}://{}:{}/session",
+            if secure { "https" } else { "http" },
+            hostname,
+            port
+        );
 
         match self.client.get(&url).send().await {
             Ok(response) => {
@@ -158,8 +185,15 @@ impl ConnectionManager {
                     // Try to parse server info from response
                     match response.json::<serde_json::Value>().await {
                         Ok(json) => {
-                            let version = json.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
-                            let name = json.get("name").and_then(|v| v.as_str()).unwrap_or("OpenCode Server").to_string();
+                            let version = json
+                                .get("version")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string());
+                            let name = json
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("OpenCode Server")
+                                .to_string();
 
                             Ok(ServerInfo {
                                 name,
@@ -187,12 +221,13 @@ impl ConnectionManager {
                         }
                     }
                 } else {
-                    Err(format!("Server responded with status: {}", response.status()))
+                    Err(format!(
+                        "Server responded with status: {}",
+                        response.status()
+                    ))
                 }
             }
-            Err(e) => {
-                Err(format!("Failed to connect to server: {}", e))
-            }
+            Err(e) => Err(format!("Failed to connect to server: {}", e)),
         }
     }
 
@@ -205,7 +240,10 @@ impl ConnectionManager {
     }
 
     pub fn get_current_connection(&self) -> Option<ServerConnection> {
-        self.current_connection.lock().unwrap().as_ref()
+        self.current_connection
+            .lock()
+            .unwrap()
+            .as_ref()
             .and_then(|id| self.connections.lock().unwrap().get(id).cloned())
     }
 
@@ -294,7 +332,10 @@ impl ConnectionManager {
                 tokio::time::sleep(Duration::from_secs(30)).await;
 
                 let should_continue = {
-                    matches!(*connection_status.lock().unwrap(), ConnectionStatus::Connected)
+                    matches!(
+                        *connection_status.lock().unwrap(),
+                        ConnectionStatus::Connected
+                    )
                 };
 
                 if !should_continue {
@@ -302,9 +343,7 @@ impl ConnectionManager {
                 }
 
                 // Perform health check - extract URL before async operation
-                let url_to_check = {
-                    server_url.lock().unwrap().clone()
-                };
+                let url_to_check = { server_url.lock().unwrap().clone() };
 
                 if let Some(url) = url_to_check {
                     let health_url = format!("{}/session", url);

@@ -31,10 +31,20 @@ pub enum MessageRole {
 
 #[derive(Debug, Clone, Serialize)]
 pub enum ChatEvent {
-    SessionCreated { session: ChatSession },
-    MessageReceived { session_id: String, message: ChatMessage },
-    MessageChunk { session_id: String, chunk: String },
-    Error { message: String },
+    SessionCreated {
+        session: ChatSession,
+    },
+    MessageReceived {
+        session_id: String,
+        message: ChatMessage,
+    },
+    MessageChunk {
+        session_id: String,
+        chunk: String,
+    },
+    Error {
+        message: String,
+    },
 }
 
 pub struct ChatClient {
@@ -75,7 +85,9 @@ impl ChatClient {
     }
 
     pub async fn create_session(&mut self, title: Option<&str>) -> Result<ChatSession, String> {
-        let server_url = self.server_url.as_ref()
+        let server_url = self
+            .server_url
+            .as_ref()
             .ok_or_else(|| "Server URL not set".to_string())?;
 
         // Create session via OpenCode API
@@ -96,17 +108,24 @@ impl ChatClient {
         };
 
         let url = format!("{}/session", server_url);
-        let response = self.client.post(&url)
+        let response = self
+            .client
+            .post(&url)
             .json(&request)
             .send()
             .await
             .map_err(|e| format!("Failed to create session: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("API error: {} - {}", response.status(), response.text().await.unwrap_or_default()));
+            return Err(format!(
+                "API error: {} - {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            ));
         }
 
-        let open_code_session: OpenCodeSession = response.json()
+        let open_code_session: OpenCodeSession = response
+            .json()
             .await
             .map_err(|e| format!("Failed to parse session response: {}", e))?;
 
@@ -136,11 +155,15 @@ impl ChatClient {
     }
 
     pub async fn send_message(&mut self, session_id: &str, content: &str) -> Result<(), String> {
-        let server_url = self.server_url.as_ref()
+        let server_url = self
+            .server_url
+            .as_ref()
             .ok_or_else(|| "Server URL not set".to_string())?;
 
         // Ensure session exists locally
-        let session = self.sessions.get_mut(session_id)
+        let session = self
+            .sessions
+            .get_mut(session_id)
             .ok_or_else(|| format!("Session {} not found", session_id))?;
 
         // Create user message
@@ -178,16 +201,16 @@ impl ChatClient {
                 provider_id: "anthropic".to_string(), // Default provider
                 model_id: "claude-3-5-sonnet-20241022".to_string(), // Default model
             },
-            parts: vec![
-                MessagePart {
-                    r#type: "text".to_string(),
-                    text: content.to_string(),
-                }
-            ],
+            parts: vec![MessagePart {
+                r#type: "text".to_string(),
+                text: content.to_string(),
+            }],
         };
 
         let url = format!("{}/session/{}/prompt", server_url, session_id);
-        let response = self.client.post(&url)
+        let response = self
+            .client
+            .post(&url)
             .json(&request)
             .send()
             .await
@@ -233,13 +256,16 @@ impl ChatClient {
     }
 
     pub fn delete_session(&mut self, session_id: &str) -> Result<(), String> {
-        self.sessions.remove(session_id)
+        self.sessions
+            .remove(session_id)
             .ok_or_else(|| format!("Session {} not found", session_id))?;
         Ok(())
     }
 
     pub async fn get_session_history(&self, session_id: &str) -> Result<Vec<ChatMessage>, String> {
-        let session = self.sessions.get(session_id)
+        let session = self
+            .sessions
+            .get(session_id)
             .ok_or_else(|| format!("Session {} not found", session_id))?;
 
         Ok(session.messages.clone())
@@ -287,7 +313,8 @@ impl ChatClient {
     }
 
     pub fn get_current_session(&self) -> Option<&ChatSession> {
-        self.current_session.as_ref()
+        self.current_session
+            .as_ref()
             .and_then(|id| self.sessions.get(id))
     }
 
@@ -297,7 +324,9 @@ impl ChatClient {
 
     // OpenCode API integration methods
     pub async fn list_sessions_from_server(&self) -> Result<Vec<ChatSession>, String> {
-        let server_url = self.server_url.as_ref()
+        let server_url = self
+            .server_url
+            .as_ref()
             .ok_or_else(|| "Server URL not set".to_string())?;
 
         #[derive(Deserialize)]
@@ -308,32 +337,47 @@ impl ChatClient {
         }
 
         let url = format!("{}/session", server_url);
-        let response = self.client.get(&url)
+        let response = self
+            .client
+            .get(&url)
             .send()
             .await
             .map_err(|e| format!("Failed to list sessions: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("API error: {} - {}", response.status(), response.text().await.unwrap_or_default()));
+            return Err(format!(
+                "API error: {} - {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            ));
         }
 
-        let open_code_sessions: Vec<OpenCodeSession> = response.json()
+        let open_code_sessions: Vec<OpenCodeSession> = response
+            .json()
             .await
             .map_err(|e| format!("Failed to parse sessions response: {}", e))?;
 
         // Convert to our ChatSession format
-        let sessions: Vec<ChatSession> = open_code_sessions.into_iter().map(|ocs| ChatSession {
-            id: ocs.id,
-            title: ocs.title,
-            created_at: ocs.created_at,
-            messages: Vec::new(), // Will be loaded separately
-        }).collect();
+        let sessions: Vec<ChatSession> = open_code_sessions
+            .into_iter()
+            .map(|ocs| ChatSession {
+                id: ocs.id,
+                title: ocs.title,
+                created_at: ocs.created_at,
+                messages: Vec::new(), // Will be loaded separately
+            })
+            .collect();
 
         Ok(sessions)
     }
 
-    pub async fn get_session_messages_from_server(&self, session_id: &str) -> Result<Vec<ChatMessage>, String> {
-        let server_url = self.server_url.as_ref()
+    pub async fn get_session_messages_from_server(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<ChatMessage>, String> {
+        let server_url = self
+            .server_url
+            .as_ref()
             .ok_or_else(|| "Server URL not set".to_string())?;
 
         #[derive(Deserialize)]
@@ -356,64 +400,86 @@ impl ChatClient {
         }
 
         let url = format!("{}/session/{}/messages", server_url, session_id);
-        let response = self.client.get(&url)
+        let response = self
+            .client
+            .get(&url)
             .send()
             .await
             .map_err(|e| format!("Failed to get session messages: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("API error: {} - {}", response.status(), response.text().await.unwrap_or_default()));
+            return Err(format!(
+                "API error: {} - {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            ));
         }
 
-        let messages: Vec<MessageResponse> = response.json()
+        let messages: Vec<MessageResponse> = response
+            .json()
             .await
             .map_err(|e| format!("Failed to parse messages response: {}", e))?;
 
         // Convert to our ChatMessage format
-        let chat_messages: Vec<ChatMessage> = messages.into_iter().map(|msg| {
-            let content: Vec<String> = msg.parts.iter()
-                .filter_map(|part| part.text.as_ref())
-                .cloned()
-                .collect();
-            let content = content.join("\n");
+        let chat_messages: Vec<ChatMessage> = messages
+            .into_iter()
+            .map(|msg| {
+                let content: Vec<String> = msg
+                    .parts
+                    .iter()
+                    .filter_map(|part| part.text.as_ref())
+                    .cloned()
+                    .collect();
+                let content = content.join("\n");
 
-            let role = match msg.info.role.as_str() {
-                "user" => MessageRole::User,
-                "assistant" => MessageRole::Assistant,
-                _ => MessageRole::User, // Default fallback
-            };
+                let role = match msg.info.role.as_str() {
+                    "user" => MessageRole::User,
+                    "assistant" => MessageRole::Assistant,
+                    _ => MessageRole::User, // Default fallback
+                };
 
-            ChatMessage {
-                id: msg.info.id,
-                role,
-                content,
-                timestamp: msg.info.created_at,
-            }
-        }).collect();
+                ChatMessage {
+                    id: msg.info.id,
+                    role,
+                    content,
+                    timestamp: msg.info.created_at,
+                }
+            })
+            .collect();
 
         Ok(chat_messages)
     }
 
     pub async fn delete_session_from_server(&self, session_id: &str) -> Result<(), String> {
-        let server_url = self.server_url.as_ref()
+        let server_url = self
+            .server_url
+            .as_ref()
             .ok_or_else(|| "Server URL not set".to_string())?;
 
         let url = format!("{}/session/{}", server_url, session_id);
-        let response = self.client.delete(&url)
+        let response = self
+            .client
+            .delete(&url)
             .send()
             .await
             .map_err(|e| format!("Failed to delete session: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("API error: {} - {}", response.status(), response.text().await.unwrap_or_default()));
+            return Err(format!(
+                "API error: {} - {}",
+                response.status(),
+                response.text().await.unwrap_or_default()
+            ));
         }
 
         Ok(())
     }
 
-// Subscribe to Server-Sent Events for real-time updates
+    // Subscribe to Server-Sent Events for real-time updates
     pub async fn start_event_stream(&self) -> Result<broadcast::Receiver<ChatEvent>, String> {
-        let server_url = self.server_url.as_ref()
+        let server_url = self
+            .server_url
+            .as_ref()
             .ok_or_else(|| "Server URL not set".to_string())?;
 
         let (_sender, receiver) = broadcast::channel(100);
@@ -422,16 +488,16 @@ impl ChatClient {
 
         tokio::spawn(async move {
             let _url = format!("{}/event", server_url);
-            
+
             // For now, use a simple polling approach until we fix SSE integration
             loop {
                 tokio::time::sleep(Duration::from_secs(5)).await;
-                
+
                 // Send a heartbeat event to show the stream is "working"
                 let _ = event_sender.send(ChatEvent::Error {
                     message: "Event stream not yet implemented - using polling".to_string(),
                 });
-                
+
                 // TODO: Implement proper SSE with eventsource-client
                 // The library API seems different than expected
             }

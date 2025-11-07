@@ -133,19 +133,9 @@ const mockApi = {
   },
 
   // Onboarding APIs
-  complete_onboarding: async (args: { opencode_server_path?: string }): Promise<void> => {
-    console.log(`[MOCK API] complete_onboarding called with:`, args);
+  complete_onboarding: async (): Promise<void> => {
+    console.log(`[MOCK API] complete_onboarding called`);
     localStorage.setItem('mockOnboardingComplete', 'true');
-    return;
-  },
-
-  setup_opencode_server: async (): Promise<void> => {
-    console.log(`[MOCK API] setup_opencode_server called`);
-    return;
-  },
-
-  create_owner_account: async (args: { username: string; password: string }): Promise<void> => {
-    console.log(`[MOCK API] create_owner_account called with username:`, args.username);
     return;
   },
 
@@ -162,7 +152,6 @@ const mockApi = {
      return {
        config: isCompleted ? {
          is_completed: true,
-         opencode_server_path: '/fake/test/path/opencode',
          owner_account_created: true,
          owner_username: 'testuser',
          created_at: new Date().toISOString(),

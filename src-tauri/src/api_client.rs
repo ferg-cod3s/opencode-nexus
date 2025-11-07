@@ -62,14 +62,22 @@ impl ApiClient {
     pub async fn get<T: for<'de> Deserialize<'de>>(&self, endpoint: &str) -> Result<T, String> {
         let url = format!("{}{}", self.base_url, endpoint);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .send()
             .await
             .map_err(|e| format!("Request failed: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("API error: {} - {}", response.status(), response.status().canonical_reason().unwrap_or("Unknown error")));
+            return Err(format!(
+                "API error: {} - {}",
+                response.status(),
+                response
+                    .status()
+                    .canonical_reason()
+                    .unwrap_or("Unknown error")
+            ));
         }
 
         response
@@ -98,7 +106,8 @@ impl ApiClient {
     ) -> Result<T, String> {
         let url = format!("{}{}", self.base_url, endpoint);
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .json(body)
             .send()
@@ -106,7 +115,14 @@ impl ApiClient {
             .map_err(|e| format!("Request failed: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("API error: {} - {}", response.status(), response.status().canonical_reason().unwrap_or("Unknown error")));
+            return Err(format!(
+                "API error: {} - {}",
+                response.status(),
+                response
+                    .status()
+                    .canonical_reason()
+                    .unwrap_or("Unknown error")
+            ));
         }
 
         response
@@ -129,14 +145,22 @@ impl ApiClient {
     pub async fn delete<T: for<'de> Deserialize<'de>>(&self, endpoint: &str) -> Result<T, String> {
         let url = format!("{}{}", self.base_url, endpoint);
 
-        let response = self.client
+        let response = self
+            .client
             .delete(&url)
             .send()
             .await
             .map_err(|e| format!("Request failed: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("API error: {} - {}", response.status(), response.status().canonical_reason().unwrap_or("Unknown error")));
+            return Err(format!(
+                "API error: {} - {}",
+                response.status(),
+                response
+                    .status()
+                    .canonical_reason()
+                    .unwrap_or("Unknown error")
+            ));
         }
 
         response

@@ -11,7 +11,6 @@ export interface SystemRequirements {
 
 export interface OnboardingConfig {
   is_completed: boolean;
-  opencode_server_path: string | null;
   owner_account_created: boolean;
   owner_username: string | null;
   created_at: string; // ISO timestamp

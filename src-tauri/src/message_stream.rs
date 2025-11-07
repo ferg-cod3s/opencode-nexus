@@ -51,10 +51,13 @@ impl MessageStream {
             return Err("Already streaming".to_string());
         }
 
-        let api_client = self.api_client.as_ref()
+        let api_client = self
+            .api_client
+            .as_ref()
             .ok_or_else(|| "API client not available".to_string())?;
 
-        self.is_streaming.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.is_streaming
+            .store(true, std::sync::atomic::Ordering::Relaxed);
 
         // Start streaming in a background task
         let event_sender = self.event_sender.clone();
@@ -70,10 +73,14 @@ impl MessageStream {
     }
 
     pub fn stop_streaming(&mut self) {
-        self.is_streaming.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.is_streaming
+            .store(false, std::sync::atomic::Ordering::Relaxed);
     }
 
-    async fn stream_events(base_url: &str, event_sender: broadcast::Sender<ChatEvent>) -> Result<(), String> {
+    async fn stream_events(
+        base_url: &str,
+        event_sender: broadcast::Sender<ChatEvent>,
+    ) -> Result<(), String> {
         let client = Client::builder()
             .timeout(Duration::from_secs(300)) // Long timeout for streaming
             .build()
@@ -114,7 +121,10 @@ impl MessageStream {
             .map_err(|e| format!("Failed to connect to event stream: {}", e))?;
 
         if !response.status().is_success() {
-            return Err(format!("Event stream returned status: {}", response.status()));
+            return Err(format!(
+                "Event stream returned status: {}",
+                response.status()
+            ));
         }
 
         let mut stream = response.bytes_stream();

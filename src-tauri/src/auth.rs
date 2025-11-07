@@ -45,8 +45,6 @@ pub struct LoginAttempt {
     pub ip_address: Option<String>,
 }
 
-
-
 pub struct AuthManager {
     config_dir: PathBuf,
 }
@@ -68,7 +66,7 @@ impl AuthManager {
     pub fn create_user(&self, username: &str, password: &str) -> Result<()> {
         // Validate password strength
         self.validate_password(password)?;
-        
+
         // Check if user already exists
         if self.is_configured() {
             return Err(anyhow!("User already exists"));
@@ -96,7 +94,7 @@ impl AuthManager {
 
         // Save to disk
         self.save_auth_config(&auth_config)?;
-        
+
         Ok(())
     }
 
@@ -106,7 +104,9 @@ impl AuthManager {
         // Check if account is locked
         if let Some(locked_until) = auth_config.locked_until {
             if Utc::now() < locked_until {
-                return Err(anyhow!("Account is locked due to too many failed login attempts"));
+                return Err(anyhow!(
+                    "Account is locked due to too many failed login attempts"
+                ));
             } else {
                 // Unlock account
                 auth_config.locked_until = None;
@@ -124,7 +124,7 @@ impl AuthManager {
         // Verify password
         let parsed_hash = PasswordHash::new(&auth_config.password_hash)
             .map_err(|e| anyhow!("Failed to parse password hash: {}", e))?;
-        
+
         let argon2 = Argon2::default();
         match argon2.verify_password(password.as_bytes(), &parsed_hash) {
             Ok(_) => {
@@ -154,7 +154,12 @@ impl AuthManager {
         }
     }
 
-    pub fn change_password(&self, username: &str, old_password: &str, new_password: &str) -> Result<()> {
+    pub fn change_password(
+        &self,
+        username: &str,
+        old_password: &str,
+        new_password: &str,
+    ) -> Result<()> {
         // Authenticate with old password first
         self.authenticate(username, old_password)?;
 
@@ -187,7 +192,7 @@ impl AuthManager {
 
     pub fn reset_failed_attempts(&self, username: &str) -> Result<()> {
         let mut auth_config = self.load_auth_config()?;
-        
+
         if auth_config.username != username {
             return Err(anyhow!("User not found"));
         }
@@ -224,12 +229,16 @@ impl AuthManager {
 
         // Check for at least one lowercase letter
         if !password.chars().any(|c| c.is_lowercase()) {
-            return Err(anyhow!("Password must contain at least one lowercase letter"));
+            return Err(anyhow!(
+                "Password must contain at least one lowercase letter"
+            ));
         }
 
         // Check for at least one uppercase letter
         if !password.chars().any(|c| c.is_uppercase()) {
-            return Err(anyhow!("Password must contain at least one uppercase letter"));
+            return Err(anyhow!(
+                "Password must contain at least one uppercase letter"
+            ));
         }
 
         // Check for at least one digit
@@ -245,7 +254,8 @@ impl AuthManager {
         const LOCK_DURATION_MINUTES: i64 = 30;
 
         if auth_config.failed_login_attempts >= MAX_FAILED_ATTEMPTS {
-            auth_config.locked_until = Some(Utc::now() + chrono::Duration::minutes(LOCK_DURATION_MINUTES));
+            auth_config.locked_until =
+                Some(Utc::now() + chrono::Duration::minutes(LOCK_DURATION_MINUTES));
         }
 
         auth_config.updated_at = Utc::now();
@@ -253,7 +263,12 @@ impl AuthManager {
         Ok(())
     }
 
-    fn log_login_attempt(&self, username: &str, success: bool, ip_address: Option<&str>) -> Result<()> {
+    fn log_login_attempt(
+        &self,
+        username: &str,
+        success: bool,
+        ip_address: Option<&str>,
+    ) -> Result<()> {
         let log_path = self.config_dir.join("login_attempts.log");
         let attempt = LoginAttempt {
             username: username.to_string(),
@@ -277,7 +292,7 @@ impl AuthManager {
             .create(true)
             .append(true)
             .open(log_path)?;
-        
+
         file.write_all(log_entry.as_bytes())?;
         file.flush()?;
 
@@ -324,7 +339,7 @@ impl AuthManager {
             Some(session) if session.is_valid && session.expires_at > Utc::now() => {
                 Ok(Some(session.username))
             }
-            _ => Ok(None)
+            _ => Ok(None),
         }
     }
 
@@ -416,7 +431,7 @@ mod tests {
     #[test]
     fn test_create_user_success() {
         let test_manager = TestAuthManager::new().unwrap();
-        
+
         let result = test_manager.manager.create_user("testuser", "TestPass123");
         assert!(result.is_ok());
         assert!(test_manager.manager.is_configured());
@@ -425,24 +440,29 @@ mod tests {
     #[test]
     fn test_create_user_weak_password() {
         let test_manager = TestAuthManager::new().unwrap();
-        
+
         // Too short
         let result = test_manager.manager.create_user("testuser", "weak");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("at least 8 characters"));
-        
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("at least 8 characters"));
+
         // No uppercase
         let result = test_manager.manager.create_user("testuser", "lowercase123");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("uppercase letter"));
-        
+
         // No lowercase
         let result = test_manager.manager.create_user("testuser", "UPPERCASE123");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("lowercase letter"));
-        
+
         // No number
-        let result = test_manager.manager.create_user("testuser", "NoNumbersHere");
+        let result = test_manager
+            .manager
+            .create_user("testuser", "NoNumbersHere");
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("number"));
     }
@@ -450,23 +470,37 @@ mod tests {
     #[test]
     fn test_create_user_already_exists() {
         let test_manager = TestAuthManager::new().unwrap();
-        
+
         // Create first user
-        test_manager.manager.create_user("testuser", "TestPass123").unwrap();
-        
+        test_manager
+            .manager
+            .create_user("testuser", "TestPass123")
+            .unwrap();
+
         // Try to create another user
-        let result = test_manager.manager.create_user("anotheruser", "AnotherPass123");
+        let result = test_manager
+            .manager
+            .create_user("anotheruser", "AnotherPass123");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("User already exists"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("User already exists"));
     }
 
     #[test]
     fn test_authenticate_success() {
         let test_manager = TestAuthManager::new().unwrap();
-        
-        test_manager.manager.create_user("testuser", "TestPass123").unwrap();
-        
-        let session = test_manager.manager.authenticate("testuser", "TestPass123").unwrap();
+
+        test_manager
+            .manager
+            .create_user("testuser", "TestPass123")
+            .unwrap();
+
+        let session = test_manager
+            .manager
+            .authenticate("testuser", "TestPass123")
+            .unwrap();
         assert_eq!(session.username, "testuser");
         assert!(session.is_valid);
         assert!(session.expires_at > Utc::now());
@@ -475,84 +509,126 @@ mod tests {
     #[test]
     fn test_authenticate_wrong_password() {
         let test_manager = TestAuthManager::new().unwrap();
-        
-        test_manager.manager.create_user("testuser", "TestPass123").unwrap();
-        
-        let result = test_manager.manager.authenticate("testuser", "WrongPass123");
+
+        test_manager
+            .manager
+            .create_user("testuser", "TestPass123")
+            .unwrap();
+
+        let result = test_manager
+            .manager
+            .authenticate("testuser", "WrongPass123");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid credentials"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid credentials"));
     }
 
     #[test]
     fn test_authenticate_wrong_username() {
         let test_manager = TestAuthManager::new().unwrap();
-        
-        test_manager.manager.create_user("testuser", "TestPass123").unwrap();
-        
-        let result = test_manager.manager.authenticate("wronguser", "TestPass123");
+
+        test_manager
+            .manager
+            .create_user("testuser", "TestPass123")
+            .unwrap();
+
+        let result = test_manager
+            .manager
+            .authenticate("wronguser", "TestPass123");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid credentials"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid credentials"));
     }
 
     #[test]
     fn test_authenticate_not_configured() {
         let test_manager = TestAuthManager::new().unwrap();
-        
+
         let result = test_manager.manager.authenticate("testuser", "TestPass123");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Authentication not configured"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Authentication not configured"));
     }
 
     #[test]
     fn test_failed_login_attempts_and_lockout() {
         let test_manager = TestAuthManager::new().unwrap();
-        
-        test_manager.manager.create_user("testuser", "TestPass123").unwrap();
-        
+
+        test_manager
+            .manager
+            .create_user("testuser", "TestPass123")
+            .unwrap();
+
         // Make 5 failed attempts
         for _ in 0..5 {
             let result = test_manager.manager.authenticate("testuser", "WrongPass");
             assert!(result.is_err());
         }
-        
+
         // Account should now be locked
         let result = test_manager.manager.authenticate("testuser", "TestPass123");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Account is locked"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Account is locked"));
     }
 
     #[test]
     fn test_reset_failed_attempts() {
         let test_manager = TestAuthManager::new().unwrap();
-        
-        test_manager.manager.create_user("testuser", "TestPass123").unwrap();
-        
+
+        test_manager
+            .manager
+            .create_user("testuser", "TestPass123")
+            .unwrap();
+
         // Make some failed attempts
         for _ in 0..3 {
             let _ = test_manager.manager.authenticate("testuser", "WrongPass");
         }
-        
+
         // Reset attempts
-        test_manager.manager.reset_failed_attempts("testuser").unwrap();
-        
+        test_manager
+            .manager
+            .reset_failed_attempts("testuser")
+            .unwrap();
+
         // Should be able to authenticate now
-        let session = test_manager.manager.authenticate("testuser", "TestPass123").unwrap();
+        let session = test_manager
+            .manager
+            .authenticate("testuser", "TestPass123")
+            .unwrap();
         assert!(session.is_valid);
     }
 
     #[test]
     fn test_change_password_success() {
         let test_manager = TestAuthManager::new().unwrap();
-        
-        test_manager.manager.create_user("testuser", "OldPass123").unwrap();
-        
-        let result = test_manager.manager.change_password("testuser", "OldPass123", "NewPass456");
+
+        test_manager
+            .manager
+            .create_user("testuser", "OldPass123")
+            .unwrap();
+
+        let result = test_manager
+            .manager
+            .change_password("testuser", "OldPass123", "NewPass456");
         assert!(result.is_ok());
-        
+
         // Should be able to authenticate with new password
-        let session = test_manager.manager.authenticate("testuser", "NewPass456").unwrap();
+        let session = test_manager
+            .manager
+            .authenticate("testuser", "NewPass456")
+            .unwrap();
         assert!(session.is_valid);
-        
+
         // Should not be able to authenticate with old password
         let result = test_manager.manager.authenticate("testuser", "OldPass123");
         assert!(result.is_err());
@@ -561,46 +637,65 @@ mod tests {
     #[test]
     fn test_change_password_wrong_old_password() {
         let test_manager = TestAuthManager::new().unwrap();
-        
-        test_manager.manager.create_user("testuser", "OldPass123").unwrap();
-        
-        let result = test_manager.manager.change_password("testuser", "WrongOldPass", "NewPass456");
+
+        test_manager
+            .manager
+            .create_user("testuser", "OldPass123")
+            .unwrap();
+
+        let result = test_manager
+            .manager
+            .change_password("testuser", "WrongOldPass", "NewPass456");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_change_password_weak_new_password() {
         let test_manager = TestAuthManager::new().unwrap();
-        
-        test_manager.manager.create_user("testuser", "OldPass123").unwrap();
-        
-        let result = test_manager.manager.change_password("testuser", "OldPass123", "weak");
+
+        test_manager
+            .manager
+            .create_user("testuser", "OldPass123")
+            .unwrap();
+
+        let result = test_manager
+            .manager
+            .change_password("testuser", "OldPass123", "weak");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("at least 8 characters"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("at least 8 characters"));
     }
 
     #[test]
     fn test_get_user_info() {
         let test_manager = TestAuthManager::new().unwrap();
-        
+
         // No user initially
         let info = test_manager.manager.get_user_info().unwrap();
         assert!(info.is_none());
-        
+
         // Create user
-        test_manager.manager.create_user("testuser", "TestPass123").unwrap();
-        
+        test_manager
+            .manager
+            .create_user("testuser", "TestPass123")
+            .unwrap();
+
         let info = test_manager.manager.get_user_info().unwrap();
         assert!(info.is_some());
-        
+
         let (username, created_at, last_login_at) = info.unwrap();
         assert_eq!(username, "testuser");
         assert!(created_at <= Utc::now());
         assert!(last_login_at.is_none());
-        
+
         // Authenticate and check last login
-        test_manager.manager.authenticate("testuser", "TestPass123").unwrap();
-        
+        test_manager
+            .manager
+            .authenticate("testuser", "TestPass123")
+            .unwrap();
+
         let info = test_manager.manager.get_user_info().unwrap().unwrap();
         assert!(info.2.is_some()); // last_login_at should be set
     }
@@ -608,19 +703,25 @@ mod tests {
     #[test]
     fn test_login_attempt_logging() {
         let test_manager = TestAuthManager::new().unwrap();
-        
-        test_manager.manager.create_user("testuser", "TestPass123").unwrap();
-        
+
+        test_manager
+            .manager
+            .create_user("testuser", "TestPass123")
+            .unwrap();
+
         // Successful login
-        test_manager.manager.authenticate("testuser", "TestPass123").unwrap();
-        
+        test_manager
+            .manager
+            .authenticate("testuser", "TestPass123")
+            .unwrap();
+
         // Failed login
         let _ = test_manager.manager.authenticate("testuser", "WrongPass");
-        
+
         // Check if log file exists
         let log_path = test_manager._temp_dir.path().join("login_attempts.log");
         assert!(log_path.exists());
-        
+
         let log_content = std::fs::read_to_string(log_path).unwrap();
         assert!(log_content.contains("SUCCESS"));
         assert!(log_content.contains("FAILED"));

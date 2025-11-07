@@ -119,15 +119,13 @@ impl OnboardingManager {
     #[cfg(target_os = "macos")]
     fn get_macos_memory(&self) -> Result<f64> {
         use std::process::Command;
-        
+
         let output = Command::new("sysctl")
             .args(&["-n", "hw.memsize"])
             .output()?;
-        
+
         if output.status.success() {
-            let memory_bytes: u64 = String::from_utf8(output.stdout)?
-                .trim()
-                .parse()?;
+            let memory_bytes: u64 = String::from_utf8(output.stdout)?.trim().parse()?;
             Ok(memory_bytes as f64 / 1024.0 / 1024.0 / 1024.0)
         } else {
             Err(anyhow!("Failed to get memory info"))
@@ -137,7 +135,7 @@ impl OnboardingManager {
     #[cfg(target_os = "linux")]
     fn get_linux_memory(&self) -> Result<f64> {
         let meminfo = std::fs::read_to_string("/proc/meminfo")?;
-        
+
         for line in meminfo.lines() {
             if line.starts_with("MemTotal:") {
                 let parts: Vec<&str> = line.split_whitespace().collect();
@@ -147,21 +145,21 @@ impl OnboardingManager {
                 }
             }
         }
-        
+
         Err(anyhow!("Could not parse memory info"))
     }
 
     #[cfg(target_os = "windows")]
     fn get_windows_memory(&self) -> Result<f64> {
         use std::process::Command;
-        
+
         let output = Command::new("wmic")
             .args(&["computersystem", "get", "TotalPhysicalMemory", "/value"])
             .output()?;
-        
+
         if output.status.success() {
             let output_str = String::from_utf8(output.stdout)?;
-            
+
             for line in output_str.lines() {
                 if line.starts_with("TotalPhysicalMemory=") {
                     let memory_bytes: u64 = line
@@ -173,16 +171,16 @@ impl OnboardingManager {
                 }
             }
         }
-        
+
         Err(anyhow!("Failed to get memory info"))
     }
 
     fn get_available_disk_space(&self) -> Result<f64> {
         let config_path = &self.config_dir;
-        
+
         // Ensure the directory exists
         std::fs::create_dir_all(config_path)?;
-        
+
         // Platform-specific disk space check
         #[cfg(unix)]
         {
@@ -197,9 +195,9 @@ impl OnboardingManager {
     #[cfg(unix)]
     fn get_unix_disk_space(&self, path: &Path) -> Result<f64> {
         use std::ffi::CString;
-        
+
         let path_cstring = CString::new(path.to_string_lossy().as_bytes())?;
-        
+
         unsafe {
             let mut statvfs: libc::statvfs = std::mem::zeroed();
             if libc::statvfs(path_cstring.as_ptr(), &mut statvfs) == 0 {
@@ -215,24 +213,24 @@ impl OnboardingManager {
     fn get_windows_disk_space(&self, path: &Path) -> Result<f64> {
         use std::ffi::OsStr;
         use std::os::windows::ffi::OsStrExt;
-        
+
         let path_wide: Vec<u16> = OsStr::new(path)
             .encode_wide()
             .chain(std::iter::once(0))
             .collect();
-        
+
         unsafe {
             let mut free_bytes_available = 0u64;
             let mut total_bytes = 0u64;
             let mut total_free_bytes = 0u64;
-            
+
             let result = winapi::um::fileapi::GetDiskFreeSpaceExW(
                 path_wide.as_ptr(),
                 &mut free_bytes_available,
                 &mut total_bytes,
                 &mut total_free_bytes,
             );
-            
+
             if result != 0 {
                 Ok(free_bytes_available as f64 / 1024.0 / 1024.0 / 1024.0)
             } else {
@@ -244,27 +242,24 @@ impl OnboardingManager {
     fn test_network_connection(&self) -> bool {
         use std::net::TcpStream;
         use std::time::Duration;
-        
+
         // Try to connect to a reliable external service
         let test_addresses = [
             "1.1.1.1:53",        // Cloudflare DNS
             "8.8.8.8:53",        // Google DNS
             "208.67.222.222:53", // OpenDNS
         ];
-        
+
         for address in &test_addresses {
-            if let Ok(_) = TcpStream::connect_timeout(
-                &address.parse().unwrap(),
-                Duration::from_secs(3)
-            ) {
+            if let Ok(_) =
+                TcpStream::connect_timeout(&address.parse().unwrap(), Duration::from_secs(3))
+            {
                 return true;
             }
         }
-        
+
         false
     }
-
-
 
     pub fn save_config(&self, config: &OnboardingConfig) -> Result<()> {
         let config_json = serde_json::to_string_pretty(config)?;
@@ -283,8 +278,6 @@ impl OnboardingManager {
         Ok(Some(config))
     }
 
-
-
     pub fn complete_onboarding(&self) -> Result<()> {
         // For the client version, onboarding is complete when the user has created an owner account
         // No server path validation needed since we connect to remote servers
@@ -292,7 +285,7 @@ impl OnboardingManager {
         let config = OnboardingConfig {
             is_completed: true,
             owner_account_created: false, // Will be set to true when owner creates account
-            owner_username: None, // Will be set when owner creates account
+            owner_username: None,         // Will be set when owner creates account
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         };
@@ -303,17 +296,19 @@ impl OnboardingManager {
     /// This should only be called once during onboarding to create the single owner account
     pub fn create_owner_account(&self, username: &str, password: &str) -> Result<()> {
         use crate::auth::AuthManager;
-        
+
         // Ensure onboarding is not yet completed with owner account
         if let Ok(Some(config)) = self.load_config() {
             if config.owner_account_created {
-                return Err(anyhow!("Owner account already exists - security violation attempted"));
+                return Err(anyhow!(
+                    "Owner account already exists - security violation attempted"
+                ));
             }
         }
-        
+
         // Create the secure owner account
         let auth_manager = AuthManager::new(self.config_dir.clone())?;
-        
+
         // Check if user already exists - if so, skip creation but continue onboarding
         if auth_manager.is_configured() {
             // User already exists, just verify credentials are valid
@@ -321,7 +316,7 @@ impl OnboardingManager {
                 Ok(_) => {
                     // Credentials match existing user, proceed with onboarding completion
                     println!("Using existing user account for onboarding completion");
-                },
+                }
                 Err(_) => {
                     return Err(anyhow!("A user account already exists with different credentials. Please use the existing account or reset the application."));
                 }
@@ -330,7 +325,7 @@ impl OnboardingManager {
             // No user exists, create new owner account
             auth_manager.create_user(username, password)?;
         }
-        
+
         // Update onboarding config to mark owner account as created
         let mut config = self.load_config()?.unwrap_or(OnboardingConfig {
             is_completed: false,
@@ -339,11 +334,11 @@ impl OnboardingManager {
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
         });
-        
+
         config.owner_account_created = true;
         config.owner_username = Some(username.to_string());
         config.updated_at = chrono::Utc::now();
-        
+
         self.save_config(&config)
     }
 
@@ -403,7 +398,7 @@ mod tests {
     fn test_system_requirements_check() {
         let test_manager = TestOnboardingManager::new().unwrap();
         let requirements = test_manager.manager.check_system_requirements();
-        
+
         // All should be true for basic setup
         assert!(requirements.os_compatible);
         // Note: memory and disk checks are stubbed for now
@@ -416,20 +411,25 @@ mod tests {
     #[test]
     fn test_config_persistence() {
         let test_manager = TestOnboardingManager::new().unwrap();
-        
+
         // Should be no config initially
         assert!(test_manager.manager.load_config().unwrap().is_none());
-        
+
         // Create valid OpenCode server for testing
         let valid_server = test_manager.manager.config_dir.join("opencode");
-        std::fs::write(&valid_server, "#!/bin/bash\necho 'OpenCode Server v1.0.0'\n").unwrap();
-        
+        std::fs::write(
+            &valid_server,
+            "#!/bin/bash\necho 'OpenCode Server v1.0.0'\n",
+        )
+        .unwrap();
+
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&valid_server, std::fs::Permissions::from_mode(0o755)).unwrap();
+            std::fs::set_permissions(&valid_server, std::fs::Permissions::from_mode(0o755))
+                .unwrap();
         }
-        
+
         // Complete onboarding (no server path needed for client)
         test_manager.manager.complete_onboarding().unwrap();
 
@@ -471,7 +471,9 @@ mod tests {
         let test_manager = TestOnboardingManager::new().unwrap();
 
         // Test creating owner account (password must meet security requirements)
-        let result = test_manager.manager.create_owner_account("testuser", "TestPass123");
+        let result = test_manager
+            .manager
+            .create_owner_account("testuser", "TestPass123");
         assert!(result.is_ok());
 
         // Verify config was updated
@@ -485,13 +487,19 @@ mod tests {
         let test_manager = TestOnboardingManager::new().unwrap();
 
         // Create first owner account
-        test_manager.manager.create_owner_account("testuser", "TestPass123").unwrap();
+        test_manager
+            .manager
+            .create_owner_account("testuser", "TestPass123")
+            .unwrap();
 
         // Try to create another owner account - should fail
-        let result = test_manager.manager.create_owner_account("differentuser", "DifferentPass456");
+        let result = test_manager
+            .manager
+            .create_owner_account("differentuser", "DifferentPass456");
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Owner account already exists"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Owner account already exists"));
     }
-
-
 }

@@ -1,6 +1,6 @@
 fn main() {
     tauri_build::build();
-    
+
     // iOS-specific build configuration
     #[cfg(target_os = "ios")]
     {

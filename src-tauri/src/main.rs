@@ -23,8 +23,10 @@ fn main() {
                             if let Some(ref filename) = frame.filename {
                                 let filename_str = filename.as_str();
                                 // Replace user home directory with generic placeholder
-                                if filename_str.contains("/Users/") || filename_str.contains("\\Users\\") ||
-                                   filename_str.contains("/home/") {
+                                if filename_str.contains("/Users/")
+                                    || filename_str.contains("\\Users\\")
+                                    || filename_str.contains("/home/")
+                                {
                                     frame.filename = Some("[USER_DIR]/sanitized_path".to_string());
                                 }
                             }
@@ -35,7 +37,7 @@ fn main() {
                 Some(event)
             })),
             ..Default::default()
-        }
+        },
     ));
 
     // Add context for better error reporting
