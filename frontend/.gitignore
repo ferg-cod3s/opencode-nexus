@@ -20,6 +20,7 @@ bun-error.log*
 # environment variables
 .env
 .env.*
+!.env.example
 
 # macOS-specific files
 .DS_Store
