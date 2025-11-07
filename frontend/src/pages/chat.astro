@@ -35,6 +35,35 @@ import Layout from '../layouts/Layout.astro';
   import ChatInterface from '../components/ChatInterface.svelte';
   import { chatStore } from '../stores/chat';
   import { invoke } from '@tauri-apps/api/core';
+  import {
+    chatApiCallbacks,
+    initializeChat as initializeChatAPI,
+  } from '../utils/chat-api';
+
+  let eventListenerUnsubscribe: (() => void) | null = null;
+
+  // Create error state element safely
+  function createErrorElement(): HTMLElement {
+    const div = document.createElement('div');
+    div.className = 'error-state';
+
+    const heading = document.createElement('h2');
+    heading.textContent = 'Chat Unavailable';
+    div.appendChild(heading);
+
+    const paragraph = document.createElement('p');
+    paragraph.textContent = 'Failed to initialize chat system. Please check your OpenCode server connection.';
+    div.appendChild(paragraph);
+
+    const button = document.createElement('button');
+    button.textContent = 'Retry';
+    button.addEventListener('click', () => {
+      window.location.reload();
+    });
+    div.appendChild(button);
+
+    return div;
+  }
 
   // Initialize chat system
   async function initializeChat() {
@@ -52,6 +81,11 @@ import Layout from '../layouts/Layout.astro';
       const logoutButton = document.getElementById('logout-button');
       if (logoutButton) {
         logoutButton.addEventListener('click', async () => {
+          // Clean up event listener
+          if (eventListenerUnsubscribe) {
+            eventListenerUnsubscribe();
+          }
+
           try {
             await invoke('logout_user');
             sessionStorage.clear();
@@ -68,16 +102,26 @@ import Layout from '../layouts/Layout.astro';
       // Initialize chat stores
       await chatStore.actions.initialize();
 
-      // Load existing sessions
-      await chatStore.actions.loadSessions(async () => {
+      // Load existing sessions using new chat API
+      await chatStore.actions.loadSessions(chatApiCallbacks.sessionLoader);
+
+      // Set up real-time event listener
+      eventListenerUnsubscribe = await initializeChatAPI(chatStore.actions.handleChatEvent);
+      console.log('🔍 Chat: Real-time event listener initialized');
+
+      // Auto-create first session if no sessions exist
+      const sessions = await chatApiCallbacks.sessionLoader();
+      if (sessions.length === 0) {
+        console.log('🔍 Chat: No sessions found, creating first chat session...');
         try {
-          const sessions = await invoke('get_chat_sessions');
-          return sessions;
+          const newSession = await chatStore.actions.createSession(
+            chatApiCallbacks.sessionCreator
+          );
+          console.log('🔍 Chat: Auto-created first session:', newSession.id);
         } catch (error) {
-          console.warn('Failed to load chat sessions:', error);
-          return [];
+          console.warn('🔍 Chat: Failed to auto-create session (continuing anyway):', error);
         }
-      });
+      }
 
       // Mount ChatInterface component
       const chatRoot = document.getElementById('chat-root');
@@ -93,9 +137,10 @@ import Layout from '../layouts/Layout.astro';
           target: chatRoot,
           props: {
             onSendMessage: async (content: string) => {
-              await chatStore.actions.sendMessage(content, async (sessionId: string, messageContent: string) => {
-                await invoke('send_chat_message', { sessionId, content: messageContent });
-              });
+              await chatStore.actions.sendMessage(
+                content,
+                chatApiCallbacks.messageSender
+              );
             },
             onClose: () => {
               // Handle session close if needed
@@ -112,19 +157,21 @@ import Layout from '../layouts/Layout.astro';
     } catch (error) {
       console.error('🔍 Chat: Failed to initialize chat system:', error);
 
-      // Show error state
+      // Show error state safely using DOM methods
       const chatRoot = document.getElementById('chat-root');
       if (chatRoot) {
-        chatRoot.innerHTML = `
-          <div class="error-state">
-            <h2>Chat Unavailable</h2>
-            <p>Failed to initialize chat system. Please check your OpenCode server connection.</p>
-            <button onclick="window.location.reload()">Retry</button>
-          </div>
-        `;
+        chatRoot.textContent = ''; // Clear existing content
+        chatRoot.appendChild(createErrorElement());
       }
     }
   }
+
+  // Clean up on page unload
+  window.addEventListener('beforeunload', () => {
+    if (eventListenerUnsubscribe) {
+      eventListenerUnsubscribe();
+    }
+  });
 
   // Initialize when page loads
   document.addEventListener('DOMContentLoaded', () => {
