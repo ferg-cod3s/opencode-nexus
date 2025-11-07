@@ -413,6 +413,14 @@ fn get_server_url() -> Result<String, String> {
         .ok_or_else(|| "No server URL available".to_string())
 }
 
+/// Ensure a server connection exists before executing chat commands
+/// Returns a user-friendly error message if no connection is available
+fn ensure_server_connected() -> Result<String, String> {
+    get_server_url().map_err(|_| {
+        "Please connect to an OpenCode server first. Use the Connection settings to add a server.".to_string()
+    })
+}
+
 // Connection management commands
 #[tauri::command]
 async fn connect_to_server(
@@ -494,8 +502,10 @@ async fn create_chat_session(
     _app_handle: tauri::AppHandle,
     title: Option<String>,
 ) -> Result<ChatSession, String> {
+    // Ensure server is connected before attempting chat operations
+    let server_url = ensure_server_connected()?;
+
     let config_dir = get_config_dir()?;
-    let server_url = get_server_url()?;
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
     chat_client.set_server_url(server_url);
@@ -509,8 +519,10 @@ async fn send_chat_message(
     session_id: String,
     content: String,
 ) -> Result<(), String> {
+    // Ensure server is connected before attempting chat operations
+    let server_url = ensure_server_connected()?;
+
     let config_dir = get_config_dir()?;
-    let server_url = get_server_url()?;
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
     chat_client.set_server_url(server_url);
@@ -527,7 +539,12 @@ async fn get_chat_sessions(_app_handle: tauri::AppHandle) -> Result<Vec<ChatSess
     let mut chat_client = ChatClient::new(config_dir.clone())?;
     chat_client.load_sessions().map_err(|e| e.to_string())?;
 
-    // Return persisted sessions
+    // Sync with server to get latest sessions (server is source of truth)
+    // This merges server sessions with local cache and persists to disk
+    // Errors in sync are non-fatal - we fall back to local sessions
+    let _ = chat_client.sync_sessions_with_server().await;
+
+    // Return merged sessions (now includes server sessions)
     let sessions: Vec<ChatSession> = chat_client.get_sessions().values().cloned().collect();
     Ok(sessions)
 }
@@ -546,8 +563,10 @@ async fn get_chat_session_history(
 
 #[tauri::command]
 async fn start_message_stream(app_handle: tauri::AppHandle) -> Result<(), String> {
+    // Ensure server is connected before attempting chat operations
+    let server_url = ensure_server_connected()?;
+
     let config_dir = get_config_dir()?;
-    let server_url = get_server_url()?;
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
     chat_client.set_server_url(server_url);

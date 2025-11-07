@@ -163,19 +163,72 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
         level: 'info'
       });
 
-      // Load existing sessions using new chat API
-      await chatStore.actions.loadSessions(chatApiCallbacks.sessionLoader);
+      // Load existing sessions using new chat API (may fail if no server connection)
+      try {
+        await chatStore.actions.loadSessions(chatApiCallbacks.sessionLoader);
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (errorMsg.includes('Please connect')) {
+          console.warn('🔍 Chat: No server connection - showing connection prompt');
+          sentry.captureMessage('Chat initialization: No server connected', 'warning');
 
-      // Set up real-time event listener
-      eventListenerUnsubscribe = await initializeChatAPI(chatStore.actions.handleChatEvent);
-      console.log('🔍 Chat: Real-time event listener initialized');
+          const chatRoot = document.getElementById('chat-root');
+          if (chatRoot) {
+            chatRoot.innerHTML = `
+              <div class="connection-required">
+                <h2>No OpenCode Server Connected</h2>
+                <p>To use chat, you need to connect to an OpenCode server first.</p>
+                <p>Go to Settings to add a server connection.</p>
+                <a href="/settings" class="button">Go to Settings</a>
+              </div>
+            `;
+          }
+          return; // Stop further initialization
+        }
+        throw error; // Re-throw if not a connection error
+      }
 
-      // Add breadcrumb for real-time listener
-      sentry.addBreadcrumb({
-        message: 'Real-time event listener initialized',
-        category: 'chat',
-        level: 'info'
-      });
+      // Set up real-time event listener with error handling
+      try {
+        eventListenerUnsubscribe = await initializeChatAPI(chatStore.actions.handleChatEvent);
+        console.log('🔍 Chat: Real-time event listener initialized');
+
+        // Add breadcrumb for real-time listener
+        sentry.addBreadcrumb({
+          message: 'Real-time event listener initialized',
+          category: 'chat',
+          level: 'info'
+        });
+      } catch (error) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (errorMsg.includes('Please connect')) {
+          console.warn('🔍 Chat: Server connection lost during initialization');
+          sentry.captureMessage('Chat: Event stream failed - no server connected', 'warning');
+
+          // Show connection error banner (GlobalOfflineBanner should handle this)
+          // but also add a fallback message
+          const chatRoot = document.getElementById('chat-root');
+          if (chatRoot && !chatRoot.querySelector('.connection-error')) {
+            const errorBanner = document.createElement('div');
+            errorBanner.className = 'connection-error';
+            errorBanner.innerHTML = `
+              <p>⚠️ Connection Lost: Check your OpenCode server settings</p>
+            `;
+            chatRoot.insertBefore(errorBanner, chatRoot.firstChild);
+          }
+        } else {
+          console.error('🔍 Chat: Failed to initialize event listener:', error);
+          sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+            contexts: {
+              custom: {
+                context: 'event_stream_init_error',
+                message: errorMsg
+              }
+            }
+          });
+        }
+        // Continue with chat even if event stream fails - user can still view cached sessions
+      }
 
       // Auto-create first session if no sessions exist
       const sessions = await chatApiCallbacks.sessionLoader();
@@ -504,5 +557,99 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
     .loading-spinner {
       animation: none;
     }
+  }
+
+  /* Connection required state */
+  .connection-required {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 1.5rem;
+    padding: 2rem;
+    text-align: center;
+    background: linear-gradient(135deg, hsl(220, 20%, 98%), hsl(220, 15%, 95%));
+  }
+
+  .connection-required h2 {
+    font-size: 1.5rem;
+    color: hsl(220, 15%, 30%);
+    margin: 0;
+  }
+
+  .connection-required p {
+    color: hsl(220, 10%, 50%);
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .connection-required .button {
+    display: inline-block;
+    padding: 0.75rem 1.5rem;
+    background: hsl(220, 90%, 56%);
+    color: white;
+    text-decoration: none;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+  }
+
+  .connection-required .button:hover {
+    background: hsl(220, 90%, 50%);
+  }
+
+  /* Connection error banner */
+  .connection-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: hsl(39, 100%, 97%);
+    border-bottom: 1px solid hsl(39, 100%, 85%);
+    color: hsl(39, 87%, 40%);
+    font-weight: 500;
+  }
+
+  .connection-error p {
+    margin: 0;
+  }
+
+  /* Error state */
+  .error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 1.5rem;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .error-state h2 {
+    font-size: 1.5rem;
+    color: hsl(0, 84%, 47%);
+    margin: 0;
+  }
+
+  .error-state p {
+    color: hsl(220, 10%, 50%);
+    margin: 0;
+  }
+
+  .error-state button {
+    padding: 0.75rem 1.5rem;
+    background: hsl(220, 90%, 56%);
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .error-state button:hover {
+    background: hsl(220, 90%, 50%);
   }
 </style>

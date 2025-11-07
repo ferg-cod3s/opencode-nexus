@@ -319,6 +319,30 @@ impl ChatClient {
         Ok(())
     }
 
+    /// Sync sessions with the server, merging server sessions with local cache
+    /// Server is the source of truth - any server sessions will override local ones
+    pub async fn sync_sessions_with_server(&mut self) -> Result<(), String> {
+        // Try to fetch sessions from server
+        match self.list_sessions_from_server().await {
+            Ok(server_sessions) => {
+                // Merge server sessions into local cache
+                for server_session in server_sessions {
+                    // Server sessions override local ones (server is source of truth)
+                    self.sessions.insert(server_session.id.clone(), server_session);
+                }
+                // Persist the merged sessions to disk
+                self.save_sessions()?;
+                Ok(())
+            }
+            Err(e) => {
+                // If server sync fails, just continue with local sessions
+                // This allows offline-first behavior
+                eprintln!("Warning: Failed to sync sessions with server: {}. Using local cache.", e);
+                Ok(())
+            }
+        }
+    }
+
     pub fn persist_session(&mut self, session: &ChatSession) -> Result<(), String> {
         self.sessions.insert(session.id.clone(), session.clone());
         self.save_sessions()
@@ -501,6 +525,10 @@ impl ChatClient {
         } else {
             return Err("Message stream not initialized".to_string());
         }
+
+        // Note: Messages received via SSE are persisted to the server and available via
+        // the get_session_history API, so they'll be loaded when the client syncs sessions
+        // This is simpler than trying to maintain local persistence of streaming messages
 
         // Return a subscription to the event stream
         Ok(self.event_sender.subscribe())
