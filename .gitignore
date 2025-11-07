@@ -98,3 +98,27 @@ pnpm-debug.log*
 *.temp
 temp/
 tmp/
+
+# Build artifacts and installers
+android-studio.dmg
+android-studio.zip
+android-sdk/commandlinetools.zip
+
+# Virtual environments
+venv/
+test_venv/
+env/
+.venv/
+
+# Backup and debug files
+*.backup
+*.bak
+*test-debug*
+*test-output*
+
+# IDE backup files
+_*.ts
+_*.tsx
+_*.svelte
+_*.astro
+_*.rs
