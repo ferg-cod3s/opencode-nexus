@@ -132,10 +132,15 @@
     color: hsl(0, 60%, 50%);
     font-size: 1.25rem;
     cursor: pointer;
-    padding: 0.25rem;
+    padding: 0.5rem; /* Mobile-friendly padding for 44px touch target */
     border-radius: 4px;
     transition: background-color 0.2s ease;
     flex-shrink: 0;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .delete-btn:hover {

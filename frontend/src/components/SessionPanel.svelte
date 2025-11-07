@@ -188,15 +188,15 @@
     color: hsl(220, 20%, 40%);
     font-size: 1.25rem;
     cursor: pointer;
-    padding: 0.25rem;
+    padding: 0.5rem;
     border-radius: 4px;
     transition: background-color 0.2s ease, transform 0.2s ease;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 32px;
-    min-height: 32px;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .toggle-btn:hover {
@@ -280,11 +280,13 @@
     color: hsl(0, 60%, 50%);
     font-size: 1.25rem;
     cursor: pointer;
-    padding: 0;
+    padding: 0.5rem;
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .error-close:hover {
