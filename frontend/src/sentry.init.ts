@@ -94,7 +94,6 @@ export function initializeSentry() {
     // Configure integrations
     integrations: [
       Sentry.captureConsoleIntegration({ levels: ["error", "warn"] }),
-      Sentry.httpClientIntegration(),
       Sentry.replayIntegration({
         maskAllText: true, // Mask all text in replays
         blockAllMedia: true, // Don't record media

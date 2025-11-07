@@ -75,9 +75,6 @@ Sentry.init({
       levels: ["error", "warn"],
     }),
 
-    // Capture HTTP client errors
-    Sentry.httpClientIntegration(),
-
     // Server-side request/response tracking
     Sentry.requestDataIntegration({
       include: {

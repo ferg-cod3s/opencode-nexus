@@ -117,9 +117,6 @@ Sentry.init({
       levels: ["error", "warn"],
     }),
 
-    // Capture HTTP client errors
-    Sentry.httpClientIntegration(),
-
     // Session replay - capture user interactions for debugging errors
     Sentry.replayIntegration({
       maskAllText: true, // Mask all user text in replays (privacy)
