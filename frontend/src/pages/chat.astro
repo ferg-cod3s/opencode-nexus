@@ -21,11 +21,17 @@ import Layout from '../layouts/Layout.astro';
       </div>
     </header>
 
-    <!-- Chat interface will be mounted here by JavaScript -->
-    <div id="chat-root" class="chat-root">
-      <div class="loading-state" id="loading-state">
-        <div class="loading-spinner"></div>
-        <p>Starting chat session...</p>
+    <!-- Chat Layout: Sessions Sidebar + Main Chat Area -->
+    <div id="chat-layout" class="chat-layout">
+      <!-- Sessions sidebar will be mounted here -->
+      <aside id="sessions-sidebar" class="sessions-sidebar"></aside>
+
+      <!-- Chat interface will be mounted here by JavaScript -->
+      <div id="chat-root" class="chat-root">
+        <div class="loading-state" id="loading-state">
+          <div class="loading-spinner"></div>
+          <p>Starting chat session...</p>
+        </div>
       </div>
     </div>
   </main>
@@ -33,6 +39,7 @@ import Layout from '../layouts/Layout.astro';
 
 <script>
   import ChatInterface from '../components/ChatInterface.svelte';
+  import SessionPanel from '../components/SessionPanel.svelte';
   import { chatStore } from '../stores/chat';
   import { invoke } from '@tauri-apps/api/core';
   import {
@@ -123,8 +130,20 @@ import Layout from '../layouts/Layout.astro';
         }
       }
 
-      // Mount ChatInterface component
+      // Mount SessionPanel and ChatInterface components
       const chatRoot = document.getElementById('chat-root');
+      const sessionsSidebar = document.getElementById('sessions-sidebar');
+
+      if (sessionsSidebar) {
+        // Mount SessionPanel component in the sidebar
+        const sessionPanel = new SessionPanel({
+          target: sessionsSidebar
+        });
+        console.log('🔍 Chat: SessionPanel component mounted successfully');
+      } else {
+        console.error('🔍 Chat: Could not find #sessions-sidebar element');
+      }
+
       if (chatRoot) {
         // Remove loading state
         const loadingState = document.getElementById('loading-state');
@@ -189,6 +208,22 @@ import Layout from '../layouts/Layout.astro';
     height: 100vh;
     background: hsl(220, 20%, 98%);
     display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .chat-layout {
+    flex: 1;
+    display: flex;
+    gap: 0;
+    min-height: 0; /* Important for flex children with scrolling */
+  }
+
+  .sessions-sidebar {
+    width: 320px;
+    flex-shrink: 0;
+    border-right: 1px solid hsl(220, 20%, 90%);
+    background: hsl(220, 20%, 96%);
     overflow: hidden;
   }
 
@@ -197,6 +232,7 @@ import Layout from '../layouts/Layout.astro';
     display: flex;
     flex-direction: column;
     position: relative;
+    min-width: 0; /* Important for flex children with scrolling */
   }
 
   .loading-state {
@@ -238,287 +274,8 @@ import Layout from '../layouts/Layout.astro';
       height: 100vh;
       height: 100dvh; /* Use dynamic viewport height on mobile */
     }
-  }
 
-  /* Reduced motion support */
-  @media (prefers-reduced-motion: reduce) {
-    .loading-spinner {
-      animation: none;
-    }
-  }
-</style>
-
-<script>
-  import { invoke, listen } from '../utils/tauri-api';
-  import ChatInterface from '../components/ChatInterface.svelte';
-  import SessionGrid from '../components/SessionGrid.svelte';
-  import { mount } from 'svelte';
-  import { get } from 'svelte/store';
-  import type { ChatSession, ChatEvent } from '../types/chat';
-  import { chatStore } from '../stores/chat';
-
-  // State management using chat stores
-  let chatInterfaceComponent: any = null;
-  let sessionGridComponent: any = null;
-
-  // DOM elements
-  const chatRoot = document.getElementById('chat-root')!;
-  async function initializeChat() {
-    try {
-      console.log('🔍 Chat page: Starting initialization...');
-
-      // Check authentication
-      console.log('🔍 Chat page: Checking authentication...');
-      const isAuthenticated = await invoke<boolean>('is_authenticated');
-      console.log('🔍 Chat page: Authentication status:', isAuthenticated);
-
-      if (!isAuthenticated) {
-        console.log('🔍 Chat page: Not authenticated, redirecting to /login');
-        window.location.href = '/login';
-        return;
-      }
-
-      // Check onboarding completion
-      console.log('🔍 Chat page: Checking onboarding status...');
-      const onboardingState = await invoke<any>('get_onboarding_state');
-      console.log('🔍 Chat page: Onboarding state:', onboardingState);
-
-      if (!onboardingState.config?.is_completed) {
-        console.log('🔍 Chat page: Onboarding not completed, redirecting to /onboarding');
-        window.location.href = '/onboarding';
-        return;
-      }
-
-      console.log('🔍 Chat page: All checks passed, loading chat interface...');
-
-      // Initialize offline functionality
-      chatStore.actions.initializeOffline();
-
-       // Load existing chat sessions
-       await chatStore.actions.loadSessions(async () => {
-         return await invoke<ChatSession[]>('get_chat_sessions') || [];
-       });
-
-       // Mount components after stores are initialized
-       mountComponents();
-
-       // Set up event listeners for real-time updates
-       await setupEventListeners();
-
-       // Start message streaming for real-time AI responses
-       await startMessageStreaming();
-
-      // Hide loading state only on success
-      chatRoot.classList.add("loaded");
-
-      console.log('🔍 Chat page: Initialization complete');
-
-    } catch (e) {
-      console.error('❌ Chat page: Failed to initialize chat:', e);
-      const errorMessage = `Failed to initialize chat: ${e}`;
-      showError(errorMessage);
-    }
-  }
-
-
-
-  async function setupEventListeners() {
-    try {
-      // Listen for chat events from backend
-      const unlistenChat = await listen('chat-event', (event) => {
-        const chatEvent = event.payload as ChatEvent;
-        handleChatEvent(chatEvent);
-      });
-
-      // Store cleanup
-      (window as any).__unlistenChat = unlistenChat;
-
-      console.log('Chat event listeners set up successfully');
-    } catch (e) {
-      console.error('Failed to setup event listeners:', e);
-      // Don't throw - chat can work without real-time events
-    }
-  }
-
-  async function startMessageStreaming() {
-    try {
-      await invoke<void>('start_message_stream');
-      console.log('Message streaming started');
-    } catch (e) {
-      console.error('Failed to start message streaming:', e);
-      // Don't throw - chat can work without streaming
-    }
-  }
-
-  function handleChatEvent(event: ChatEvent) {
-    console.log('Received chat event:', event);
-    chatStore.actions.handleChatEvent(event);
-    updateComponents();
-  }
-
-
-
-  function mountComponents() {
-    // Clear loading state
-    chatRoot.innerHTML = '';
-
-    // Create layout structure
-    const appLayout = document.createElement('div');
-    appLayout.className = 'app-layout';
-
-    // Sessions sidebar
-    const sessionsSidebar = document.createElement('aside');
-    sessionsSidebar.className = 'sessions-sidebar';
-    sessionsSidebar.setAttribute('aria-label', 'Chat Sessions');
-
-    // Chat main area
-    const chatMain = document.createElement('main');
-    chatMain.className = 'chat-main';
-    chatMain.setAttribute('role', 'main');
-    chatMain.setAttribute('aria-label', 'Chat Interface');
-
-    appLayout.appendChild(sessionsSidebar);
-    appLayout.appendChild(chatMain);
-    chatRoot.appendChild(appLayout);
-
-    // Get current store values
-    const currentSessions = get(chatStore.activeSessions);
-    const currentActiveSession = get(chatStore.activeSession);
-    const currentLoading = get(chatStore.isLoading);
-
-    // Mount SessionGrid using Svelte 5 mount API
-    sessionGridComponent = mount(SessionGrid, {
-      target: sessionsSidebar,
-      props: {
-        sessions: currentSessions,
-        activeSessionId: currentActiveSession?.id || null,
-        loading: currentLoading
-      }
-    });
-
-    // Mount ChatInterface using Svelte 5 mount API
-    if (currentActiveSession) {
-      chatInterfaceComponent = mount(ChatInterface, {
-        target: chatMain,
-        props: {
-          session: currentActiveSession,
-          loading: currentLoading
-        }
-      });
-    }
-  }
-
-  function updateComponents() {
-    if (sessionGridComponent && sessionGridComponent.$set) {
-      sessionGridComponent.$set({
-        sessions: get(chatStore.activeSessions),
-        activeSessionId: get(chatStore.activeSession)?.id || null,
-        loading: get(chatStore.isLoading)
-      });
-    }
-
-    if (chatInterfaceComponent && chatInterfaceComponent.$set) {
-      const currentActiveSession = get(chatStore.activeSession);
-      if (currentActiveSession) {
-        chatInterfaceComponent.$set({
-          session: currentActiveSession,
-          loading: get(chatStore.isLoading)
-        });
-      }
-    }
-  }
-
-
-
-
-
-  function showError(errorMessage: string) {
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'error-banner';
-    errorDiv.innerHTML = `
-      <span class="error-icon">⚠️</span>
-      <span class="error-message">${errorMessage}</span>
-      <button class="error-dismiss" onclick="this.parentElement.remove()">×</button>
-    `;
-    
-    chatRoot.insertBefore(errorDiv, chatRoot.firstChild);
-  }
-
-  // Cleanup on page unload
-  window.addEventListener('beforeunload', () => {
-    // Cleanup handled by Svelte components automatically
-  });
-
-  // Initialize when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeChat);
-  } else {
-    initializeChat();
-  }
-</script>
-<script src="../chat.ts"></script>
-
-<style is:global>
-  .app-layout {
-    display: flex;
-    height: 100vh;
-    gap: 0;
-  }
-
-  .sessions-sidebar {
-    width: 300px;
-    flex-shrink: 0;
-    border-right: 1px solid hsl(220, 10%, 20%, 0.1);
-    background: white;
-    overflow-y: auto;
-  }
-
-  .chat-main {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .error-banner {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.875rem 1.5rem;
-    background: hsl(0, 70%, 50%, 0.1);
-    border-bottom: 1px solid hsl(0, 70%, 50%, 0.2);
-    color: hsl(0, 70%, 40%);
-    position: relative;
-    z-index: 10;
-  }
-
-  .error-icon {
-    font-size: 1.125rem;
-  }
-
-  .error-message {
-    flex: 1;
-    font-weight: 500;
-  }
-
-  .error-dismiss {
-    background: none;
-    border: none;
-    color: hsl(0, 70%, 40%);
-    cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 0.25rem;
-    font-size: 1rem;
-    line-height: 1;
-  }
-
-  .error-dismiss:hover {
-    background: hsl(0, 70%, 50%, 0.1);
-  }
-
-  /* Mobile responsiveness */
-  @media (max-width: 768px) {
-    .app-layout {
+    .chat-layout {
       flex-direction: column;
     }
 
@@ -526,61 +283,33 @@ import Layout from '../layouts/Layout.astro';
       width: 100%;
       max-height: 200px;
       border-right: none;
-      border-bottom: 1px solid hsl(220, 10%, 20%, 0.1);
+      border-bottom: 1px solid hsl(220, 20%, 90%);
     }
 
-    .error-banner {
-      padding: 0.75rem 1rem;
-      font-size: 0.875rem;
+    .chat-root {
+      flex: 1;
+      min-height: 0;
     }
   }
 
-  .error-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    height: 100%;
-    padding: 2rem;
-    text-align: center;
-    color: hsl(220, 15%, 20%);
+  /* Tablet responsiveness */
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .sessions-sidebar {
+      width: 280px;
+    }
   }
 
-  .error-state h2 {
-    color: hsl(0, 70%, 50%);
-    margin-bottom: 1rem;
-    font-size: 1.5rem;
-  }
-
-  .error-state p {
-    margin-bottom: 2rem;
-    color: hsl(220, 20%, 60%);
-    max-width: 400px;
-  }
-
-  .error-state button {
-    padding: 0.75rem 1.5rem;
-    background: hsl(220, 90%, 60%);
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.3s ease;
-  }
-
-  .error-state button:hover {
-    background: hsl(220, 90%, 50%);
-  }
-
-  /* High Contrast Mode */
+  /* High contrast mode support */
   @media (prefers-contrast: high) {
     .sessions-sidebar {
-      border-right: 2px solid hsl(220, 30%, 18%);
+      border-right: 2px solid hsl(0, 0%, 0%);
     }
+  }
 
-    .error-banner {
-      border-bottom: 2px solid hsl(0, 70%, 50%);
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    .loading-spinner {
+      animation: none;
     }
   }
 </style>
