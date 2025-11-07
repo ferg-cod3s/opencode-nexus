@@ -8,8 +8,8 @@
 import * as Sentry from "@sentry/astro";
 
 Sentry.init({
-  // Shared DSN with backend for unified error tracking
-  dsn: "https://27a3e3d68747cda91305b45e394f768e@sentry.fergify.work/14",
+  // Frontend DSN for server-side error tracking (SSR)
+  dsn: "https://1ca61080ceb639661e4da7e91914cb92@sentry.fergify.work/17",
 
   // Environment
   environment: import.meta.env.MODE || "production",
@@ -24,8 +24,8 @@ Sentry.init({
   // Debug mode: false in production
   debug: import.meta.env.MODE !== "production",
 
-  // Privacy: Don't send PII
-  sendDefaultPii: false,
+  // Privacy: Capture user IPs and headers (per Sentry docs)
+  sendDefaultPii: true,
 
   // Ignore certain errors that are not actionable on server
   ignoreErrors: [

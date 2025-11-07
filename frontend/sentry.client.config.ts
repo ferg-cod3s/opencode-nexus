@@ -8,8 +8,8 @@
 import * as Sentry from "@sentry/astro";
 
 Sentry.init({
-  // Shared DSN with backend for unified error tracking
-  dsn: "https://27a3e3d68747cda91305b45e394f768e@sentry.fergify.work/14",
+  // Frontend DSN for browser error tracking
+  dsn: "https://1ca61080ceb639661e4da7e91914cb92@sentry.fergify.work/17",
 
   // Environment
   environment: import.meta.env.MODE || "production",
@@ -23,15 +23,15 @@ Sentry.init({
 
   // Session replay sampling
   // - 1% of normal sessions
-  // - 50% of sessions with errors
+  // - 100% of sessions with errors (per Sentry docs)
   replaysSessionSampleRate: import.meta.env.MODE === "production" ? 0.01 : 0.1,
-  replaysOnErrorSampleRate: 0.5,
+  replaysOnErrorSampleRate: 1.0,
 
   // Debug mode: false in production
   debug: import.meta.env.MODE !== "production",
 
-  // Privacy: Don't send PII (Personally Identifiable Information)
-  sendDefaultPii: false,
+  // Privacy: Capture user IPs and headers (per Sentry docs for better debugging)
+  sendDefaultPii: true,
 
   // Ignore certain errors that are not actionable
   ignoreErrors: [

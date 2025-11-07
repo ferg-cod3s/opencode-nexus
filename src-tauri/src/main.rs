@@ -4,11 +4,11 @@
 fn main() {
     // Initialize Sentry for error monitoring
     let _guard = sentry::init((
-        "https://27a3e3d68747cda91305b45e394f768e@sentry.fergify.work/14",
+        "https://f7ded2177f996e519be91651f05d38a3@sentry.fergify.work/16",
         sentry::ClientOptions {
             release: sentry::release_name!(),
             environment: Some("production".into()),
-            send_default_pii: false,
+            send_default_pii: true,
             // Privacy filtering - remove sensitive data
             before_send: Some(std::sync::Arc::new(|mut event| {
                 // Remove potentially sensitive information

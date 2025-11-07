@@ -47,8 +47,10 @@ export default defineConfig({
   integrations: [
     svelte(),
     sentry({
-      // Note: Configuration is now in sentry.client.config.ts and sentry.server.config.ts
-      // The authToken is still needed for source map uploads during build
+      // Sentry configuration is in sentry.client.config.ts and sentry.server.config.ts
+      // authToken is required for source map uploads during production builds
+      project: "opencode-nexus-frontend",
+      org: "unforgettable-designs",
       authToken: process.env.SENTRY_AUTH_TOKEN,
     }),
   ],
