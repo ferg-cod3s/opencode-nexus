@@ -1,3 +1,5 @@
+use crate::api_client::ApiClient;
+use crate::message_stream::MessageStream;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -54,6 +56,7 @@ pub struct ChatClient {
     pub event_sender: broadcast::Sender<ChatEvent>,
     config_dir: PathBuf,
     current_session: Option<String>,
+    message_stream: Option<MessageStream>,
 }
 
 impl ChatClient {
@@ -70,14 +73,23 @@ impl ChatClient {
             server_url: None,
             client,
             sessions: HashMap::new(),
-            event_sender,
+            event_sender: event_sender.clone(),
             config_dir,
             current_session: None,
+            message_stream: Some(MessageStream::new(event_sender)),
         })
     }
 
     pub fn set_server_url(&mut self, url: String) {
-        self.server_url = Some(url);
+        self.server_url = Some(url.clone());
+
+        // Initialize API client for message streaming
+        if let Ok(api_client) = ApiClient::new(&url) {
+            if let Some(stream) = &mut self.message_stream {
+                stream.set_api_client(api_client);
+            }
+        }
+        // Silently ignore API client creation errors - can retry on streaming
     }
 
     pub fn subscribe_to_events(&self) -> broadcast::Receiver<ChatEvent> {
@@ -476,33 +488,21 @@ impl ChatClient {
     }
 
     // Subscribe to Server-Sent Events for real-time updates
-    pub async fn start_event_stream(&self) -> Result<broadcast::Receiver<ChatEvent>, String> {
-        let server_url = self
+    pub async fn start_event_stream(&mut self) -> Result<broadcast::Receiver<ChatEvent>, String> {
+        // Verify server URL is set
+        let _server_url = self
             .server_url
             .as_ref()
             .ok_or_else(|| "Server URL not set".to_string())?;
 
-        let (_sender, receiver) = broadcast::channel(100);
-        let event_sender = self.event_sender.clone();
-        let server_url = server_url.to_string();
+        // Start SSE streaming via MessageStream
+        if let Some(stream) = &mut self.message_stream {
+            stream.start_streaming().await?;
+        } else {
+            return Err("Message stream not initialized".to_string());
+        }
 
-        tokio::spawn(async move {
-            let _url = format!("{}/event", server_url);
-
-            // For now, use a simple polling approach until we fix SSE integration
-            loop {
-                tokio::time::sleep(Duration::from_secs(5)).await;
-
-                // Send a heartbeat event to show the stream is "working"
-                let _ = event_sender.send(ChatEvent::Error {
-                    message: "Event stream not yet implemented - using polling".to_string(),
-                });
-
-                // TODO: Implement proper SSE with eventsource-client
-                // The library API seems different than expected
-            }
-        });
-
-        Ok(receiver)
+        // Return a subscription to the event stream
+        Ok(self.event_sender.subscribe())
     }
 }

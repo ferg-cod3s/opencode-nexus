@@ -8,7 +8,6 @@ mod onboarding;
 use auth::AuthManager;
 use chat_client::{ChatClient, ChatMessage, ChatSession};
 use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection, ServerInfo};
-use message_stream::MessageStream;
 use onboarding::{OnboardingManager, OnboardingState, SystemRequirements};
 
 use chrono::Utc;
@@ -551,20 +550,10 @@ async fn start_message_stream(app_handle: tauri::AppHandle) -> Result<(), String
     let server_url = get_server_url()?;
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client.set_server_url(server_url.clone());
+    chat_client.set_server_url(server_url);
 
-    let event_sender = chat_client.event_sender.clone();
-    let mut message_stream = MessageStream::new(event_sender.clone());
-
-    // Create API client for the message stream
-    let api_client = crate::api_client::ApiClient::new(&server_url)
-        .map_err(|e| format!("Failed to create API client: {}", e))?;
-    message_stream.set_api_client(api_client);
-
-    // Start the message stream
-    message_stream.start_streaming().await?;
-
-    let mut event_receiver = event_sender.subscribe();
+    // Start SSE streaming via ChatClient's integrated MessageStream
+    let mut event_receiver = chat_client.start_event_stream().await?;
 
     // Listen for chat events and emit them to the frontend
     tokio::spawn(async move {
