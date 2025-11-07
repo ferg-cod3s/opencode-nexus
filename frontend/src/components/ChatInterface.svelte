@@ -3,6 +3,7 @@
   import MessageBubble from './MessageBubble.svelte';
   import MessageInput from './MessageInput.svelte';
   import OfflineIndicator from './OfflineIndicator.svelte';
+  import StreamingIndicator from './StreamingIndicator.svelte';
   import type { ChatSession, ChatMessage } from '../types/chat';
   import { activeSessionStore, chatStateStore } from '../stores/chat';
 
@@ -202,6 +203,9 @@
 <div class="chat-interface" class:keyboard-visible={keyboardVisible} data-testid="chat-interface">
   <!-- Offline indicator -->
   <OfflineIndicator />
+
+  <!-- Streaming indicator -->
+  <StreamingIndicator />
 
   <!-- Pull-to-refresh indicator -->
   {#if pullDistance > 0}
