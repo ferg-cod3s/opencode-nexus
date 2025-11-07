@@ -39,8 +39,7 @@
       "icons/icon.ico"
     ],
     "iOS": {
-      "developmentTeam": "YOUR_TEAM_ID",
-      "bundle-version": "1",
+      "developmentTeam": "PCJU8QD9FN",
       "minimumSystemVersion": "14.0"
     }
   }

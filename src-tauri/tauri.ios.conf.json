@@ -33,7 +33,7 @@
     "active": true,
     "targets": "all",
     "iOS": {
-      "developmentTeam": "YOUR_TEAM_ID_HERE",
+      "developmentTeam": "PCJU8QD9FN",
       "minimumSystemVersion": "14.0"
     },
     "icon": [

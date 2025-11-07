@@ -13,7 +13,6 @@ import Layout from '../layouts/Layout.astro';
           <button id="logout-button" data-testid="logout-button" class="logout-btn">Sign Out</button>
         </div>
         <nav class="dashboard-nav">
-          <a href="/dashboard" class="nav-link" data-testid="dashboard-tab">Dashboard</a>
           <a href="/chat" class="nav-link active" data-testid="chat-tab">Chat</a>
           <a href="/settings" class="nav-link">Settings</a>
           <a href="/logs" class="nav-link">Logs</a>
@@ -97,7 +96,7 @@ import Layout from '../layouts/Layout.astro';
 </style>
 
 <script>
-  import { invoke, listen } from '../utils/tauri-api.ts';
+  import { invoke, listen } from '../utils/tauri-api';
   import ChatInterface from '../components/ChatInterface.svelte';
   import SessionGrid from '../components/SessionGrid.svelte';
   import { mount } from 'svelte';
@@ -142,19 +141,19 @@ import Layout from '../layouts/Layout.astro';
       // Initialize offline functionality
       chatStore.actions.initializeOffline();
 
-      // Load existing chat sessions
-      await chatStore.actions.loadSessions(async () => {
-        return await invoke<ChatSession[]>('get_chat_sessions') || [];
-      });
+       // Load existing chat sessions
+       await chatStore.actions.loadSessions(async () => {
+         return await invoke<ChatSession[]>('get_chat_sessions') || [];
+       });
 
-      // Set up event listeners for real-time updates
-      await setupEventListeners();
+       // Mount components after stores are initialized
+       mountComponents();
 
-      // Start message streaming for real-time AI responses
-      await startMessageStreaming();
+       // Set up event listeners for real-time updates
+       await setupEventListeners();
 
-      // Mount components
-      mountComponents();
+       // Start message streaming for real-time AI responses
+       await startMessageStreaming();
 
       // Hide loading state only on success
       chatRoot.classList.add("loaded");
@@ -257,17 +256,21 @@ import Layout from '../layouts/Layout.astro';
   }
 
   function updateComponents() {
-    if (sessionGridComponent) {
-      sessionGridComponent.sessions = get(chatStore.activeSessions);
-      sessionGridComponent.activeSessionId = get(chatStore.activeSession)?.id || null;
-      sessionGridComponent.loading = get(chatStore.isLoading);
+    if (sessionGridComponent && sessionGridComponent.$set) {
+      sessionGridComponent.$set({
+        sessions: get(chatStore.activeSessions),
+        activeSessionId: get(chatStore.activeSession)?.id || null,
+        loading: get(chatStore.isLoading)
+      });
     }
 
-    if (chatInterfaceComponent) {
+    if (chatInterfaceComponent && chatInterfaceComponent.$set) {
       const currentActiveSession = get(chatStore.activeSession);
       if (currentActiveSession) {
-        chatInterfaceComponent.session = currentActiveSession;
-        chatInterfaceComponent.loading = get(chatStore.isLoading);
+        chatInterfaceComponent.$set({
+          session: currentActiveSession,
+          loading: get(chatStore.isLoading)
+        });
       }
     }
   }

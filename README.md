@@ -1,10 +1,10 @@
 # OpenCode Nexus
 
-A secure, cross-platform client application for connecting to OpenCode servers, powered by Tauri v2 (Rust), Astro + Svelte (Bun), and real-time API integration.
+A secure, cross-platform client application for connecting to OpenCode servers started with `opencode serve`, powered by Tauri v2 (Rust), Astro + Svelte (Bun), and real-time API integration.
 
 ## 🚀 Features
 
-- **Native OpenCode Client** - Connect to existing OpenCode servers with a beautiful native interface
+- **Native OpenCode Client** - Connect to OpenCode servers started with `opencode serve` with a beautiful native interface
 - **Real-Time Chat Interface** - Seamless AI conversation experience with instant message streaming
 - **Cross-Platform Support** - iOS (TestFlight ready), Android (prepared), and Desktop (macOS, Windows, Linux)
 - **Secure Authentication** - Argon2 password hashing, account lockout protection, encrypted local storage
@@ -21,13 +21,24 @@ A secure, cross-platform client application for connecting to OpenCode servers, 
 
 ## 📋 Prerequisites
 
-- **OpenCode Server:** Access to an existing OpenCode server instance
+- **OpenCode Server:** Start an OpenCode server on any machine with OpenCode installed using `opencode serve` (or `opencode --server` in older versions)
 - **Operating System:** iOS 14.0+, macOS 10.15+, Windows 10+, or Ubuntu 18.04+
 - **Memory:** 4GB RAM minimum, 8GB recommended
 - **Storage:** 1GB available disk space
 - **Network:** Internet connection for server communication
 
 ## 🚀 Quick Start
+
+### Starting an OpenCode Server
+
+First, ensure you have OpenCode installed on a server machine. Start the server:
+
+```bash
+# On the machine where you want to run the OpenCode server
+opencode serve --port 3000 --hostname 0.0.0.0
+```
+
+This will start an OpenCode server that the client can connect to. Note the server's IP address or hostname for client configuration.
 
 ### Installation
 

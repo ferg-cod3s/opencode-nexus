@@ -23,7 +23,7 @@
   "dependencies": {
     "@astrojs/check": "^0.9.5",
     "@opencode-ai/sdk": "^1.0.35",
-    "@tauri-apps/api": "^2.9.0",
+    "@tauri-apps/api": "2.9.0",
     "@tauri-apps/plugin-shell": "^2.3.3",
     "astro": "^5.15.3",
     "svelte": "^5.43.3",

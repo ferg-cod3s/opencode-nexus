@@ -719,10 +719,10 @@ import Layout from '../layouts/Layout.astro';
           sessionStorage.setItem('authenticated', 'true');
           sessionStorage.setItem('username', username);
 
-          // Redirect to dashboard
+          // Redirect to main page
           setTimeout(() => {
-            console.log('🔍 Login page: Redirecting to /dashboard');
-            window.location.href = '/dashboard';
+            console.log('🔍 Login page: Redirecting to /');
+            window.location.href = '/';
           }, 1500);
         } else {
           console.log('🔍 Login page: Authentication failed - invalid credentials');

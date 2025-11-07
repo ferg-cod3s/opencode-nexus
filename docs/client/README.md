@@ -24,10 +24,10 @@ docs/client/
 ### 🔄 Key Changes from Previous Version
 
 #### Product Focus
-- **Mobile-First:** iOS TestFlight ready, Android planned, PWA support
-- **Client-Only:** Connects to existing OpenCode servers (no local server management)
-- **Offline-Capable:** Conversation caching and background sync
-- **Touch-Optimized:** 44px touch targets, swipe gestures, mobile keyboard
+- **Client-Only:** Connects to OpenCode servers started with `opencode serve` (no local server management)
+- **Cross-Platform:** iOS, Android, Desktop, PWA support
+- **Chat-Focused:** Real-time AI conversation interface
+- **Secure:** Connects to authenticated OpenCode server instances
 
 #### Technical Architecture
 - **Connection Manager:** Replaces server manager for client-server communication
@@ -47,7 +47,9 @@ docs/client/
 - iOS TestFlight deployment setup and IPA generation
 - Security vulnerability fixes (6 → 0 vulnerabilities)
 - Dependency updates for mobile compatibility
-- Documentation rewrite for client vision
+- Documentation updated for client-only architecture
+- Dashboard removed, app simplified to chat client
+- Server connection setup documented (`opencode serve`)
 
 #### 🚧 In Progress
 - Connection manager implementation (replaces server manager)
@@ -56,10 +58,10 @@ docs/client/
 - Real-time message streaming from servers
 
 #### 📋 Next Priorities
-1. **Connection Manager:** Implement HTTP client for server communication
-2. **Chat Client:** Update for remote server API integration
-3. **Mobile UI:** Touch-optimized interface components
-4. **Offline Sync:** Background synchronization system
+1. **Server Connection:** Update chat client to connect to remote OpenCode servers
+2. **Authentication:** Implement server authentication flow
+3. **Real-time Streaming:** Server-Sent Events for message streaming
+4. **Cross-Platform Builds:** Android, Desktop, PWA builds
 
 ### 🧪 Testing Strategy
 
