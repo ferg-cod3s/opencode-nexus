@@ -351,7 +351,6 @@ impl OnboardingManager {
     pub fn skip_onboarding(&self) -> Result<()> {
         let config = OnboardingConfig {
             is_completed: true,
-            opencode_server_path: None,
             owner_account_created: false,
             owner_username: None,
             created_at: chrono::Utc::now(),
