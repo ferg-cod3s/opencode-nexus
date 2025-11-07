@@ -1,5 +1,7 @@
 # AGENTS.md – OpenCode Nexus Agent Guidelines
 
+**Quick Reference** for AI agents working on OpenCode Nexus. For comprehensive development guidance, architecture details, and project status, see **[CLAUDE.md](CLAUDE.md)**.
+
 ## Build/Lint/Test Commands
 
 **Frontend (Astro + Svelte + TypeScript):**
@@ -37,5 +39,13 @@
 - **TDD Required:** Write failing tests before implementation
 - **Security First:** All inputs validated, secure password storage
 - **Accessibility:** WCAG 2.2 AA compliance mandatory
-- **No Comments:** Do not add comments unless explicitly requested</content>
+- **No Comments:** Do not add comments unless explicitly requested
+
+## Project Context
+
+**Architecture**: Mobile-first client for connecting to OpenCode servers (NOT server management)
+**Status**: 15% complete - Client pivot in progress (see [status_docs/CURRENT_STATUS.md](status_docs/CURRENT_STATUS.md))
+**Documentation**: See [CLAUDE.md](CLAUDE.md) for comprehensive development guide
+**Tasks**: See [status_docs/TODO.md](status_docs/TODO.md) for current implementation plan
+**Client Docs**: See [docs/client/](docs/client/) for architecture and design details</content>
 <parameter name="filePath">AGENTS.md

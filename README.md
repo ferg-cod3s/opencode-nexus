@@ -141,8 +141,10 @@ opencode-nexus/
 ├── frontend/                 # Astro + Svelte frontend (Bun)
 ├── src-tauri/               # Tauri Rust backend
 ├── docs/                    # Project documentation
+├── status_docs/             # Project status and tracking
+│   ├── TODO.md              # Task tracking
+│   └── CURRENT_STATUS.md    # Detailed status
 ├── README.md                # This file
-├── TODO.md                  # Task tracking
 ├── CHANGELOG.md             # Version history
 └── LICENSE                  # Project license
 ```
