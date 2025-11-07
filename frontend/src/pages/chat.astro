@@ -1,9 +1,13 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
 ---
 
 <Layout title="OpenCode Nexus - Chat">
   <main class="chat-container">
+    <!-- Global Status Banner: Offline, Syncing, Errors, Queued Messages -->
+    <GlobalOfflineBanner client:load />
+
     <!-- Main Navigation Header -->
     <header class="dashboard-header">
       <div class="header-content">
