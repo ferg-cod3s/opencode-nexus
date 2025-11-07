@@ -1,5 +1,4 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
-import { describe, test, expect, beforeEach, afterEach, mock } from 'jest';
 import { JSDOM } from 'jsdom';
 
 // Mock Tauri API

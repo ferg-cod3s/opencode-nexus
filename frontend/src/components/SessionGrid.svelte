@@ -6,6 +6,11 @@
   export let sessions: ChatSession[] = [];
   export let activeSessionId: string | null = null;
   export let loading = false;
+  
+  // Callback props for imperative mounting (optional)
+  export let onCreateSession: (() => void) | undefined = undefined;
+  export let onSelectSession: ((session: ChatSession) => void) | undefined = undefined;
+  export let onDeleteSession: ((sessionId: string) => void) | undefined = undefined;
 
   const dispatch = createEventDispatcher<{
     createSession: void;
@@ -14,15 +19,27 @@
   }>();
 
   function handleCreateSession() {
-    dispatch('createSession');
+    if (onCreateSession) {
+      onCreateSession();
+    } else {
+      dispatch('createSession');
+    }
   }
 
   function handleSelectSession(event: CustomEvent<{ session: ChatSession }>) {
-    dispatch('selectSession', event.detail);
+    if (onSelectSession) {
+      onSelectSession(event.detail.session);
+    } else {
+      dispatch('selectSession', event.detail);
+    }
   }
 
   function handleDeleteSession(event: CustomEvent<{ sessionId: string }>) {
-    dispatch('deleteSession', event.detail);
+    if (onDeleteSession) {
+      onDeleteSession(event.detail.sessionId);
+    } else {
+      dispatch('deleteSession', event.detail);
+    }
   }
 </script>
 

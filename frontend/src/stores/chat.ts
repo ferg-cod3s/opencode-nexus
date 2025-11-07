@@ -39,15 +39,17 @@ function createActiveSessionStore() {
   return {
     subscribe,
     setSession: (session: ChatSession | null) => set(session),
-    addMessage: (message: ChatMessage) => {
-      update(session => {
-        if (!session) return session;
-        return {
-          ...session,
-          messages: [...session.messages, message]
-        };
-      });
-    },
+  addMessage: (message: ChatMessage) => {
+    update(session => {
+      if (!session) return session;
+      const newSession = {
+        ...session,
+        messages: [...session.messages, message]
+      };
+      console.log('✅ Store: addMessage called, old count:', session.messages.length, 'new count:', newSession.messages.length);
+      return newSession;
+    });
+  },
     updateLastMessage: (updates: Partial<ChatMessage>) => {
       update(session => {
         if (!session || session.messages.length === 0) return session;
@@ -326,6 +328,8 @@ export const chatActions = {
     messageSender: (sessionId: string, content: string) => Promise<void>
   ) => {
     const activeSession = get(activeSessionStore);
+    console.log('📤 chatActions.sendMessage: Starting, activeSession:', activeSession?.id);
+    
     if (!activeSession) {
       chatStateStore.setError('No active session');
       return;
@@ -341,6 +345,7 @@ export const chatActions = {
       timestamp: new Date().toISOString()
     };
 
+    console.log('📤 chatActions.sendMessage: Adding user message to store:', userMessage);
     activeSessionStore.addMessage(userMessage);
     compositionStore.clearDraft();
 

@@ -4,9 +4,15 @@
   import MessageInput from './MessageInput.svelte';
   import OfflineIndicator from './OfflineIndicator.svelte';
   import type { ChatSession, ChatMessage } from '../types/chat';
+  import { activeSessionStore, chatStateStore } from '../stores/chat';
 
-  export let session: ChatSession;
+  // Accept external session prop OR use store
+  export let session: ChatSession | undefined = undefined;
   export let loading = false;
+  
+  // Callback props for imperative mounting (optional)
+  export let onSendMessage: ((content: string) => void) | undefined = undefined;
+  export let onClose: (() => void) | undefined = undefined;
 
   const dispatch = createEventDispatcher<{
     sendMessage: { content: string };
@@ -14,6 +20,10 @@
     navigateMessage: { direction: 'prev' | 'next' };
     refresh: void;
   }>();
+
+  // Use external prop if provided, otherwise subscribe to store
+  $: activeSession = session !== undefined ? session : $activeSessionStore;
+  $: isLoading = loading || $chatStateStore.loading;
 
   let messagesContainer: HTMLElement;
   let autoScroll = true;
@@ -40,7 +50,7 @@
   const SWIPE_THRESHOLD = 50;
   const PULL_THRESHOLD = 80;
 
-  $: if (messagesContainer && autoScroll) {
+  $: if (messagesContainer && autoScroll && activeSession) {
     // Auto-scroll to bottom when new messages arrive
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
@@ -61,11 +71,21 @@
   }
 
   function handleSendMessage(content: string) {
-    dispatch('sendMessage', { content });
+    // Use callback if provided, otherwise dispatch event
+    if (onSendMessage) {
+      onSendMessage(content);
+    } else {
+      dispatch('sendMessage', { content });
+    }
   }
 
   function handleClose() {
-    dispatch('close');
+    // Use callback if provided, otherwise dispatch event
+    if (onClose) {
+      onClose();
+    } else {
+      dispatch('close');
+    }
   }
 
   function handleScroll() {
@@ -195,10 +215,11 @@
     </div>
   {/if}
 
+  {#if activeSession}
   <header class="chat-header">
     <div class="session-info">
-      <h3 class="session-title" data-testid="current-session-title">{session.title || 'Untitled Session'}</h3>
-      <span class="message-count">{session.messages.length} messages</span>
+      <h3 class="session-title" data-testid="current-session-title">{activeSession.title || 'Untitled Session'}</h3>
+      <span class="message-count">{activeSession.messages.length} messages</span>
     </div>
     <button
       class="close-btn"
@@ -237,7 +258,7 @@
       </div>
     {/each}
 
-    {#if loading}
+    {#if isLoading}
       <div class="loading-indicator" data-testid="typing-indicator" aria-live="polite">
         <div class="typing-dots" aria-hidden="true">
           <span></span>
@@ -258,6 +279,7 @@
     disabled={loading || isRefreshing}
     onSend={handleSendMessage}
   />
+  {/if}
 </div>
 
 <style>

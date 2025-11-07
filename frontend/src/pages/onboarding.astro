@@ -1,6 +1,5 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import { invoke } from '../utils/tauri-api';
 ---
 
 <Layout title="OpenCode Nexus - Setup">
@@ -31,14 +30,496 @@ import { invoke } from '../utils/tauri-api';
 
       <div class="onboarding-actions">
         <button id="prev-btn" class="btn btn-secondary" disabled>Previous</button>
-        <button id="next-btn" class="btn btn-primary">Next</button>
+        <button id="next-btn" class="btn btn-primary" data-action="next">Next</button>
         <button id="skip-btn" class="btn btn-link">Skip</button>
       </div>
     </div>
   </main>
 </Layout>
 
+<script>
+  import { invoke } from '../utils/tauri-api';
+
+  declare global {
+    interface Window {
+      onboardingWizard?: any;
+    }
+  }
+
+class OnboardingWizard {
+  private currentStep: number = 1;
+  private steps: string[] = ['requirements', 'server', 'security'];
+  private onboardingState: any = null;
+  private requirementsChecked: boolean = false;
+
+    constructor() {
+      console.log('OnboardingWizard constructor called');
+      this.init();
+    }
+
+    private async init() {
+      try {
+        // Get initial onboarding state
+        this.onboardingState = await invoke('get_onboarding_state');
+        console.log('Onboarding state:', this.onboardingState);
+
+        // If already completed, redirect to dashboard
+        if (this.onboardingState.config && this.onboardingState.config.is_completed) {
+          window.location.href = '/';
+          return;
+        }
+
+        // Automatically check requirements on load
+        await this.checkRequirements();
+
+        this.setupEventListeners();
+        this.updateUI();
+      } catch (error) {
+        console.error('Failed to initialize onboarding:', error);
+        this.showError('Failed to initialize onboarding wizard');
+      }
+    }
+
+    private setupEventListeners() {
+      // Use event delegation for static buttons
+      document.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+
+        if (target.matches('#next-btn, [data-action="next"]')) {
+          this.nextStep();
+        } else if (target.matches('#prev-btn')) {
+          this.previousStep();
+        } else if (target.matches('#skip-btn')) {
+          this.skipOnboarding();
+        }
+      });
+
+      // Dynamic buttons are handled in attachButtonListeners()
+    }
+
+    private updateUI() {
+      this.updateProgress();
+      this.updateStepContent();
+      this.updateButtons();
+    }
+
+    private updateProgress() {
+      const progressFill = document.getElementById('progress-fill');
+      if (progressFill) {
+        const progress = ((this.currentStep - 1) / this.steps.length) * 100;
+        progressFill.style.width = `${progress}%`;
+      }
+
+      // Update step indicators
+      console.log('Updating progress - current step:', this.currentStep);
+      const stepElements = document.querySelectorAll('.step');
+      console.log('Found step elements:', stepElements.length);
+      stepElements.forEach((step, index) => {
+        const stepElement = step as HTMLElement;
+        const stepName = this.steps[index];
+        console.log(`Step ${index + 1} (${stepName}): current=${this.currentStep}`);
+        if (index + 1 === this.currentStep) {
+          stepElement.classList.add('active');
+          console.log(`Added active class to step ${index + 1}`);
+        } else if (index + 1 < this.currentStep) {
+          stepElement.classList.add('completed');
+          stepElement.classList.remove('active');
+        } else {
+          stepElement.classList.remove('active', 'completed');
+        }
+      });
+    }
+
+    private updateStepContent() {
+      const bodyElement = document.getElementById('onboarding-body');
+      if (!bodyElement) return;
+
+      const stepContent = this.getStepContent(this.steps[this.currentStep - 1]);
+      bodyElement.innerHTML = stepContent;
+
+      // Attach event listeners to dynamically created buttons
+      this.attachButtonListeners();
+    }
+
+    private attachButtonListeners() {
+      const checkBtn = document.getElementById('check-requirements-btn');
+      if (checkBtn) {
+        checkBtn.addEventListener('click', () => this.checkRequirements());
+      }
+
+      const setupBtn = document.querySelector('[data-action="setup-server"]');
+      if (setupBtn) {
+        setupBtn.addEventListener('click', () => this.setupServer());
+      }
+
+      const completeBtn = document.querySelector('[data-action="complete"]');
+      if (completeBtn) {
+        completeBtn.addEventListener('click', () => this.completeSetup());
+      }
+    }
+
+    private getStepContent(step: string): string {
+      switch (step) {
+        case 'requirements':
+          return this.getRequirementsStep();
+        case 'server':
+          return this.getServerStep();
+        case 'security':
+          return this.getSecurityStep();
+        default:
+          return '';
+      }
+    }
+
+    private getRequirementsStep(): string {
+      const reqs = this.onboardingState?.system_requirements || {};
+      const hasCheckedRequirements = this.requirementsChecked;
+
+      return `
+        <div class="step-content active" data-step="requirements">
+          <h2>System Requirements Check</h2>
+          <p>Let's verify your system can run OpenCode AI.</p>
+
+          <div class="requirements-list">
+            <div class="requirement-item">
+              ${hasCheckedRequirements ? `<span class="status-icon ${reqs.os_compatible ? 'success' : 'error'}">
+                ${reqs.os_compatible ? '✓' : '✗'}
+              </span>` : '<span class="status-icon pending">○</span>'}
+              <span>Operating System: ${hasCheckedRequirements ? (reqs.os_compatible ? 'Compatible' : 'Incompatible') : 'Checking...'}</span>
+            </div>
+            <div class="requirement-item">
+              ${hasCheckedRequirements ? `<span class="status-icon ${reqs.memory_sufficient ? 'success' : 'error'}">
+                ${reqs.memory_sufficient ? '✓' : '✗'}
+              </span>` : '<span class="status-icon pending">○</span>'}
+              <span>Memory: ${hasCheckedRequirements ? (reqs.memory_sufficient ? 'Sufficient' : 'Insufficient') : 'Checking...'}</span>
+            </div>
+            <div class="requirement-item">
+              ${hasCheckedRequirements ? `<span class="status-icon ${reqs.disk_space_sufficient ? 'success' : 'error'}">
+                ${reqs.disk_space_sufficient ? '✓' : '✗'}
+              </span>` : '<span class="status-icon pending">○</span>'}
+              <span>Disk Space: ${hasCheckedRequirements ? (reqs.disk_space_sufficient ? 'Available' : 'Insufficient') : 'Checking...'}</span>
+            </div>
+            <div class="requirement-item">
+              ${hasCheckedRequirements ? `<span class="status-icon ${reqs.network_available ? 'success' : 'error'}">
+                ${reqs.network_available ? '✓' : '✗'}
+              </span>` : '<span class="status-icon pending">○</span>'}
+              <span>Network: ${hasCheckedRequirements ? (reqs.network_available ? 'Available' : 'Unavailable') : 'Checking...'}</span>
+            </div>
+          </div>
+
+          <button id="check-requirements-btn" data-action="check-requirements" class="btn btn-primary">
+            ${hasCheckedRequirements ? 'Requirements Checked' : 'Check Requirements'}
+          </button>
+        </div>
+      `;
+    }
+
+    private getServerStep(): string {
+      return `
+        <div class="step-content active" data-step="server">
+          <h2>Server Setup</h2>
+          <p>Configure your OpenCode AI server.</p>
+
+          <div class="server-options">
+            <label class="option-item">
+              <input type="radio" id="auto-download" name="server-option" value="auto" checked>
+              <div class="option-content">
+                <strong>Auto-Download & Install</strong>
+                <p>Automatically download and set up OpenCode AI server</p>
+              </div>
+            </label>
+            <label class="option-item">
+              <input type="radio" id="manual-path" name="server-option" value="manual">
+              <div class="option-content">
+                <strong>Use Existing Installation</strong>
+                <p>Specify path to existing OpenCode AI server</p>
+              </div>
+            </label>
+          </div>
+
+          <button data-action="setup-server" class="btn btn-primary">
+            Set Up Server
+          </button>
+        </div>
+      `;
+    }
+
+    private getSecurityStep(): string {
+      return `
+        <div class="step-content active" data-step="security">
+          <h2>Account Setup</h2>
+          <p>Create your administrator account.</p>
+
+          <form class="security-form">
+            <div class="form-group">
+              <label for="username">Username</label>
+              <input type="text" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+              <label for="password">Password</label>
+              <input type="password" id="password" name="password" required>
+            </div>
+            <div class="form-group">
+              <label for="confirm-password">Confirm Password</label>
+              <input type="password" id="confirm-password" name="confirm-password" required>
+            </div>
+          </form>
+
+          <button data-action="complete" class="btn btn-primary">
+            Complete Setup
+          </button>
+        </div>
+      `;
+    }
+
+    private updateButtons() {
+      const prevBtn = document.getElementById('prev-btn') as HTMLButtonElement;
+      const nextBtn = document.getElementById('next-btn') as HTMLButtonElement;
+
+      if (prevBtn) {
+        prevBtn.disabled = this.currentStep === 1;
+      }
+
+      if (nextBtn) {
+        nextBtn.disabled = this.currentStep === this.steps.length;
+        nextBtn.textContent = this.currentStep === this.steps.length ? 'Complete' : 'Next';
+      }
+    }
+
+    private async checkRequirements() {
+      try {
+        // Re-check system requirements
+        const updatedState = await invoke('get_onboarding_state');
+        this.onboardingState = updatedState;
+        this.requirementsChecked = true;
+
+        // Update UI
+        this.updateStepContent();
+
+        // Enable next button
+        const nextBtn = document.getElementById('next-btn') as HTMLButtonElement;
+        if (nextBtn) {
+          nextBtn.disabled = false;
+        }
+      } catch (error) {
+        console.error('Failed to check requirements:', error);
+        this.showError('Failed to check system requirements');
+      }
+    }
+
+    private async setupServer() {
+      try {
+        const autoDownload = (document.getElementById('auto-download') as HTMLInputElement)?.checked;
+
+        if (autoDownload) {
+          // Auto-setup server
+          await invoke('setup_opencode_server', {});
+        }
+
+        // Move to next step
+        this.nextStep();
+
+        // Small delay to ensure UI updates
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        console.error('Failed to setup server:', error);
+        this.showError('Failed to setup server');
+      }
+    }
+
+    private async completeSetup() {
+      try {
+        const username = (document.getElementById('username') as HTMLInputElement)?.value;
+        const password = (document.getElementById('password') as HTMLInputElement)?.value;
+        const confirmPassword = (document.getElementById('confirm-password') as HTMLInputElement)?.value;
+
+        if (!username || !password) {
+          this.showError('Please fill in all fields');
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          this.showError('Passwords do not match');
+          return;
+        }
+
+        // Create owner account
+        await invoke('create_owner_account', {
+          username,
+          password
+        });
+
+        // Complete onboarding (this will mark it as done)
+        await invoke('complete_onboarding', {
+          opencodeServerPath: null // No specific path for auto-setup
+        });
+
+        // Redirect to dashboard
+        window.location.href = '/';
+      } catch (error) {
+        console.error('Failed to complete setup:', error);
+        this.showError('Failed to complete setup');
+      }
+    }
+
+    private nextStep() {
+      if (this.currentStep < this.steps.length) {
+        this.currentStep++;
+        this.updateUI();
+      }
+    }
+
+    private previousStep() {
+      if (this.currentStep > 1) {
+        this.currentStep--;
+        this.updateUI();
+      }
+    }
+
+    private async skipOnboarding() {
+      try {
+        // Mark onboarding as completed without full setup
+        await invoke('skip_onboarding');
+        window.location.href = '/';
+      } catch (error) {
+        console.error('Failed to skip onboarding:', error);
+        this.showError('Failed to skip onboarding');
+      }
+    }
+
+    private showError(message: string) {
+      // Simple error display - could be enhanced
+      alert(`Error: ${message}`);
+    }
+  }
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', () => {
+    window.onboardingWizard = new OnboardingWizard();
+  });
+} else {
+  window.onboardingWizard = new OnboardingWizard();
+}
+</script>
+
 <style>
+  .step-content {
+    display: none;
+  }
+
+  .step-content.active {
+    display: block;
+  }
+
+  .step-content h2 {
+    font-size: 1.5rem;
+    color: hsl(220, 90%, 25%);
+    margin-bottom: 1rem;
+  }
+
+  .step-content p {
+    color: hsl(220, 20%, 60%);
+    margin-bottom: 2rem;
+    line-height: 1.5;
+  }
+
+  .requirements-list {
+    margin-bottom: 2rem;
+  }
+
+  .requirement-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid hsl(0, 0%, 95%);
+  }
+
+  .requirement-item:last-child {
+    border-bottom: none;
+  }
+
+  .status-icon {
+    font-size: 1.25rem;
+    font-weight: bold;
+  }
+
+  .status-icon.success {
+    color: hsl(120, 50%, 50%);
+  }
+
+  .status-icon.error {
+    color: hsl(0, 70%, 50%);
+  }
+
+  .status-icon.pending {
+    color: hsl(220, 20%, 60%);
+  }
+
+  .server-options {
+    margin-bottom: 2rem;
+  }
+
+  .option-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    border: 2px solid hsl(0, 0%, 90%);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+  }
+
+  .option-item:hover {
+    border-color: hsl(220, 90%, 60%);
+  }
+
+  .option-item input[type="radio"] {
+    margin-top: 0.25rem;
+  }
+
+  .option-content strong {
+    display: block;
+    color: hsl(220, 90%, 25%);
+    margin-bottom: 0.5rem;
+  }
+
+  .option-content p {
+    color: hsl(220, 20%, 60%);
+    margin: 0;
+  }
+
+  .security-form {
+    margin-bottom: 2rem;
+  }
+
+  .security-form .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .security-form label {
+    display: block;
+    font-weight: 500;
+    color: hsl(220, 90%, 25%);
+    margin-bottom: 0.5rem;
+  }
+
+  .security-form input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid hsl(0, 0%, 90%);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+  }
+
+  .security-form input:focus {
+    outline: none;
+    border-color: hsl(220, 90%, 60%);
+  }
+
   .onboarding-container {
     min-height: 100vh;
     background: hsl(220, 20%, 98%);
@@ -311,10 +792,8 @@ import { invoke } from '../utils/tauri-api';
   }
 </style>
 
-<script>
-  // Import required modules
-  import { invoke } from '../utils/tauri-api';
 
+<<<<<<< HEAD
   // Onboarding state
   let currentStep = 1;
   const totalSteps = 6;

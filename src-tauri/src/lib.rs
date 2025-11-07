@@ -176,6 +176,31 @@ async fn complete_onboarding() -> Result<(), String> {
 
 
 
+    Ok(())
+}
+
+#[tauri::command]
+async fn skip_onboarding() -> Result<(), String> {
+    log_info!("🚀 [ONBOARDING] Skipping onboarding...");
+
+    let manager = OnboardingManager::new().map_err(|e| {
+        format!("Failed to initialize onboarding manager: {}", e)
+    })?;
+
+    // Mark onboarding as completed without full setup
+    manager.skip_onboarding().map_err(|e| {
+        format!("Failed to skip onboarding: {}", e)
+    })
+}
+
+// App management commands
+#[tauri::command]
+async fn get_app_info(app_handle: tauri::AppHandle) -> Result<crate::server_manager::AppInfo, String> {
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("opencode-nexus");
+
+
 // SECURITY: create_user command removed to prevent unauthorized account creation
 // Desktop applications should use owner-only authentication, not public registration
 
@@ -595,6 +620,8 @@ pub fn run() {
             // Onboarding commands
             get_onboarding_state,
             complete_onboarding,
+            setup_opencode_server,
+            skip_onboarding,
             check_system_requirements,
             create_owner_account, // Secure owner account creation during onboarding only
             // Authentication commands

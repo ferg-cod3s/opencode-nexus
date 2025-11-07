@@ -31,6 +31,112 @@ import Layout from '../layouts/Layout.astro';
   </main>
 </Layout>
 
+<script>
+  import ChatInterface from '../components/ChatInterface.svelte';
+  import { chatStore } from '../stores/chat';
+  import { invoke } from '@tauri-apps/api/core';
+
+  // Initialize chat system
+  async function initializeChat() {
+    try {
+      console.log('🔍 Chat: Initializing chat system...');
+
+      // Display username from sessionStorage
+      const username = sessionStorage.getItem('username') || 'User';
+      const usernameDisplay = document.getElementById('username-display');
+      if (usernameDisplay) {
+        usernameDisplay.textContent = username;
+      }
+
+      // Set up logout functionality
+      const logoutButton = document.getElementById('logout-button');
+      if (logoutButton) {
+        logoutButton.addEventListener('click', async () => {
+          try {
+            await invoke('logout_user');
+            sessionStorage.clear();
+            window.location.href = '/login';
+          } catch (error) {
+            console.error('Logout failed:', error);
+            // Force logout on client side
+            sessionStorage.clear();
+            window.location.href = '/login';
+          }
+        });
+      }
+
+      // Initialize chat stores
+      await chatStore.actions.initialize();
+
+      // Load existing sessions
+      await chatStore.actions.loadSessions(async () => {
+        try {
+          const sessions = await invoke('get_chat_sessions');
+          return sessions;
+        } catch (error) {
+          console.warn('Failed to load chat sessions:', error);
+          return [];
+        }
+      });
+
+      // Mount ChatInterface component
+      const chatRoot = document.getElementById('chat-root');
+      if (chatRoot) {
+        // Remove loading state
+        const loadingState = document.getElementById('loading-state');
+        if (loadingState) {
+          loadingState.remove();
+        }
+
+        // Create and mount the chat interface
+        const chatInterface = new ChatInterface({
+          target: chatRoot,
+          props: {
+            onSendMessage: async (content: string) => {
+              await chatStore.actions.sendMessage(content, async (sessionId: string, messageContent: string) => {
+                await invoke('send_chat_message', { sessionId, content: messageContent });
+              });
+            },
+            onClose: () => {
+              // Handle session close if needed
+              console.log('Chat session closed');
+            }
+          }
+        });
+
+        console.log('🔍 Chat: ChatInterface component mounted successfully');
+      } else {
+        console.error('🔍 Chat: Could not find #chat-root element');
+      }
+
+    } catch (error) {
+      console.error('🔍 Chat: Failed to initialize chat system:', error);
+
+      // Show error state
+      const chatRoot = document.getElementById('chat-root');
+      if (chatRoot) {
+        chatRoot.innerHTML = `
+          <div class="error-state">
+            <h2>Chat Unavailable</h2>
+            <p>Failed to initialize chat system. Please check your OpenCode server connection.</p>
+            <button onclick="window.location.reload()">Retry</button>
+          </div>
+        `;
+      }
+    }
+  }
+
+  // Initialize when page loads
+  document.addEventListener('DOMContentLoaded', () => {
+    initializeChat();
+  });
+
+  // Also try immediate initialization
+  if (document.readyState !== 'loading') {
+    initializeChat();
+  }
+</script>
+
 <style>
   .chat-container {
     height: 100vh;
@@ -303,6 +409,7 @@ import Layout from '../layouts/Layout.astro';
     initializeChat();
   }
 </script>
+<script src="../chat.ts"></script>
 
 <style is:global>
   .app-layout {
@@ -379,6 +486,44 @@ import Layout from '../layouts/Layout.astro';
       padding: 0.75rem 1rem;
       font-size: 0.875rem;
     }
+  }
+
+  .error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 2rem;
+    text-align: center;
+    color: hsl(220, 15%, 20%);
+  }
+
+  .error-state h2 {
+    color: hsl(0, 70%, 50%);
+    margin-bottom: 1rem;
+    font-size: 1.5rem;
+  }
+
+  .error-state p {
+    margin-bottom: 2rem;
+    color: hsl(220, 20%, 60%);
+    max-width: 400px;
+  }
+
+  .error-state button {
+    padding: 0.75rem 1.5rem;
+    background: hsl(220, 90%, 60%);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+  }
+
+  .error-state button:hover {
+    background: hsl(220, 90%, 50%);
   }
 
   /* High Contrast Mode */

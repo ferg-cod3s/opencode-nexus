@@ -1,5 +1,11 @@
 # OpenCode Nexus
 
+[![Build Status](https://github.com/opencode-nexus/opencode-nexus/workflows/Quality%20Gate/badge.svg)](https://github.com/opencode-nexus/opencode-nexus/actions/workflows/quality-gate.yml)
+[![Security Scan](https://github.com/opencode-nexus/opencode-nexus/workflows/Security%20Scan/badge.svg)](https://github.com/opencode-nexus/opencode-nexus/actions/workflows/security-scan.yml)
+[![License Check](https://github.com/opencode-nexus/opencode-nexus/workflows/License%20Check/badge.svg)](https://github.com/opencode-nexus/opencode-nexus/actions/workflows/license-check.yml)
+[![codecov](https://codecov.io/gh/opencode-nexus/opencode-nexus/branch/main/graph/badge.svg)](https://codecov.io/gh/opencode-nexus/opencode-nexus)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A secure, cross-platform client application for connecting to OpenCode servers started with `opencode serve`, powered by Tauri v2 (Rust), Astro + Svelte (Bun), and real-time API integration.
 
 ## 🚀 Features
@@ -84,6 +90,37 @@ cd ..
 cargo tauri build
 ```
 
+## 📦 Release Process
+
+OpenCode Nexus uses automated releases via GitHub Actions.
+
+### For Users
+
+Download the latest release for your platform:
+- **Linux:** `.AppImage` (universal) or `.deb` (Debian/Ubuntu)
+- **macOS:** `.dmg` (Intel and Apple Silicon)
+- **Windows:** `.msi` installer or `.exe` portable
+
+Visit the [Releases page](https://github.com/opencode-nexus/opencode-nexus/releases) to download.
+
+### For Maintainers
+
+Releases are automatically built and published when a version tag is pushed:
+
+```bash
+# Create and push a version tag
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+This triggers the release workflow which:
+1. Builds cross-platform binaries (Linux, macOS, Windows)
+2. Runs all quality gates and security scans
+3. Creates a GitHub Release with all assets
+4. Generates checksums for verification
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#release-process) for detailed release guidelines.
+
 ## 📚 Documentation
 
 Comprehensive documentation is available in the `/docs/client/` directory:
@@ -149,9 +186,35 @@ OpenCode Nexus is built with security by design:
 - **Data Privacy:** Local data storage with encryption, no data sharing without consent
 - **Audit Logging:** Comprehensive activity logging and monitoring
 
+### Reporting Security Vulnerabilities
+
+We take security seriously. If you discover a security vulnerability, please report it responsibly:
+
+1. **Do NOT** open a public GitHub issue
+2. Report via [GitHub Security Advisories](https://github.com/opencode-nexus/opencode-nexus/security/advisories/new)
+3. Or email: security@opencode-nexus.example.com
+
+For detailed information, see our [Security Policy](docs/SECURITY.md#15-vulnerability-reporting-process).
+
+**Response Timeline:**
+- Initial response: Within 48 hours
+- Status update: Within 7 days
+- Fix timeline: Based on severity (critical: 7 days, high: 30 days, medium: 90 days)
+
 ## 🤝 Contributing
 
 We welcome contributions from the community! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
+
+### CI/CD Pipeline
+
+This project uses automated workflows to ensure code quality and security:
+
+- **Quality Gate:** Runs on all PRs - linting, testing, coverage checks, builds
+- **Security Scan:** Automated vulnerability scanning (Trivy, CodeQL, audit tools)
+- **License Check:** Ensures all dependencies comply with approved licenses
+- **Release Build:** Automated cross-platform builds on version tags
+
+All checks must pass before code can be merged. See [CONTRIBUTING.md](CONTRIBUTING.md#cicd-pipeline) for details.
 
 ### Development Standards
 

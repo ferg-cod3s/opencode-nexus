@@ -1,0 +1,50 @@
+header:
+  license:
+    spdx-id: MIT
+    copyright-owner: OpenCode Nexus Contributors
+
+  paths-ignore:
+    - '**/*.md'
+    - '**/*.json'
+    - '**/*.yml'
+    - '**/*.yaml'
+    - '**/*.toml'
+    - '**/*.lock'
+    - '**/*.lockb'
+    - '**/dist/**'
+    - '**/target/**'
+    - '**/node_modules/**'
+    - '**/coverage/**'
+    - '**/.github/**'
+    - '**/icons/**'
+    - '**/public/**'
+
+  comment: on-failure
+
+dependency:
+  licenses:
+    - name: MIT
+      category: approved
+    - name: Apache-2.0
+      category: approved
+    - name: BSD-2-Clause
+      category: approved
+    - name: BSD-3-Clause
+      category: approved
+    - name: ISC
+      category: approved
+    - name: 0BSD
+      category: approved
+    - name: Unlicense
+      category: approved
+    - name: CC0-1.0
+      category: approved
+    - name: MPL-2.0
+      category: restricted
+      note: "Mozilla Public License requires attribution"
+    - name: GPL-3.0
+      category: forbidden
+      note: "GPL-3.0 is incompatible with proprietary distribution"
+    - name: AGPL-3.0
+      category: forbidden
+      note: "AGPL-3.0 requires open-sourcing all code"
