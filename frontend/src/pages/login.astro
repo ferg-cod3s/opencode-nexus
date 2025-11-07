@@ -146,12 +146,30 @@ import Layout from '../layouts/Layout.astro';
   </main>
 
   <script>
+    // Sentry is automatically initialized via astro.config.mjs and sentry.client.config.ts
+    // Access Sentry through the global window object once it's loaded
+
+    // Helper function to safely access Sentry with fallback
+    function getSentry() {
+      return (window as any).Sentry || {
+        addBreadcrumb: () => {},
+        captureException: () => {},
+        setUser: () => {},
+        setContext: () => {}
+      };
+    }
+
     class LoginManager {
+      form: HTMLFormElement | null;
+      usernameField: HTMLInputElement | null;
+      passwordField: HTMLInputElement | null;
+      loginButton: HTMLButtonElement | null;
+
       constructor() {
-        this.form = document.getElementById('login-form');
-        this.usernameField = document.getElementById('username');
-        this.passwordField = document.getElementById('password');
-        this.loginButton = document.getElementById('login-button');
+        this.form = document.getElementById('login-form') as HTMLFormElement | null;
+        this.usernameField = document.getElementById('username') as HTMLInputElement | null;
+        this.passwordField = document.getElementById('password') as HTMLInputElement | null;
+        this.loginButton = document.getElementById('login-button') as HTMLButtonElement | null;
 
         console.log('🔍 LoginManager: Elements found:', {
           form: !!this.form,
@@ -171,42 +189,115 @@ import Layout from '../layouts/Layout.astro';
         this.form.addEventListener('submit', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          this.handleSubmit(e).catch(console.error);
+          this.handleSubmit(e).catch((error) => {
+            console.error('Login error:', error);
+            // Capture the error with Sentry for monitoring
+            getSentry().captureException(error, { contexts: { custom: { context: 'login_submission' } } });
+          });
           return false;
         });
       }
 
-      async handleSubmit(event) {
+      async handleSubmit(event: any) {
         event.preventDefault();
 
-        const username = this.usernameField.value.trim();
-        const password = this.passwordField.value;
+        const sentry = getSentry();
 
-        // Simple validation
-        if (!username || !password) {
-          this.showLoginError('Username and password are required');
-          return;
-        }
+        try {
+          const username = this.usernameField ? this.usernameField.value.trim() : '';
+          const password = this.passwordField ? this.passwordField.value : '';
 
-        // Mock authentication - always fail for invalid credentials test
-        if (username === 'testuser' && password === 'SecurePass123!') {
-          this.showAlert('Login successful! Redirecting to dashboard...', 'success');
+          // Add breadcrumb for debugging login attempts
+          sentry.addBreadcrumb({
+            message: `Login attempt for user: ${username}`,
+            category: 'authentication',
+            level: 'info'
+          });
 
-          // Store in sessionStorage for the test
-          sessionStorage.setItem('authenticated', 'true');
-          sessionStorage.setItem('username', username);
+          // Simple validation
+          if (!username || !password) {
+            const validationError = 'Username and password are required';
+            this.showLoginError(validationError);
 
-          setTimeout(() => {
-            window.location.href = '/dashboard';
-          }, 500);
-        } else {
-          this.showLoginError('Invalid credentials. Please check your username and password.');
+            // Log validation error to Sentry with context
+            sentry.addBreadcrumb({
+              message: validationError,
+              category: 'validation',
+              level: 'warning'
+            });
+            return;
+          }
+
+          // Mock authentication - always fail for invalid credentials test
+          if (username === 'testuser' && password === 'SecurePass123!') {
+            this.showAlert('Login successful! Redirecting to dashboard...', 'success');
+
+            // Set user context in Sentry for all subsequent errors
+            sentry.setUser({ id: username, username: username });
+
+            // Add breadcrumb for successful login
+            sentry.addBreadcrumb({
+              message: `Successful login for user: ${username}`,
+              category: 'authentication',
+              level: 'info'
+            });
+
+            // Store in sessionStorage for the test
+            sessionStorage.setItem('authenticated', 'true');
+            sessionStorage.setItem('username', username);
+
+            setTimeout(() => {
+              window.location.href = '/dashboard';
+            }, 500);
+          } else {
+            // Failed authentication - log to Sentry for monitoring
+            const authError = 'Invalid credentials. Please check your username and password.';
+            this.showLoginError(authError);
+
+            // Log failed login attempt to Sentry with context
+            sentry.addBreadcrumb({
+              message: `Failed login attempt for user: ${username}`,
+              category: 'authentication',
+              level: 'warning'
+            });
+
+            // Capture the authentication failure with context
+            sentry.captureException(new Error(`Authentication failed for user: ${username}`), {
+              contexts: {
+                custom: {
+                  username,
+                  timestamp: new Date().toISOString(),
+                  context: 'failed_login_attempt'
+                }
+              }
+            });
+          }
+        } catch (error) {
+          // Handle unexpected errors during login
+          const errorMessage = error instanceof Error ? error.message : 'An unexpected error occurred during login';
+          this.showLoginError(errorMessage);
+
+          // Log unexpected error to Sentry
+          sentry.addBreadcrumb({
+            message: `Unexpected error during login: ${errorMessage}`,
+            category: 'error',
+            level: 'error'
+          });
+
+          sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+            contexts: {
+              custom: {
+                context: 'unexpected_login_error',
+                message: errorMessage
+              }
+            }
+          });
         }
       }
 
-      showAlert(message, type = 'info') {
+      showAlert(message: string, type: string = 'info') {
         const alertElement = document.getElementById('global-alert');
-        const messageElement = alertElement?.querySelector('.alert-message');
+        const messageElement = alertElement?.querySelector('.alert-message') as HTMLElement | null;
 
         if (!alertElement || !messageElement) {
           console.log('🔍 LoginManager: Alert elements not found');
@@ -229,7 +320,7 @@ import Layout from '../layouts/Layout.astro';
         }
       }
 
-      showLoginError(message) {
+      showLoginError(message: string) {
         const errorElement = document.getElementById('login-error');
         if (errorElement) {
           errorElement.textContent = message;
@@ -730,6 +821,9 @@ import Layout from '../layouts/Layout.astro';
 </style>
 
 <script>
+  // Sentry is automatically initialized via astro.config.mjs and sentry.client.config.ts
+  // Access Sentry through the global window object using getSentry() helper
+
   class LoginManager {
     private form: HTMLFormElement;
     private usernameField: HTMLInputElement;

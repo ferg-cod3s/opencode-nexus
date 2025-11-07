@@ -42,6 +42,17 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
 </Layout>
 
 <script>
+  // Sentry is automatically initialized via astro.config.mjs and sentry.client.config.ts
+  // Helper function to safely access Sentry with fallback
+  function getSentry() {
+    return (window as any).Sentry || {
+      addBreadcrumb: () => {},
+      captureException: () => {},
+      setUser: () => {},
+      setContext: () => {}
+    };
+  }
+
   import ChatInterface from '../components/ChatInterface.svelte';
   import SessionPanel from '../components/SessionPanel.svelte';
   import { chatStore } from '../stores/chat';
@@ -78,6 +89,8 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
 
   // Initialize chat system
   async function initializeChat() {
+    const sentry = getSentry();
+
     try {
       console.log('🔍 Chat: Initializing chat system...');
 
@@ -92,6 +105,13 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
       const logoutButton = document.getElementById('logout-button');
       if (logoutButton) {
         logoutButton.addEventListener('click', async () => {
+          // Add breadcrumb for logout tracking
+          sentry.addBreadcrumb({
+            message: 'User initiating logout',
+            category: 'authentication',
+            level: 'info'
+          });
+
           // Clean up event listener
           if (eventListenerUnsubscribe) {
             eventListenerUnsubscribe();
@@ -99,11 +119,34 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
 
           try {
             await invoke('logout_user');
+
+            // Clear Sentry user context on logout
+            sentry.setUser(null);
+
+            // Add breadcrumb for successful logout
+            sentry.addBreadcrumb({
+              message: 'User logged out successfully',
+              category: 'authentication',
+              level: 'info'
+            });
+
             sessionStorage.clear();
             window.location.href = '/login';
           } catch (error) {
             console.error('Logout failed:', error);
-            // Force logout on client side
+
+            // Log logout error to Sentry
+            sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+              contexts: {
+                custom: {
+                  context: 'logout_error',
+                  message: error instanceof Error ? error.message : String(error)
+                }
+              }
+            });
+
+            // Force logout on client side anyway
+            sentry.setUser(null);
             sessionStorage.clear();
             window.location.href = '/login';
           }
@@ -113,12 +156,26 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
       // Initialize chat stores
       await chatStore.actions.initialize();
 
+      // Add breadcrumb for chat initialization start
+      sentry.addBreadcrumb({
+        message: 'Chat initialization started',
+        category: 'chat',
+        level: 'info'
+      });
+
       // Load existing sessions using new chat API
       await chatStore.actions.loadSessions(chatApiCallbacks.sessionLoader);
 
       // Set up real-time event listener
       eventListenerUnsubscribe = await initializeChatAPI(chatStore.actions.handleChatEvent);
       console.log('🔍 Chat: Real-time event listener initialized');
+
+      // Add breadcrumb for real-time listener
+      sentry.addBreadcrumb({
+        message: 'Real-time event listener initialized',
+        category: 'chat',
+        level: 'info'
+      });
 
       // Auto-create first session if no sessions exist
       const sessions = await chatApiCallbacks.sessionLoader();
@@ -129,8 +186,26 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
             chatApiCallbacks.sessionCreator
           );
           console.log('🔍 Chat: Auto-created first session:', newSession.id);
+
+          // Add breadcrumb for successful session creation
+          sentry.addBreadcrumb({
+            message: `Auto-created first chat session: ${newSession.id}`,
+            category: 'chat',
+            level: 'info'
+          });
         } catch (error) {
           console.warn('🔍 Chat: Failed to auto-create session (continuing anyway):', error);
+
+          // Log session creation error to Sentry but continue
+          sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+            contexts: {
+              custom: {
+                context: 'session_auto_creation_error',
+                message: error instanceof Error ? error.message : String(error),
+                severity: 'warning'
+              }
+            }
+          });
         }
       }
 
@@ -140,12 +215,44 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
 
       if (sessionsSidebar) {
         // Mount SessionPanel component in the sidebar
-        const sessionPanel = new SessionPanel({
-          target: sessionsSidebar
-        });
-        console.log('🔍 Chat: SessionPanel component mounted successfully');
+        try {
+          const sessionPanel = new SessionPanel({
+            target: sessionsSidebar
+          });
+          console.log('🔍 Chat: SessionPanel component mounted successfully');
+
+          // Add breadcrumb for successful component mount
+          sentry.addBreadcrumb({
+            message: 'SessionPanel component mounted',
+            category: 'chat',
+            level: 'info'
+          });
+        } catch (error) {
+          console.error('🔍 Chat: Failed to mount SessionPanel:', error);
+
+          // Log component mount error to Sentry
+          sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+            contexts: {
+              custom: {
+                context: 'component_mount_error',
+                component: 'SessionPanel',
+                message: error instanceof Error ? error.message : String(error)
+              }
+            }
+          });
+        }
       } else {
         console.error('🔍 Chat: Could not find #sessions-sidebar element');
+
+        // Log missing element error
+        sentry.captureException(new Error('Missing #sessions-sidebar element'), {
+          contexts: {
+            custom: {
+              context: 'missing_dom_element',
+              element: '#sessions-sidebar'
+            }
+          }
+        });
       }
 
       if (chatRoot) {
@@ -156,29 +263,111 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
         }
 
         // Create and mount the chat interface
-        const chatInterface = new ChatInterface({
-          target: chatRoot,
-          props: {
-            onSendMessage: async (content: string) => {
-              await chatStore.actions.sendMessage(
-                content,
-                chatApiCallbacks.messageSender
-              );
-            },
-            onClose: () => {
-              // Handle session close if needed
-              console.log('Chat session closed');
+        try {
+          const chatInterface = new ChatInterface({
+            target: chatRoot,
+            props: {
+              onSendMessage: async (content: string) => {
+                try {
+                  // Add breadcrumb for message send
+                  sentry.addBreadcrumb({
+                    message: `Sending message (${content.length} chars)`,
+                    category: 'chat',
+                    level: 'info'
+                  });
+
+                  await chatStore.actions.sendMessage(
+                    content,
+                    chatApiCallbacks.messageSender
+                  );
+                } catch (error) {
+                  console.error('Failed to send message:', error);
+
+                  // Log message send error to Sentry
+                  sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+                    contexts: {
+                      custom: {
+                        context: 'message_send_error',
+                        messageLength: content.length,
+                        message: error instanceof Error ? error.message : String(error)
+                      }
+                    }
+                  });
+                }
+              },
+              onClose: () => {
+                // Handle session close if needed
+                console.log('Chat session closed');
+
+                // Add breadcrumb for session close
+                sentry.addBreadcrumb({
+                  message: 'Chat session closed',
+                  category: 'chat',
+                  level: 'info'
+                });
+              }
+            }
+          });
+
+          console.log('🔍 Chat: ChatInterface component mounted successfully');
+
+          // Add breadcrumb for successful component mount
+          sentry.addBreadcrumb({
+            message: 'ChatInterface component mounted',
+            category: 'chat',
+            level: 'info'
+          });
+        } catch (error) {
+          console.error('🔍 Chat: Failed to mount ChatInterface:', error);
+
+          // Log component mount error to Sentry
+          sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+            contexts: {
+              custom: {
+                context: 'component_mount_error',
+                component: 'ChatInterface',
+                message: error instanceof Error ? error.message : String(error)
+              }
+            }
+          });
+
+          // Show error state
+          chatRoot.textContent = ''; // Clear existing content
+          chatRoot.appendChild(createErrorElement());
+        }
+      } else {
+        console.error('🔍 Chat: Could not find #chat-root element');
+
+        // Log missing element error
+        sentry.captureException(new Error('Missing #chat-root element'), {
+          contexts: {
+            custom: {
+              context: 'missing_dom_element',
+              element: '#chat-root'
             }
           }
         });
-
-        console.log('🔍 Chat: ChatInterface component mounted successfully');
-      } else {
-        console.error('🔍 Chat: Could not find #chat-root element');
       }
 
     } catch (error) {
       console.error('🔍 Chat: Failed to initialize chat system:', error);
+
+      // Capture the initialization error with full context
+      sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+        contexts: {
+          custom: {
+            context: 'chat_initialization_failed',
+            message: error instanceof Error ? error.message : String(error)
+          }
+        }
+      });
+
+      // Add breadcrumb for the failure
+      sentry.addBreadcrumb({
+        message: `Chat initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+        category: 'chat',
+        level: 'error'
+      });
 
       // Show error state safely using DOM methods
       const chatRoot = document.getElementById('chat-root');

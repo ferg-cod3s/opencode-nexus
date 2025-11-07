@@ -1,6 +1,7 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import svelte from '@astrojs/svelte';
+import sentry from '@sentry/astro';
 
 const cspDev = [
   "default-src 'self'",
@@ -43,7 +44,14 @@ function securityHeadersPlugin() {
 
 // https://astro.build/config
 export default defineConfig({
-  integrations: [svelte()],
+  integrations: [
+    svelte(),
+    sentry({
+      // Note: Configuration is now in sentry.client.config.ts and sentry.server.config.ts
+      // The authToken is still needed for source map uploads during build
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+    }),
+  ],
   server: {
     port: 1420,
     host: true
