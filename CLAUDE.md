@@ -163,18 +163,45 @@ opencode-nexus/
 - **[frontend/src/pages/login.astro](frontend/src/pages/login.astro)** - Authentication interface
 - **[src-tauri/Cargo.toml](src-tauri/Cargo.toml)** - Backend dependencies (Tauri, reqwest, tokio, etc.)
 
+## Task Management
+
+**CRITICAL**: Always keep status_docs/TODO.md synchronized with actual progress.
+
+### TodoWrite Tool Usage
+Use the TodoWrite tool to track all multi-step tasks:
+- **When to use**: Any task with 3+ steps or requiring coordination
+- **Update frequency**: Mark tasks complete IMMEDIATELY after finishing
+- **Format**: Use clear, actionable descriptions with "activeForm" for in-progress tasks
+
+### Task Update Protocol
+After completing ANY task:
+1. **Immediately** mark it complete in your todo list
+2. Update status_docs/TODO.md by marking `[x]` next to completed items
+3. Update status_docs/CURRENT_STATUS.md if completing a major phase/milestone
+4. Document any blockers or new tasks discovered during implementation
+
+### Example Workflow
+```bash
+# After completing a feature
+1. Mark todo as complete in TodoWrite
+2. Update TODO.md: change [ ] to [x]
+3. If phase complete: Update CURRENT_STATUS.md progress percentage
+4. Commit with detailed description of what was completed
+```
+
 ## Development Workflow
 
 ### 1. Planning Phase
 - Read implementation plan in `thoughts/plans/`
 - Review relevant documentation in `docs/`
-- Update status_docs/TODO.md with specific tasks using TodoWrite tool
+- Create todo list with TodoWrite tool for multi-step tasks
+- Update status_docs/TODO.md with specific tasks
 
 ### 2. TDD Implementation
 - Write failing tests first (MANDATORY)
 - Implement minimal code to pass tests
 - Refactor while keeping tests green
-- Update status_docs/TODO.md with completed tasks immediately after completion
+- **IMMEDIATELY** mark completed tasks in TodoWrite and status_docs/TODO.md
 
 ### 3. Quality Assurance
 - Run all tests (`cargo test` + `cd frontend && bun test`)
