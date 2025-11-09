@@ -1,6 +1,24 @@
+/**
+ * @deprecated This file is deprecated after client pivot.
+ *
+ * OpenCode Nexus is now a CLIENT application that CONNECTS to OpenCode servers,
+ * not a server management tool. These tests are for the old architecture where
+ * we managed server lifecycle (start/stop/restart).
+ *
+ * New Architecture:
+ * - Connects to remote OpenCode servers via connection_manager.rs
+ * - No server process management
+ * - Tests should focus on connection management, not server lifecycle
+ *
+ * These tests will be removed or rewritten for connection management.
+ */
+
 import { test, expect } from '@playwright/test';
 import { ServerHelper } from './helpers/server-management';
 import { ChatHelper } from './helpers/chat';
+
+// Skip all tests in this file - testing obsolete server management functionality
+test.skip();
 
 test.describe('Server Management', () => {
   let server: ServerHelper;

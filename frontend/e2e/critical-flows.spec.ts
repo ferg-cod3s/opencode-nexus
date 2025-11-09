@@ -1,7 +1,34 @@
+/**
+ * @deprecated These tests need complete rewrite for client architecture.
+ *
+ * ALL TESTS IN THIS FILE TEST OLD SERVER MANAGEMENT FUNCTIONALITY:
+ * - Starting/stopping local OpenCode servers
+ * - Server configuration (port, workspace)
+ * - Server lifecycle management
+ * - 6-step onboarding with server setup
+ *
+ * NEW CLIENT ARCHITECTURE:
+ * - Connects to REMOTE OpenCode servers (no local server management)
+ * - Simpler onboarding: Account creation → Server connection
+ * - No server start/stop/restart functionality
+ * - Connection management instead of process management
+ *
+ * REWRITE PLAN:
+ * 1. First-Time User: Onboarding → Connect to Server → Chat
+ * 2. Returning User: Login → Auto-connect → Resume Chat
+ * 3. Connection Flows: Test connection → Reconnection → Error handling
+ * 4. Remove all server lifecycle tests (start/stop/restart)
+ *
+ * Current Status: 8 tests, ALL need rewriting
+ */
+
 import { test, expect } from '@playwright/test';
 import { ChatHelper } from './helpers/chat';
 import { ServerHelper } from './helpers/server-management';
 import { AuthHelper } from './helpers/auth';
+
+// Skip all tests until rewritten for client architecture
+test.skip();
 
 test.describe('Critical End-to-End User Flows', () => {
   test.describe('First-Time User Journey', () => {
