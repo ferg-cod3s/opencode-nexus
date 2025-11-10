@@ -135,8 +135,9 @@ import Layout from '../layouts/Layout.astro';
   // Import required modules
   import SessionGrid from '../components/SessionGrid.svelte';
   import ChatInterface from '../components/ChatInterface.svelte';
-  import { invoke } from '../utils/tauri-api';
-  import type { ChatSession } from '../types/chat';
+  import { invoke, listen } from '../utils/tauri-api';
+  import type { ChatSession, ChatMessage } from '../types/chat';
+  import { MessageRole } from '../types/chat';
 
   // Component instances
   let sessionGridComponent: any = null;
@@ -146,6 +147,7 @@ import Layout from '../layouts/Layout.astro';
   let activeSessionId: string | null = null;
   let currentSession: ChatSession | null = null;
   let loading = false;
+  let streamingMessageBuffer: Map<string, string> = new Map(); // Buffer for streaming chunks
 
   // DOM elements
   const startChatBtn = document.getElementById('start-chat-btn') as HTMLButtonElement;
@@ -200,6 +202,12 @@ import Layout from '../layouts/Layout.astro';
       // Load existing sessions
       await loadSessions();
 
+      // Start message streaming
+      await startMessageStreaming();
+
+      // Set up chat event listener
+      setupChatEventListener();
+
       console.log('OpenCode Nexus initialized successfully');
     } catch (error) {
       console.error('Failed to initialize app:', error);
@@ -247,6 +255,76 @@ import Layout from '../layouts/Layout.astro';
       loading = false;
       if (sessionGridComponent) {
         sessionGridComponent.$set({ loading: false });
+      }
+    }
+  }
+
+  async function startMessageStreaming() {
+    try {
+      await invoke('start_message_stream');
+      console.log('Message streaming started');
+    } catch (error) {
+      console.error('Failed to start message streaming:', error);
+      // Non-fatal error - continue without streaming
+    }
+  }
+
+  function setupChatEventListener() {
+    listen('chat-event', (event: any) => {
+      const payload = event.payload;
+      console.log('Received chat event:', payload);
+
+      // Handle MessageChunk events (streaming AI response)
+      if (payload.MessageChunk) {
+        handleMessageChunk(payload.MessageChunk);
+      }
+      // Handle MessageReceived events (complete message)
+      else if (payload.MessageReceived) {
+        handleMessageReceived(payload.MessageReceived);
+      }
+    });
+  }
+
+  function handleMessageChunk(data: { session_id: string; chunk: string }) {
+    const { session_id, chunk } = data;
+    console.log(`Received chunk for session ${session_id}:`, chunk);
+
+    // Accumulate chunks in buffer
+    const currentBuffer = streamingMessageBuffer.get(session_id) || '';
+    streamingMessageBuffer.set(session_id, currentBuffer + chunk);
+
+    // Update chat interface to show streaming indicator
+    if (chatInterfaceComponent && activeSessionId === session_id) {
+      // Show loading indicator
+      chatInterfaceComponent.$set({ loading: true });
+    }
+  }
+
+  function handleMessageReceived(data: { session_id: string; message: ChatMessage }) {
+    const { session_id, message } = data;
+    console.log(`Received complete message for session ${session_id}:`, message);
+
+    // Clear streaming buffer for this session
+    streamingMessageBuffer.delete(session_id);
+
+    // Find and update the session with the new message
+    const sessions = sessionGridComponent?.$$.ctx[0] || [];
+    const session = sessions.find((s: ChatSession) => s.id === session_id);
+
+    if (session) {
+      // Add message to session
+      if (!session.messages) {
+        session.messages = [];
+      }
+      session.messages.push(message);
+
+      // Update chat interface if this is the active session
+      if (chatInterfaceComponent && activeSessionId === session_id) {
+        currentSession = session;
+        chatInterfaceComponent.$set({
+          session: session,
+          loading: false
+        });
       }
     }
   }
@@ -370,13 +448,52 @@ import Layout from '../layouts/Layout.astro';
 
   async function handleSendMessage(event: any) {
     const { content } = event.detail;
+
+    if (!activeSessionId || !currentSession) {
+      console.error('No active session to send message to');
+      return;
+    }
+
     try {
+      // Create user message for optimistic UI update
+      const userMessage: ChatMessage = {
+        id: `msg_${Date.now()}`,
+        role: MessageRole.User,
+        content: content,
+        timestamp: new Date().toISOString()
+      };
+
+      // Add user message to session immediately (optimistic update)
+      if (!currentSession.messages) {
+        currentSession.messages = [];
+      }
+      currentSession.messages.push(userMessage);
+
+      // Update chat interface to show the user message immediately
+      if (chatInterfaceComponent) {
+        chatInterfaceComponent.$set({
+          session: currentSession,
+          loading: true // Show loading indicator for AI response
+        });
+      }
+
+      // Send message to backend
       await invoke('send_chat_message', {
         session_id: activeSessionId,
         content
       });
+
+      console.log('Message sent successfully');
     } catch (error) {
       console.error('Failed to send message:', error);
+
+      // Show error message to user
+      if (chatInterfaceComponent) {
+        chatInterfaceComponent.$set({ loading: false });
+      }
+
+      // TODO: Show error notification to user
+      alert(`Failed to send message: ${error}`);
     }
   }
 
