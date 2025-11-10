@@ -1,0 +1,83 @@
+name: Socket Security
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  statuses: write
+
+jobs:
+  socket-security:
+    name: Socket Supply Chain Security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Socket Security Scan
+        uses: SocketDev/socket-security-action@v1
+        with:
+          project-id: ${{ secrets.SOCKET_PROJECT_ID }}
+          api-token: ${{ secrets.SOCKET_API_TOKEN }}
+          # Block PRs with critical issues
+          issue-severity: critical
+          # Create comment on PR with scan results
+          comment-pr: true
+          # Fail the workflow on critical issues
+          fail-on-critical: true
+          # Scan both npm and cargo dependencies
+          package-managers: npm,cargo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Socket scan results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: socket-security-results
+          path: socket-security-results.json
+          retention-days: 30
+
+  socket-report:
+    name: Socket Security Report
+    runs-on: ubuntu-latest
+    needs: socket-security
+    if: always()
+    steps:
+      - name: Generate security summary
+        run: |
+          echo "### 🛡️ Socket Supply Chain Security Scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.socket-security.result }}" == "success" ]; then
+            echo "✅ **Status**: Passed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "No critical supply chain security issues detected." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status**: Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Critical supply chain security issues detected. Please review the scan results." >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**What Socket.dev Checks:**" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Malicious package detection" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔗 Supply chain attack prevention" >> $GITHUB_STEP_SUMMARY
+          echo "- 📦 Dependency confusion" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎯 Typosquatting detection" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔧 Install script analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- 🌐 Network activity monitoring" >> $GITHUB_STEP_SUMMARY
+          echo "- 📁 Filesystem access detection" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔐 Obfuscated code detection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View full details at [socket.dev](https://socket.dev/)" >> $GITHUB_STEP_SUMMARY
