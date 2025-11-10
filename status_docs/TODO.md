@@ -133,15 +133,24 @@
   - [x] Added `connect_to_server_with_auth` Tauri command
   - [x] Added `test_server_connection_with_auth` method
   - [x] Updated SECURITY.md with authentication documentation
+  - [x] Created comprehensive AUTH_SETUP.md guide with step-by-step instructions
+  - [x] **UI Implementation Complete**: ServerConnection component with auth selector
+  - [x] **Connection Page**: Created /connect page with full backend integration
   - [ ] Implement credential encryption at rest (TODO: use platform secure storage)
-  - [ ] Add UI for authentication configuration
 
-- [ ] **Connection Configuration UI** (Priority: Medium)
-  - [ ] Create `ServerConnection.svelte` component for domain/IP + port input
-  - [ ] Add authentication method selector (None, Cloudflare Access, API Key, Custom)
-  - [ ] Add credential input fields based on selected auth method
-  - [ ] Add `ConnectionStatus.svelte` for real-time connection indicators
-  - [ ] Implement connection history and favorites with auth credentials
+- [x] **✅ COMPLETED: Connection Configuration UI** (Priority: Medium)
+  - [x] Created `ServerConnection.svelte` component for domain/IP + port input
+  - [x] Added authentication method selector (None, Cloudflare Access, API Key, Custom)
+  - [x] Added credential input fields based on selected auth method
+  - [x] Created `/connect` page with ServerConnection component integration
+  - [x] Implemented backend integration with `connect_to_server_with_auth`
+  - [x] Added connection history and favorites with auth credentials
+  - [x] Security: Credentials never saved to history (must re-enter)
+  - [x] WCAG 2.2 AA compliant with 44px touch targets
+  - [x] Validation: Client-side validation for all auth methods
+  - [x] Progressive disclosure: Only show relevant credential fields
+  - [x] Help text and documentation links for each auth method
+  - [ ] Add ConnectionStatus.svelte for real-time connection indicators
   - [ ] Add connection quality monitoring (latency, status)
   - [ ] Add SSL/TLS detection and security warnings
 

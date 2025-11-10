@@ -1,0 +1,214 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus - Connect to Server">
+  <main class="connect-container">
+    <div class="connect-content">
+      <div class="connect-header">
+        <h1>Connect to OpenCode Server</h1>
+        <p>Configure your connection to an OpenCode server to start chatting</p>
+      </div>
+
+      <div id="server-connection-mount"></div>
+
+      <div class="help-section">
+        <h3>Need Help?</h3>
+        <ul>
+          <li><a href="https://github.com/ferg-cod3s/opencode-nexus/blob/main/docs/client/AUTH_SETUP.md" target="_blank" rel="noopener noreferrer">Authentication Setup Guide</a></li>
+          <li><a href="https://github.com/ferg-cod3s/opencode-nexus/blob/main/docs/client/ARCHITECTURE.md" target="_blank" rel="noopener noreferrer">Architecture Overview</a></li>
+        </ul>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .connect-container {
+    min-height: 100vh;
+    background: hsl(220, 20%, 98%);
+    padding: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .connect-content {
+    max-width: 600px;
+    width: 100%;
+  }
+
+  .connect-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .connect-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: hsl(220, 20%, 20%);
+    margin: 0 0 0.5rem 0;
+  }
+
+  .connect-header p {
+    font-size: 1rem;
+    color: hsl(220, 10%, 60%);
+    margin: 0;
+  }
+
+  .help-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: hsl(0, 0%, 100%);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px hsla(220, 20%, 20%, 0.08);
+  }
+
+  .help-section h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: hsl(220, 20%, 20%);
+    margin: 0 0 1rem 0;
+  }
+
+  .help-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .help-section li {
+    margin-bottom: 0.75rem;
+  }
+
+  .help-section li:last-child {
+    margin-bottom: 0;
+  }
+
+  .help-section a {
+    color: hsl(220, 90%, 60%);
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .help-section a:hover {
+    text-decoration: underline;
+  }
+
+  .help-section a::before {
+    content: '→';
+    font-weight: 700;
+  }
+
+  @media (max-width: 768px) {
+    .connect-container {
+      padding: 1rem;
+    }
+
+    .connect-header h1 {
+      font-size: 1.5rem;
+    }
+
+    .help-section {
+      padding: 1rem;
+    }
+  }
+</style>
+
+<script>
+  import ServerConnection from '../components/ServerConnection.svelte';
+  import { invoke } from '../utils/tauri-api';
+
+  // Map frontend auth type to backend AuthType enum
+  function mapAuthType(authType: string): string {
+    const mapping: Record<string, string> = {
+      'none': 'None',
+      'cloudflare': 'CloudflareAccess',
+      'apikey': 'ApiKey',
+      'custom': 'CustomHeader'
+    };
+    return mapping[authType] || 'None';
+  }
+
+  // Map frontend credentials to backend AuthCredentials enum
+  function mapAuthCredentials(authType: string, authCredentials: any): any {
+    if (authType === 'cloudflare') {
+      return {
+        CloudflareAccess: {
+          client_id: authCredentials.cloudflareClientId,
+          client_secret: authCredentials.cloudflareClientSecret
+        }
+      };
+    } else if (authType === 'apikey') {
+      return {
+        ApiKey: {
+          key: authCredentials.apiKey
+        }
+      };
+    } else if (authType === 'custom') {
+      return {
+        CustomHeader: {
+          header_name: authCredentials.customHeaderName,
+          header_value: authCredentials.customHeaderValue
+        }
+      };
+    } else {
+      return 'None';
+    }
+  }
+
+  let serverConnectionComponent: any = null;
+  let loading = false;
+  let error: string | null = null;
+
+  // Mount ServerConnection component
+  const mountPoint = document.getElementById('server-connection-mount');
+  if (mountPoint) {
+    serverConnectionComponent = new ServerConnection({
+      target: mountPoint,
+      props: {
+        loading,
+        error
+      }
+    });
+
+    // Handle connection attempts
+    serverConnectionComponent.$on('connect', async (event: CustomEvent) => {
+      const { hostname, port, https, authType, authCredentials } = event.detail;
+
+      try {
+        loading = true;
+        error = null;
+        serverConnectionComponent.$set({ loading, error });
+
+        console.log('Attempting to connect...', { hostname, port, https, authType });
+
+        // Map types to backend format
+        const backendAuthType = mapAuthType(authType);
+        const backendCredentials = mapAuthCredentials(authType, authCredentials);
+
+        // Call backend with authentication
+        await invoke('connect_to_server_with_auth', {
+          hostname,
+          port,
+          secure: https,
+          auth_type: backendAuthType,
+          auth_credentials: backendCredentials
+        });
+
+        console.log('Connection successful!');
+
+        // Redirect to main app on successful connection
+        window.location.href = '/';
+      } catch (err: any) {
+        console.error('Connection failed:', err);
+        error = err.toString();
+        loading = false;
+        serverConnectionComponent.$set({ loading, error });
+      }
+    });
+  }
+</script>
