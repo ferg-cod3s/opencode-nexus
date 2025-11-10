@@ -1,3 +1,4 @@
+use crate::api_client::{AuthType, AuthCredentials};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -49,6 +50,18 @@ pub struct ServerConnection {
     pub port: u16,
     pub secure: bool,
     pub last_connected: Option<String>,
+    #[serde(default = "default_auth_type")]
+    pub auth_type: AuthType,
+    #[serde(default = "default_auth_credentials")]
+    pub auth_credentials: AuthCredentials,
+}
+
+fn default_auth_type() -> AuthType {
+    AuthType::None
+}
+
+fn default_auth_credentials() -> AuthCredentials {
+    AuthCredentials::None
 }
 
 impl ServerConnection {
@@ -137,6 +150,100 @@ impl ConnectionManager {
             port,
             secure,
             last_connected: Some(chrono::Utc::now().to_rfc3339()),
+            auth_type: AuthType::None,
+            auth_credentials: AuthCredentials::None,
+        };
+
+        let connection_id = connection.name.clone();
+        self.connections
+            .lock()
+            .unwrap()
+            .insert(connection_id.clone(), connection);
+        *self.current_connection.lock().unwrap() = Some(connection_id.clone());
+
+        // Save connections to disk
+        self.save_connections()?;
+
+        // Send connected event
+        let _ = self.event_sender.send(ConnectionEvent {
+            timestamp: SystemTime::now(),
+            event_type: ConnectionEventType::Connected,
+            message: format!(
+                "Connected to {} (version: {})",
+                server_info.name,
+                server_info.version.unwrap_or_else(|| "unknown".to_string())
+            ),
+        });
+
+        // Start health monitoring
+        self.start_health_monitoring();
+
+        Ok(())
+    }
+
+    /// Connect to a server with authentication
+    ///
+    /// # Arguments
+    /// * `hostname` - Server hostname
+    /// * `port` - Server port
+    /// * `secure` - Use HTTPS/TLS
+    /// * `auth_type` - Authentication method
+    /// * `auth_credentials` - Authentication credentials
+    ///
+    /// Design Decision: Separate method to maintain backward compatibility
+    pub async fn connect_to_server_with_auth(
+        &mut self,
+        hostname: &str,
+        port: u16,
+        secure: bool,
+        auth_type: AuthType,
+        auth_credentials: AuthCredentials,
+    ) -> Result<(), String> {
+        // Check if already connected
+        let current_status = *self.connection_status.lock().unwrap();
+        if matches!(
+            current_status,
+            ConnectionStatus::Connected | ConnectionStatus::Connecting
+        ) {
+            return Err("Already connected to a server".to_string());
+        }
+
+        // Update status to connecting
+        *self.connection_status.lock().unwrap() = ConnectionStatus::Connecting;
+
+        // Send connecting event
+        let _ = self.event_sender.send(ConnectionEvent {
+            timestamp: SystemTime::now(),
+            event_type: ConnectionEventType::Connected,
+            message: format!("Connecting to {}:{}...", hostname, port),
+        });
+
+        // Test the connection (with auth)
+        let server_info = self
+            .test_server_connection_with_auth(hostname, port, secure, &auth_type, &auth_credentials)
+            .await?;
+
+        // Store the server URL
+        let server_url = format!(
+            "{}://{}:{}",
+            if secure { "https" } else { "http" },
+            hostname,
+            port
+        );
+        *self.server_url.lock().unwrap() = Some(server_url.clone());
+
+        // Update status to connected
+        *self.connection_status.lock().unwrap() = ConnectionStatus::Connected;
+
+        // Store connection info with authentication
+        let connection = ServerConnection {
+            name: format!("{}:{}", hostname, port),
+            hostname: hostname.to_string(),
+            port,
+            secure,
+            last_connected: Some(chrono::Utc::now().to_rfc3339()),
+            auth_type,
+            auth_credentials,
         };
 
         let connection_id = connection.name.clone();
@@ -220,6 +327,104 @@ impl ConnectionManager {
                             })
                         }
                     }
+                } else {
+                    Err(format!(
+                        "Server responded with status: {}",
+                        response.status()
+                    ))
+                }
+            }
+            Err(e) => Err(format!("Failed to connect to server: {}", e)),
+        }
+    }
+
+    /// Test server connection with authentication
+    ///
+    /// # Arguments
+    /// * `hostname` - Server hostname
+    /// * `port` - Server port
+    /// * `secure` - Use HTTPS/TLS
+    /// * `auth_type` - Authentication method
+    /// * `auth_credentials` - Authentication credentials
+    ///
+    /// Design Decision: Separate method to test auth before storing connection
+    pub async fn test_server_connection_with_auth(
+        &self,
+        hostname: &str,
+        port: u16,
+        secure: bool,
+        auth_type: &AuthType,
+        auth_credentials: &AuthCredentials,
+    ) -> Result<ServerInfo, String> {
+        let url = format!(
+            "{}://{}:{}/session",
+            if secure { "https" } else { "http" },
+            hostname,
+            port
+        );
+
+        // Build request with authentication
+        let mut request = self.client.get(&url);
+
+        // Add authentication headers based on type
+        request = match (auth_type, auth_credentials) {
+            (AuthType::CloudflareAccess, AuthCredentials::CloudflareAccess { client_id, client_secret }) => {
+                request
+                    .header("CF-Access-Client-Id", client_id)
+                    .header("CF-Access-Client-Secret", client_secret)
+            }
+            (AuthType::ApiKey, AuthCredentials::ApiKey { key }) => {
+                request.header("X-API-Key", key)
+            }
+            (AuthType::CustomHeader, AuthCredentials::CustomHeader { header_name, header_value }) => {
+                request.header(header_name, header_value)
+            }
+            _ => request, // No auth
+        };
+
+        match request.send().await {
+            Ok(response) => {
+                if response.status().is_success() {
+                    // Try to parse server info from response
+                    match response.json::<serde_json::Value>().await {
+                        Ok(json) => {
+                            let version = json
+                                .get("version")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string());
+                            let name = json
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("OpenCode Server")
+                                .to_string();
+
+                            Ok(ServerInfo {
+                                name,
+                                hostname: hostname.to_string(),
+                                port,
+                                secure,
+                                version,
+                                status: ConnectionStatus::Connected,
+                                last_connected: Some(chrono::Utc::now().to_rfc3339()),
+                                last_error: None,
+                            })
+                        }
+                        Err(_) => {
+                            // Server responded but not with expected JSON - still consider it valid
+                            Ok(ServerInfo {
+                                name: format!("{}:{}", hostname, port),
+                                hostname: hostname.to_string(),
+                                port,
+                                secure,
+                                version: None,
+                                status: ConnectionStatus::Connected,
+                                last_connected: Some(chrono::Utc::now().to_rfc3339()),
+                                last_error: None,
+                            })
+                        }
+                    }
+                } else if response.status() == 401 || response.status() == 403 {
+                    Err("Authentication failed: Invalid credentials".to_string())
                 } else {
                     Err(format!(
                         "Server responded with status: {}",

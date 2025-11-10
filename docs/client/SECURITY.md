@@ -134,18 +134,69 @@ async function establishSecureConnection(serverConfig: ServerConfig): Promise<Co
 ### 3.3 API Security
 
 #### Request Authentication
+
+OpenCode Nexus supports multiple authentication methods for connecting to OpenCode servers, allowing users to choose the security approach that matches their deployment setup.
+
+**Authentication Types:**
+1. **No Authentication:** Local development only (unsecured)
+2. **Cloudflare Access Service Tokens:** For servers behind Cloudflare Tunnel
+3. **API Key Authentication:** For reverse proxy setups (e.g., nginx, Caddy)
+4. **Custom Header Authentication:** Extensible for custom security implementations
+
 ```rust
-// HMAC-based request signing
-pub fn sign_request(&self, method: &str, path: &str, body: &[u8]) -> String {
-    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
-    let nonce = generate_nonce();
+/// Authentication type for connecting to OpenCode servers
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum AuthType {
+    None,
+    CloudflareAccess,
+    ApiKey,
+    CustomHeader,
+}
 
-    let message = format!("{}:{}:{}:{}", method, path, timestamp, nonce);
-    let signature = hmac_sha256(&self.api_secret, message.as_bytes());
-
-    format!("HMAC {}:{}:{}", self.api_key, timestamp, signature)
+/// Authentication credentials for server connections
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AuthCredentials {
+    None,
+    CloudflareAccess {
+        client_id: String,
+        client_secret: String, // Encrypted at rest
+    },
+    ApiKey {
+        key: String, // Encrypted at rest
+    },
+    CustomHeader {
+        header_name: String,
+        header_value: String, // Encrypted at rest
+    },
 }
 ```
+
+**Authentication Header Injection:**
+```rust
+// Centralized authentication header injection in ApiClient
+fn add_auth_headers(&self, request: RequestBuilder) -> RequestBuilder {
+    match (&self.auth_type, &self.auth_credentials) {
+        (AuthType::CloudflareAccess, AuthCredentials::CloudflareAccess { client_id, client_secret }) => {
+            request
+                .header("CF-Access-Client-Id", client_id)
+                .header("CF-Access-Client-Secret", client_secret)
+        }
+        (AuthType::ApiKey, AuthCredentials::ApiKey { key }) => {
+            request.header("X-API-Key", key)
+        }
+        (AuthType::CustomHeader, AuthCredentials::CustomHeader { header_name, header_value }) => {
+            request.header(header_name, header_value)
+        }
+        _ => request, // No auth
+    }
+}
+```
+
+**Security Notes:**
+- All sensitive credentials (secrets, API keys) are encrypted at rest using platform-specific secure storage
+- Cloudflare Access Service Tokens provide device-based authentication without exposing user credentials
+- API keys should be rotated regularly and stored in secure key management systems
+- Custom headers allow integration with enterprise authentication systems (e.g., OAuth2 bearer tokens)
 
 #### Rate Limiting Protection
 - **Client-Side Rate Limiting:** Prevent excessive API calls

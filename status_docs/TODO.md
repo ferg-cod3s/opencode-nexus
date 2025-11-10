@@ -124,10 +124,24 @@
 
 ### 🟢 Low Priority - Phase 3 (Weeks 5-6): Mobile Features & Polish
 
+- [x] **✅ COMPLETED: Server Authentication Implementation**
+  - [x] Implemented unified authentication system supporting multiple auth methods
+  - [x] Added `AuthType` enum (None, CloudflareAccess, ApiKey, CustomHeader)
+  - [x] Added `AuthCredentials` enum for type-safe credential storage
+  - [x] Updated `ApiClient` with authentication header injection
+  - [x] Extended `ServerConnection` struct with auth fields
+  - [x] Added `connect_to_server_with_auth` Tauri command
+  - [x] Added `test_server_connection_with_auth` method
+  - [x] Updated SECURITY.md with authentication documentation
+  - [ ] Implement credential encryption at rest (TODO: use platform secure storage)
+  - [ ] Add UI for authentication configuration
+
 - [ ] **Connection Configuration UI** (Priority: Medium)
   - [ ] Create `ServerConnection.svelte` component for domain/IP + port input
+  - [ ] Add authentication method selector (None, Cloudflare Access, API Key, Custom)
+  - [ ] Add credential input fields based on selected auth method
   - [ ] Add `ConnectionStatus.svelte` for real-time connection indicators
-  - [ ] Implement connection history and favorites
+  - [ ] Implement connection history and favorites with auth credentials
   - [ ] Add connection quality monitoring (latency, status)
   - [ ] Add SSL/TLS detection and security warnings
 

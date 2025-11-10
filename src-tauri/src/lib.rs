@@ -5,6 +5,7 @@ mod connection_manager;
 mod message_stream;
 mod onboarding;
 
+use api_client::{AuthCredentials, AuthType};
 use auth::AuthManager;
 use chat_client::{ChatClient, ChatMessage, ChatSession};
 use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection, ServerInfo};
@@ -441,6 +442,26 @@ async fn connect_to_server(
 }
 
 #[tauri::command]
+async fn connect_to_server_with_auth(
+    app_handle: tauri::AppHandle,
+    hostname: String,
+    port: u16,
+    secure: bool,
+    auth_type: AuthType,
+    auth_credentials: AuthCredentials,
+) -> Result<(), String> {
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("opencode-nexus");
+
+    let mut connection_manager =
+        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    connection_manager
+        .connect_to_server_with_auth(&hostname, port, secure, auth_type, auth_credentials)
+        .await
+}
+
+#[tauri::command]
 async fn test_server_connection(
     app_handle: tauri::AppHandle,
     hostname: String,
@@ -702,6 +723,7 @@ pub fn run() {
             cleanup_expired_sessions,
             // Connection management commands
             connect_to_server,
+            connect_to_server_with_auth,
             test_server_connection,
             get_connection_status,
             disconnect_from_server,
