@@ -11,11 +11,16 @@ import { logger } from './logger';
 // Initialize application logging on startup
 export async function initializeApp() {
   try {
+    // Check that we're in a browser environment before accessing browser APIs
+    if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+      return; // Skip initialization if not in browser (e.g., during build)
+    }
+
     await logger.info('🚀 OpenCode Nexus application started');
     await logger.info(`User Agent: ${navigator.userAgent}`);
     await logger.info(`Platform: ${navigator.platform}`);
     await logger.info(`URL: ${window.location.href}`);
-    
+
     // Log any startup environment info
     if (window.__TAURI__) {
       await logger.info('✅ Tauri environment detected');
@@ -27,5 +32,9 @@ export async function initializeApp() {
   }
 }
 
-// Auto-initialize when this module is imported
-initializeApp();
+// Defer initialization to avoid issues during static build
+// This will be called from Layout.astro script
+if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
+  // Only auto-initialize in browser environment
+  initializeApp();
+}

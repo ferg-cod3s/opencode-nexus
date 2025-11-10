@@ -544,11 +544,14 @@ export class OfflineStorage {
 
 // Connection monitoring utility
 export class ConnectionMonitor {
-  private static isOnline = navigator.onLine;
+  private static isOnline: boolean = typeof navigator !== 'undefined' ? navigator.onLine : true;
   private static listeners: ((isOnline: boolean) => void)[] = [];
 
   static init(): void {
-    // Set initial status
+    // Set initial status from navigator if available
+    if (typeof navigator !== 'undefined') {
+      this.isOnline = navigator.onLine;
+    }
     OfflineStorage.setConnectionStatus(this.isOnline);
 
     // Listen for online/offline events
