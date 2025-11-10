@@ -1,5 +1,6 @@
 ---
 import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
+import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration.svelte';
 
 export interface Props {
   title: string;
@@ -24,21 +25,6 @@ const { title } = Astro.props;
     <script>
       // Initialize logging on every page load
       import('../utils/init.ts').catch(console.error);
-    </script>
-
-    <!-- PWA Service Worker Registration -->
-    <script is:inline>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((registration) => {
-              console.log('SW registered: ', registration);
-            })
-            .catch((registrationError) => {
-              console.log('SW registration failed: ', registrationError);
-            });
-        });
-      }
     </script>
     
     <!-- Preload critical fonts -->
@@ -71,6 +57,9 @@ const { title } = Astro.props;
 
     <!-- Global offline banner -->
     <GlobalOfflineBanner client:load />
+
+    <!-- Service Worker Registration (browser-only) -->
+    <ServiceWorkerRegistration client:load />
 
     <!-- Screen reader announcements -->
     <div id="sr-announcements" class="sr-only" aria-live="polite" aria-atomic="true"></div>
