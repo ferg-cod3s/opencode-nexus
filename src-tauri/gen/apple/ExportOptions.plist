@@ -3,6 +3,19 @@
 <plist version="1.0">
 <dict>
     <key>method</key>
-    <string>debugging</string>
+    <string>app-store</string>
+    <key>teamID</key>
+    <string>PCJU8QD9FN</string>
+    <key>uploadBitcode</key>
+    <false/>
+    <key>uploadSymbols</key>
+    <true/>
+    <key>signingStyle</key>
+    <string>automatic</string>
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.agentic-codeflow.opencode-nexus</key>
+        <string>OpenCode Nexus AppStore</string>
+    </dict>
 </dict>
 </plist>

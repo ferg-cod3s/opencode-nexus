@@ -187,7 +187,68 @@
   - [ ] Implement automated testing pipeline for client
   - [ ] Add security scanning for client dependencies
   - [ ] Set up cross-platform mobile testing
-  - [ ] Implement automated releases for client app
+  - [ ] **🚀 Implement Automated GitHub Releases → TestFlight Deployment** (Priority: HIGH)
+    - [ ] **GitHub Actions: Release Build Workflow** (`.github/workflows/release-ios.yml`)
+      - [ ] Trigger on version tag (v\*.\*.\*)
+      - [ ] Build Tauri iOS app with Rust backend compilation
+      - [ ] Generate IPA file with proper code signing configuration
+      - [ ] Store IPA as GitHub release artifact
+      - [ ] Create release notes from commit history
+      - [ ] Notify team on release completion
+    - [ ] **Apple Signing Configuration**
+      - [ ] Extract existing code signing certificate and provisioning profile from Xcode project
+      - [ ] Store `.p8` private key for App Store Connect API authentication
+      - [ ] Store provisioning profile and signing certificate in GitHub Secrets
+      - [ ] Configure Xcode project for automated signing
+      - [ ] Verify signing configuration in CI/CD environment
+    - [ ] **App Store Connect API Integration**
+      - [ ] Create App Store Connect API Key (need team admin access)
+      - [ ] Store API Key identifier and issuer ID in GitHub Secrets
+      - [ ] Generate `.p8` private key file (secure storage)
+      - [ ] Test API authentication in GitHub Actions
+    - [ ] **TestFlight Upload Configuration**
+      - [ ] Set up `xcrun altool` or `transporter-cli` for IPA upload
+      - [ ] Implement authentication with App Store Connect API credentials
+      - [ ] Configure automatic beta release group assignment
+      - [ ] Set up internal testing release flow
+      - [ ] Implement test plan distribution (optional: external testers)
+    - [ ] **Automation Workflow**
+      - [ ] Create GitHub Action to trigger on version tags
+      - [ ] Automatically build iOS app in CI
+      - [ ] Upload to TestFlight beta track
+      - [ ] Create GitHub release with build metadata
+      - [ ] Send Slack notification on successful/failed release
+      - [ ] Document manual fallback process
+    - [ ] **Secrets Management**
+      - [ ] `APPLE_ID` - Apple ID email (team account)
+      - [ ] `APPLE_APP_SPECIFIC_PASSWORD` - App-specific password from Apple ID
+      - [ ] `APPLE_TEAM_ID` - Team ID (PCJU8QD9FN)
+      - [ ] `APP_STORE_CONNECT_API_KEY` - `.p8` private key content
+      - [ ] `APP_STORE_CONNECT_KEY_ID` - API key identifier
+      - [ ] `APP_STORE_CONNECT_ISSUER_ID` - API issuer ID
+      - [ ] `BUILD_CERTIFICATE_BASE64` - Signing certificate (base64 encoded)
+      - [ ] `P12_PASSWORD` - Certificate password
+      - [ ] `PROVISIONING_PROFILE_BASE64` - Provisioning profile (base64 encoded)
+      - [ ] `KEYCHAIN_PASSWORD` - Keychain password for signing
+    - [ ] **Testing & Validation**
+      - [ ] Test release workflow with dry-run on branch
+      - [ ] Verify IPA is generated correctly
+      - [ ] Test App Store Connect API authentication
+      - [ ] Validate TestFlight upload and build processing
+      - [ ] Confirm TestFlight internal testers receive build notification
+      - [ ] Document release checklist and troubleshooting guide
+    - [ ] **Documentation & Runbooks**
+      - [ ] Create GitHub Actions workflow documentation
+      - [ ] Document App Store Connect API setup requirements
+      - [ ] Write manual release procedure (fallback)
+      - [ ] Add troubleshooting guide for common CI/CD failures
+      - [ ] Document team access requirements and permissions
+      - [ ] Create release rollback procedure if needed
+    - [ ] **Optional: Expandable Release Channels**
+      - [ ] Set up Android build automation (Google Play Console)
+      - [ ] Implement macOS/Windows desktop builds
+      - [ ] Add GitHub release artifacts for desktop distributions
+      - [ ] Set up web build deployment (optional: web preview)
 
 ## 📋 Development Standards Compliance - CLIENT PIVOT
 
