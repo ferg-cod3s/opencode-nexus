@@ -14,6 +14,7 @@ This documentation has been completely rewritten to reflect the mobile-first cli
 ```
 docs/client/
 ├── README.md           # This file - documentation overview
+├── AUTH_SETUP.md      # 🔐 Authentication setup guide with step-by-step instructions
 ├── PRD.md             # Product requirements for mobile client
 ├── ARCHITECTURE.md    # Client-only architecture (no server management)
 ├── USER-FLOWS.md      # Mobile touch interactions and offline flows
@@ -76,12 +77,29 @@ docs/client/
 - **Motor Impairment:** Keyboard navigation, gesture alternatives
 - **Visual Impairment:** High contrast, text scaling support
 
-### 🔐 Security Implementation
+### 🔐 Security & Authentication
 
-#### Connection Security
+OpenCode Nexus supports multiple authentication methods for securing connections to OpenCode servers. **Start here: [Authentication Setup Guide](./AUTH_SETUP.md)**
+
+#### Supported Authentication Methods
+
+| Method | Security Level | Best For | Setup Time |
+|--------|---------------|----------|------------|
+| **No Auth** | ❌ Unsecured | Development only | 1 min |
+| **[Cloudflare Access](./AUTH_SETUP.md#method-2-cloudflare-access-service-tokens)** | ✅✅✅ High | Internet exposure | 15 min |
+| **[API Key](./AUTH_SETUP.md#method-3-api-key-authentication)** | ✅✅ Medium | Self-hosted production | 10 min |
+| **[Custom Header](./AUTH_SETUP.md#method-4-custom-header-authentication)** | ✅✅✅ High | Enterprise SSO | Varies |
+
+#### Quick Setup Links
+
+- **[Cloudflare Access Setup](./AUTH_SETUP.md#method-2-cloudflare-access-service-tokens)** - Free, automatic DDoS protection, device-based auth
+- **[nginx/Caddy API Key Setup](./AUTH_SETUP.md#method-3-api-key-authentication)** - Self-hosted, simple configuration
+- **[Custom Header Setup](./AUTH_SETUP.md#method-4-custom-header-authentication)** - Enterprise SSO integration
+
+#### Connection Security Features
 - **SSL/TLS Validation:** Certificate verification and pinning
-- **Server Authentication:** Hostname verification and trust establishment
-- **API Security:** HMAC request signing and rate limiting
+- **Authentication:** Multiple methods with encrypted credential storage
+- **Server Trust:** Hostname verification and trust establishment
 
 #### Data Protection
 - **Local Encryption:** AES-256 for cached conversations

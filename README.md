@@ -182,11 +182,25 @@ This project follows **Test-Driven Development (TDD)** as required by our develo
 
 OpenCode Nexus is built with security by design:
 
-- **Authentication:** Argon2 password hashing with account lockout protection
+- **Client Authentication:** Argon2 password hashing with account lockout protection
+- **Server Authentication:** Multiple methods for securing OpenCode server connections
 - **Encryption:** TLS 1.3 for all server communications, AES-256 for local data
 - **Session Security:** Secure session management with automatic timeout
 - **Data Privacy:** Local data storage with encryption, no data sharing without consent
 - **Audit Logging:** Comprehensive activity logging and monitoring
+
+### 🔐 Server Authentication Setup
+
+OpenCode servers don't include built-in client authentication. You must configure an external authentication layer. OpenCode Nexus supports:
+
+| Method | Security | Best For | Setup Guide |
+|--------|----------|----------|-------------|
+| **Cloudflare Access** | ✅✅✅ High | Internet exposure | [Setup Guide](docs/client/AUTH_SETUP.md#method-2-cloudflare-access-service-tokens) |
+| **API Key (nginx/Caddy)** | ✅✅ Medium | Self-hosted production | [Setup Guide](docs/client/AUTH_SETUP.md#method-3-api-key-authentication) |
+| **Custom Header** | ✅✅✅ High | Enterprise SSO | [Setup Guide](docs/client/AUTH_SETUP.md#method-4-custom-header-authentication) |
+| **No Auth** | ❌ Unsecured | Development only | Not recommended |
+
+**📖 Complete setup instructions:** [Authentication Setup Guide](docs/client/AUTH_SETUP.md)
 
 ### Reporting Security Vulnerabilities
 

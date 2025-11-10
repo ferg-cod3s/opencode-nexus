@@ -82,6 +82,7 @@ cargo clippy && cd frontend && bun run lint && bun run typecheck
 The `/docs` directory contains detailed documentation covering all aspects of the project. **Always consult these docs before making architectural decisions.**
 
 ### Essential Reading
+- **[docs/client/AUTH_SETUP.md](docs/client/AUTH_SETUP.md)** - **Authentication setup guide** - Step-by-step instructions for all auth methods
 - **[docs/client/ARCHITECTURE.md](docs/client/ARCHITECTURE.md)** - Client-only system architecture and design decisions
 - **[docs/client/SECURITY.md](docs/client/SECURITY.md)** - Client connection security and data protection
 - **[docs/client/TESTING.md](docs/client/TESTING.md)** - **TDD approach (mandatory)**, mobile testing strategies
@@ -119,6 +120,7 @@ The `/docs` directory contains detailed documentation covering all aspects of th
 opencode-nexus/
 ├── docs/                           # Comprehensive project documentation
 │   └── client/                    # Client-specific documentation
+│       ├── AUTH_SETUP.md          # 🔐 Authentication setup guide (step-by-step)
 │       ├── ARCHITECTURE.md        # Client-only system architecture
 │       ├── SECURITY.md            # Client connection security
 │       ├── TESTING.md             # TDD approach and mobile testing
@@ -291,8 +293,12 @@ tokio::spawn(async move {
 
 ## Security Requirements (Critical)
 
-- **Password Storage**: Argon2 hashing with salt (implemented)
+- **Client Authentication**: Argon2 hashing with salt (implemented)
 - **Account Protection**: Lockout after 5 failed attempts (implemented)
+- **Server Authentication**: Multiple methods for securing OpenCode server connections (implemented)
+  - **Setup Guide**: [docs/client/AUTH_SETUP.md](docs/client/AUTH_SETUP.md) - Complete setup instructions
+  - **Methods**: Cloudflare Access, API Key, Custom Header
+  - **Credential Storage**: Encrypted at rest with platform-specific secure storage
 - **Input Validation**: Sanitize ALL user inputs before processing
 - **Secret Management**: Never commit secrets - use environment variables
 - **Connection Security**: TLS 1.3 for all OpenCode server connections
