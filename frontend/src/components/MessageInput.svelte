@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount, onDestroy } from 'svelte';
   import { isOnline, queuedMessageCount } from '../stores/chat';
 
   export let disabled = false;
@@ -7,6 +8,9 @@
 
   let inputElement: HTMLTextAreaElement;
   let content = '';
+  let containerElement: HTMLDivElement;
+  let isKeyboardVisible = false;
+  let originalViewportHeight = 0;
 
   $: effectivePlaceholder = !$isOnline
     ? "Message will be queued for sending..."
@@ -21,6 +25,8 @@
       if (inputElement) {
         inputElement.style.height = 'auto';
       }
+      // Keep focus on input for continuous typing (mobile UX)
+      inputElement?.focus();
     }
   }
 
@@ -50,9 +56,71 @@
       handleInput();
     }
   }
+
+  function handleFocus() {
+    // Scroll input into view when keyboard appears (mobile)
+    setTimeout(() => {
+      if (inputElement && typeof window !== 'undefined') {
+        inputElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }, 300); // Delay to let keyboard animation complete
+  }
+
+  function handleBlur() {
+    // Keyboard is closing - restore viewport
+    isKeyboardVisible = false;
+  }
+
+  // Visual Viewport API for better keyboard detection
+  function handleViewportResize() {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const viewport = window.visualViewport;
+    const currentHeight = viewport.height;
+
+    if (originalViewportHeight === 0) {
+      originalViewportHeight = currentHeight;
+    }
+
+    // Keyboard is visible if viewport height decreased significantly
+    const heightDiff = originalViewportHeight - currentHeight;
+    isKeyboardVisible = heightDiff > 150; // 150px threshold for keyboard
+
+    // Adjust container position to stay above keyboard
+    if (containerElement && isKeyboardVisible) {
+      containerElement.style.transform = `translateY(0)`;
+    } else if (containerElement) {
+      containerElement.style.transform = '';
+    }
+  }
+
+  onMount(() => {
+    if (typeof window !== 'undefined') {
+      originalViewportHeight = window.visualViewport?.height || window.innerHeight;
+
+      // Listen for viewport changes (keyboard show/hide)
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', handleViewportResize);
+        window.visualViewport.addEventListener('scroll', handleViewportResize);
+      }
+
+      // Fallback for browsers without Visual Viewport API
+      window.addEventListener('resize', handleViewportResize);
+    }
+  });
+
+  onDestroy(() => {
+    if (typeof window !== 'undefined') {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', handleViewportResize);
+        window.visualViewport.removeEventListener('scroll', handleViewportResize);
+      }
+      window.removeEventListener('resize', handleViewportResize);
+    }
+  });
 </script>
 
-<div class="message-input-container">
+<div class="message-input-container" bind:this={containerElement} class:keyboard-visible={isKeyboardVisible}>
   <div class="input-wrapper">
     <textarea
       bind:this={inputElement}
@@ -66,8 +134,16 @@
       on:keydown={handleKeydown}
       on:input={handleInput}
       on:paste={handlePaste}
+      on:focus={handleFocus}
+      on:blur={handleBlur}
       rows="1"
       maxlength="10000"
+      inputmode="text"
+      enterkeyhint="send"
+      autocapitalize="sentences"
+      autocomplete="off"
+      autocorrect="on"
+      spellcheck="true"
     ></textarea>
 
     <button
@@ -278,6 +354,16 @@
     border-top: 1px solid hsl(220, 20%, 90%);
     padding: 0.75rem; /* Mobile-first padding */
     background: hsl(0, 0%, 100%);
+    transition: transform 0.3s ease;
+    position: relative;
+  }
+
+  /* Keyboard visible state - ensure input stays visible above keyboard */
+  .message-input-container.keyboard-visible {
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    box-shadow: 0 -2px 10px hsla(220, 20%, 20%, 0.1);
   }
 
   .input-wrapper {
@@ -331,6 +417,36 @@
   @media (min-width: 1024px) {
     .message-input-container {
       padding: 1rem 1.5rem;
+    }
+  }
+
+  /* Safe area insets for notched devices (iPhone X+, etc.) */
+  @supports (padding: max(0px)) {
+    .message-input-container {
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+      padding-left: max(0.75rem, env(safe-area-inset-left));
+      padding-right: max(0.75rem, env(safe-area-inset-right));
+    }
+
+    @media (min-width: 768px) {
+      .message-input-container {
+        padding-bottom: max(1rem, env(safe-area-inset-bottom));
+        padding-left: max(1rem, env(safe-area-inset-left));
+        padding-right: max(1rem, env(safe-area-inset-right));
+      }
+    }
+  }
+
+  /* Touch device optimizations */
+  @media (hover: none) and (pointer: coarse) {
+    /* Prevent double-tap zoom on send button */
+    .send-btn {
+      touch-action: manipulation;
+    }
+
+    /* Improve textarea touch response */
+    textarea {
+      touch-action: manipulation;
     }
   }
 </style>
