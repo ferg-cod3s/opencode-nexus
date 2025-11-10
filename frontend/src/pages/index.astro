@@ -172,6 +172,15 @@ import Layout from '../layouts/Layout.astro';
         return;
       }
 
+      // Check server connection status
+      const connectionStatus = await invoke('get_connection_status');
+      if (connectionStatus === 'Disconnected' || connectionStatus === 'Error') {
+        // Not connected to a server - redirect to connection page
+        console.log('No server connection detected. Redirecting to /connect...');
+        window.location.href = '/connect';
+        return;
+      }
+
       // Get user info
       const userInfo = await invoke('get_user_info');
       if (userInfo && userInfo[0]) {
@@ -188,9 +197,20 @@ import Layout from '../layouts/Layout.astro';
       // Set up event listeners
       setupEventListeners();
 
+      // Load existing sessions
+      await loadSessions();
+
       console.log('OpenCode Nexus initialized successfully');
     } catch (error) {
       console.error('Failed to initialize app:', error);
+
+      // Check if error is about server connection
+      if (error && error.toString().includes('connect to an OpenCode server')) {
+        console.log('Server connection required. Redirecting to /connect...');
+        window.location.href = '/connect';
+        return;
+      }
+
       // Show error message to user
       if (chatSection) {
         chatSection.innerHTML = `
@@ -198,9 +218,35 @@ import Layout from '../layouts/Layout.astro';
             <div>
               <h2 style="color: hsl(0, 70%, 50%); margin-bottom: 1rem;">Initialization Error</h2>
               <p style="color: hsl(220, 10%, 50%);">Failed to load the application. Please refresh the page.</p>
+              <p style="color: hsl(220, 10%, 50%); margin-top: 1rem; font-size: 0.875rem;">${error}</p>
             </div>
           </div>
         `;
+      }
+    }
+  }
+
+  async function loadSessions() {
+    try {
+      loading = true;
+      if (sessionGridComponent) {
+        sessionGridComponent.$set({ loading: true });
+      }
+
+      const sessions = await invoke('get_chat_sessions');
+      console.log('Loaded sessions:', sessions);
+
+      if (sessionGridComponent) {
+        sessionGridComponent.$set({
+          sessions: sessions || [],
+          loading: false
+        });
+      }
+    } catch (error) {
+      console.error('Failed to load sessions:', error);
+      loading = false;
+      if (sessionGridComponent) {
+        sessionGridComponent.$set({ loading: false });
       }
     }
   }
@@ -244,12 +290,40 @@ import Layout from '../layouts/Layout.astro';
       activeSessionId = session.id;
       currentSession = session;
 
+      // Reload sessions to update the sidebar
+      await loadSessions();
+
+      // Update active session in SessionGrid
+      if (sessionGridComponent) {
+        sessionGridComponent.$set({ activeSessionId: session.id });
+      }
+
       updateChatInterface();
+
+      loading = false;
+      startChatBtn.disabled = false;
+      startChatBtn.textContent = 'Start New Chat';
     } catch (error) {
       console.error('Failed to create session:', error);
       loading = false;
       startChatBtn.disabled = false;
       startChatBtn.textContent = 'Start New Chat';
+
+      // Show error in chat section
+      if (chatSection) {
+        welcomeScreen.innerHTML = `
+          <div class="welcome-content">
+            <h1 class="welcome-title">⚠️ Connection Error</h1>
+            <p class="welcome-description" style="color: hsl(0, 70%, 50%);">
+              ${error || 'Failed to create chat session. Please check your server connection.'}
+            </p>
+            <button class="start-btn" onclick="window.location.href='/connect'">
+              Configure Connection
+            </button>
+          </div>
+        `;
+        welcomeScreen.style.display = 'flex';
+      }
     }
   }
 
@@ -268,8 +342,16 @@ import Layout from '../layouts/Layout.astro';
       if (session) {
         activeSessionId = sessionId;
         currentSession = session;
+
+        // Update active session in SessionGrid
+        if (sessionGridComponent) {
+          sessionGridComponent.$set({ activeSessionId: sessionId });
+        }
+
         updateChatInterface();
       }
+
+      loading = false;
     } catch (error) {
       console.error('Failed to select session:', error);
       loading = false;
