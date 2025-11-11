@@ -372,3 +372,223 @@ impl ConnectionManager {
         });
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// Helper function to create a test ConnectionManager with a temp directory
+    fn create_test_connection_manager() -> (ConnectionManager, TempDir) {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let config_path = temp_dir.path().to_path_buf();
+        let manager = ConnectionManager::new(config_path, None)
+            .expect("Failed to create connection manager");
+        (manager, temp_dir)
+    }
+
+    #[tokio::test]
+    async fn test_connection_manager_initializes() {
+        let (manager, _temp) = create_test_connection_manager();
+
+        // Should start disconnected
+        assert_eq!(manager.get_connection_status(), ConnectionStatus::Disconnected);
+
+        // Should have no server URL initially
+        assert_eq!(manager.get_server_url(), None);
+    }
+
+    #[tokio::test]
+    async fn test_get_server_url_before_connection() {
+        let (manager, _temp) = create_test_connection_manager();
+
+        // Before connection, server_url should be None
+        let url = manager.get_server_url();
+        assert!(url.is_none(), "Server URL should be None before connection");
+    }
+
+    #[tokio::test]
+    async fn test_server_url_stored_after_connection() {
+        let (manager, _temp) = create_test_connection_manager();
+
+        // Initially None
+        assert_eq!(manager.get_server_url(), None);
+
+        // After successful connection (would test with mock server)
+        // For now, we verify the data structure is correct
+        *manager.server_url.lock().unwrap() = Some("http://localhost:3000".to_string());
+
+        // Should now have server URL
+        let url = manager.get_server_url();
+        assert!(url.is_some(), "Server URL should be set after connection");
+        assert_eq!(url, Some("http://localhost:3000".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_connection_status_transitions() {
+        let (manager, _temp) = create_test_connection_manager();
+
+        // Initial state
+        assert_eq!(manager.get_connection_status(), ConnectionStatus::Disconnected);
+
+        // Simulate connection status change
+        *manager.connection_status.lock().unwrap() = ConnectionStatus::Connecting;
+        assert_eq!(manager.get_connection_status(), ConnectionStatus::Connecting);
+
+        // Connected
+        *manager.connection_status.lock().unwrap() = ConnectionStatus::Connected;
+        assert_eq!(manager.get_connection_status(), ConnectionStatus::Connected);
+
+        // Disconnected
+        *manager.connection_status.lock().unwrap() = ConnectionStatus::Disconnected;
+        assert_eq!(manager.get_connection_status(), ConnectionStatus::Disconnected);
+    }
+
+    #[tokio::test]
+    async fn test_save_and_load_connections() {
+        let (manager, _temp) = create_test_connection_manager();
+
+        // Add a test connection
+        let connection = ServerConnection {
+            name: "test_server".to_string(),
+            hostname: "localhost".to_string(),
+            port: 3000,
+            secure: false,
+            last_connected: Some("2025-11-11T10:00:00Z".to_string()),
+        };
+
+        manager
+            .connections
+            .lock()
+            .unwrap()
+            .insert(connection.name.clone(), connection.clone());
+
+        // Save to disk
+        manager.save_connections().expect("Failed to save connections");
+
+        // Verify file was created
+        let file_path = manager.get_connections_file_path();
+        assert!(file_path.exists(), "Connections file should exist");
+
+        // Create new manager and load connections
+        let mut manager2 = ConnectionManager::new(
+            manager.config_dir.clone(),
+            None,
+        )
+        .expect("Failed to create second manager");
+
+        manager2.load_connections().expect("Failed to load connections");
+
+        // Verify connections were loaded
+        let loaded_connections = manager2.get_saved_connections();
+        assert_eq!(loaded_connections.len(), 1, "Should have 1 loaded connection");
+        assert_eq!(loaded_connections[0].name, "test_server");
+        assert_eq!(loaded_connections[0].hostname, "localhost");
+        assert_eq!(loaded_connections[0].port, 3000);
+    }
+
+    #[tokio::test]
+    async fn test_disconnect_clears_server_url() {
+        let (mut manager, _temp) = create_test_connection_manager();
+
+        // Set server URL
+        *manager.server_url.lock().unwrap() = Some("http://localhost:3000".to_string());
+        *manager.connection_status.lock().unwrap() = ConnectionStatus::Connected;
+
+        // Verify it's set
+        assert!(manager.get_server_url().is_some());
+
+        // Disconnect
+        manager
+            .disconnect_from_server()
+            .await
+            .expect("Failed to disconnect");
+
+        // URL should be cleared
+        assert_eq!(manager.get_server_url(), None);
+        assert_eq!(manager.get_connection_status(), ConnectionStatus::Disconnected);
+    }
+
+    #[tokio::test]
+    async fn test_event_subscription() {
+        let (manager, _temp) = create_test_connection_manager();
+
+        // Create a subscriber
+        let mut receiver = manager.subscribe_to_events();
+
+        // Send an event
+        let event = ConnectionEvent {
+            timestamp: SystemTime::now(),
+            event_type: ConnectionEventType::Connected,
+            message: "Test event".to_string(),
+        };
+
+        let _ = manager.event_sender.send(event.clone());
+
+        // Receive the event (with timeout)
+        let received = tokio::time::timeout(
+            Duration::from_secs(1),
+            receiver.recv(),
+        )
+        .await;
+
+        assert!(received.is_ok(), "Should receive the event");
+        assert!(
+            received.unwrap().is_ok(),
+            "Event should be received successfully"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_server_connection_url_generation() {
+        // Test HTTP connection
+        let connection = ServerConnection {
+            name: "http_server".to_string(),
+            hostname: "example.com".to_string(),
+            port: 3000,
+            secure: false,
+            last_connected: None,
+        };
+
+        let url = connection.to_url();
+        assert_eq!(url, "http://example.com:3000");
+
+        // Test HTTPS connection
+        let secure_connection = ServerConnection {
+            name: "https_server".to_string(),
+            hostname: "example.com".to_string(),
+            port: 3001,
+            secure: true,
+            last_connected: None,
+        };
+
+        let secure_url = secure_connection.to_url();
+        assert_eq!(secure_url, "https://example.com:3001");
+    }
+
+    #[tokio::test]
+    async fn test_get_current_connection_with_saved_connection() {
+        let (manager, _temp) = create_test_connection_manager();
+
+        let connection = ServerConnection {
+            name: "test_server:3000".to_string(),
+            hostname: "localhost".to_string(),
+            port: 3000,
+            secure: false,
+            last_connected: None,
+        };
+
+        let connection_id = connection.name.clone();
+        manager
+            .connections
+            .lock()
+            .unwrap()
+            .insert(connection_id.clone(), connection.clone());
+        *manager.current_connection.lock().unwrap() = Some(connection_id);
+
+        // Get current connection
+        let current = manager.get_current_connection();
+        assert!(current.is_some(), "Should have current connection");
+        assert_eq!(current.unwrap().hostname, "localhost");
+    }
+}
