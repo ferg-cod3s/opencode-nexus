@@ -16,10 +16,27 @@ jobs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get version from tag
         id: get_version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Configure git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Create iOS release tag
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          TAG_NAME="ios-v${VERSION}"
+          git tag "$TAG_NAME" HEAD
+          git push origin "$TAG_NAME"
+          echo "Created iOS release tag: $TAG_NAME"
 
       - name: Create Release
         id: create_release
