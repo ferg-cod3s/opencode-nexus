@@ -34,7 +34,14 @@ export async function initializeApp() {
 
 // Defer initialization to avoid issues during static build
 // This will be called from Layout.astro script
-if (typeof window !== 'undefined' && typeof navigator !== 'undefined') {
-  // Only auto-initialize in browser environment
-  initializeApp();
+if (typeof window !== 'undefined') {
+  // Defer execution to avoid build-time issues
+  if (typeof navigator !== 'undefined') {
+    // Schedule initialization for next tick to ensure we're definitely in browser
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => initializeApp().catch(console.error));
+    } else if (typeof setTimeout === 'function') {
+      setTimeout(() => initializeApp().catch(console.error), 0);
+    }
+  }
 }
