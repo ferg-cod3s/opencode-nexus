@@ -94,6 +94,30 @@
   - [ ] **🚨 E2E Performance/Full Flow**: ~10 failing - depend on functional features
   - **E2E Test Status**: ~46/121 passing (38% pass rate) - 75 tests blocked
 
+### 🟠 Phase 1 Testing - Test Audit Results (November 11, 2025)
+
+**Test Requirements Audit**: Of the 13 GitHub issues (73 claimed tests), actual implementation analysis reveals:
+
+✅ **WRITE THESE TESTS** (9 issues, ~59 tests for fully-implemented features):
+- [x] #2: ConnectionManager lifecycle tests (6 tests) - ✅ Code exists
+- [x] #3: ConnectionManager event broadcasting (6 tests) - ✅ Code exists
+- [x] #4: ChatClient session management (7 tests) - ✅ Code exists
+- [x] #5: ChatClient message operations (8 tests) - ✅ Code exists
+- [x] #6: ChatClient history & persistence (6 tests) - ✅ Code exists
+- [x] #9: Authentication commands (4 tests) - ✅ Code exists
+- [x] #10: Connection commands (4 tests) - ✅ Code exists
+- [x] #11: Chat commands (6 tests) - ✅ Code exists
+- [x] #12: General error handling (4 tests) - ✅ Code exists
+- [x] #13: E2E workflows (8/10 tests) - ✅ Partial (skip file sharing & model switching)
+
+⚠️ **SKIP OR DEFER** (4 issues, ~14 tests for unimplemented features):
+- [ ] #1: TLS validation (6 tests) - ⚠️ Likely redundant (reqwest handles TLS by default)
+- [ ] #7: File operations (5 tests) - ❌ NOT IMPLEMENTED - Defer to Phase 2
+- [ ] #8: Model configuration (5 tests) - ❌ NOT IMPLEMENTED - Defer to Phase 2
+- [ ] #13 (partial): File sharing & model switching (2 tests) - ❌ NOT IMPLEMENTED - Defer to Phase 2
+
+**Real Work**: ~59 tests needed (not 73) for MVP completion
+
 ### 🟡 Medium Priority - Phase 2 (Weeks 3-4): Chat Client Implementation
 
 - [ ] **Mobile Chat UI Redesign** (Priority: High)
