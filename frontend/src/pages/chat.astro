@@ -269,6 +269,7 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
       if (sessionsSidebar) {
         // Mount SessionPanel component in the sidebar
         try {
+          // @ts-ignore - Component instance used for mounting, not stored
           const sessionPanel = new SessionPanel({
             target: sessionsSidebar
           });
@@ -317,6 +318,7 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
 
         // Create and mount the chat interface
         try {
+          // @ts-ignore - Component instance used for mounting, not stored
           const chatInterface = new ChatInterface({
             target: chatRoot,
             props: {

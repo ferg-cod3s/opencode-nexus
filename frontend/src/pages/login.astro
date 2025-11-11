@@ -186,6 +186,11 @@ import Layout from '../layouts/Layout.astro';
       }
 
       bindEvents() {
+        if (!this.form) {
+          console.error('🔍 LoginManager: Form element not found');
+          return;
+        }
+
         this.form.addEventListener('submit', (e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -823,6 +828,8 @@ import Layout from '../layouts/Layout.astro';
 <script>
   // Sentry is automatically initialized via astro.config.mjs and sentry.client.config.ts
   // Access Sentry through the global window object using getSentry() helper
+
+  import { invoke, checkEnvironment } from '../utils/tauri-api';
 
   class LoginManager {
     private form: HTMLFormElement;
