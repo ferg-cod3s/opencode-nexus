@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - 'ios-v*'
-      - 'v*'
   workflow_dispatch:
     inputs:
       tag_name:
