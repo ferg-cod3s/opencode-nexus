@@ -622,4 +622,195 @@ mod tests {
             error_msg
         );
     }
+
+    #[tokio::test]
+    async fn test_save_sessions_to_disk() {
+        let (mut chat_client, _temp) = create_test_chat_client();
+
+        // Create a test session
+        let session = ChatSession {
+            id: "session_123".to_string(),
+            title: Some("Test Session".to_string()),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            messages: vec![],
+        };
+
+        // Add session to client
+        chat_client.sessions.insert(session.id.clone(), session.clone());
+
+        // Save sessions to disk
+        let result = chat_client.save_sessions();
+        assert!(result.is_ok(), "Should save sessions successfully");
+
+        // Verify file was created
+        let file_path = chat_client.get_sessions_file_path();
+        assert!(file_path.exists(), "Sessions file should exist");
+
+        // Verify file contents
+        let json = std::fs::read_to_string(&file_path).expect("Should read file");
+        assert!(json.contains("session_123"), "File should contain session ID");
+        assert!(json.contains("Test Session"), "File should contain session title");
+    }
+
+    #[tokio::test]
+    async fn test_load_sessions_from_disk() {
+        let (mut chat_client, _temp) = create_test_chat_client();
+
+        // Create and save a session
+        let session = ChatSession {
+            id: "session_456".to_string(),
+            title: Some("Persisted Session".to_string()),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            messages: vec![],
+        };
+
+        chat_client.sessions.insert(session.id.clone(), session.clone());
+        chat_client.save_sessions().expect("Should save sessions");
+
+        // Clear sessions in memory
+        chat_client.sessions.clear();
+        assert_eq!(chat_client.sessions.len(), 0, "Sessions should be cleared");
+
+        // Load sessions from disk
+        let result = chat_client.load_sessions();
+        assert!(result.is_ok(), "Should load sessions successfully");
+
+        // Verify session was loaded
+        assert_eq!(chat_client.sessions.len(), 1, "Should have 1 session loaded");
+        assert!(
+            chat_client.sessions.contains_key("session_456"),
+            "Should contain the saved session"
+        );
+
+        let loaded_session = &chat_client.sessions["session_456"];
+        assert_eq!(loaded_session.title, Some("Persisted Session".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_load_sessions_when_file_not_exists() {
+        let (mut chat_client, _temp) = create_test_chat_client();
+
+        // Try to load sessions when file doesn't exist
+        let result = chat_client.load_sessions();
+
+        // Should succeed (no-op) when file doesn't exist
+        assert!(result.is_ok(), "Should succeed when file doesn't exist");
+        assert_eq!(chat_client.sessions.len(), 0, "Should have no sessions");
+    }
+
+    #[tokio::test]
+    async fn test_persist_session() {
+        let (mut chat_client, _temp) = create_test_chat_client();
+
+        // Create a session
+        let session = ChatSession {
+            id: "session_persist".to_string(),
+            title: Some("Persist Test".to_string()),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            messages: vec![],
+        };
+
+        // Persist the session
+        let result = chat_client.persist_session(&session);
+        assert!(result.is_ok(), "Should persist session successfully");
+
+        // Verify session is in memory
+        assert!(
+            chat_client.sessions.contains_key("session_persist"),
+            "Session should be in memory"
+        );
+
+        // Verify session is on disk
+        let file_path = chat_client.get_sessions_file_path();
+        assert!(file_path.exists(), "Sessions file should exist");
+
+        let json = std::fs::read_to_string(&file_path).expect("Should read file");
+        assert!(json.contains("session_persist"), "File should contain session");
+    }
+
+    #[tokio::test]
+    async fn test_sessions_survive_restart() {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let config_path = temp_dir.path().to_path_buf();
+
+        // Create first client instance and save a session
+        {
+            let mut client1 = ChatClient::new(config_path.clone())
+                .expect("Failed to create first client");
+
+            let session = ChatSession {
+                id: "session_restart".to_string(),
+                title: Some("Restart Test".to_string()),
+                created_at: chrono::Utc::now().to_rfc3339(),
+                messages: vec![ChatMessage {
+                    id: "msg_1".to_string(),
+                    role: MessageRole::User,
+                    content: "Test message".to_string(),
+                    timestamp: chrono::Utc::now().to_rfc3339(),
+                }],
+            };
+
+            client1.persist_session(&session).expect("Should persist");
+        } // client1 dropped here, simulating app shutdown
+
+        // Create second client instance and load sessions
+        {
+            let mut client2 = ChatClient::new(config_path.clone())
+                .expect("Failed to create second client");
+
+            // Load sessions from disk
+            client2.load_sessions().expect("Should load sessions");
+
+            // Verify session survived restart
+            assert_eq!(client2.sessions.len(), 1, "Should have 1 session");
+            assert!(
+                client2.sessions.contains_key("session_restart"),
+                "Should contain persisted session"
+            );
+
+            let session = &client2.sessions["session_restart"];
+            assert_eq!(session.title, Some("Restart Test".to_string()));
+            assert_eq!(session.messages.len(), 1, "Should have 1 message");
+            assert_eq!(session.messages[0].content, "Test message");
+        }
+    }
+
+    #[tokio::test]
+    async fn test_get_current_session() {
+        let (mut chat_client, _temp) = create_test_chat_client();
+
+        // Initially no current session
+        assert!(chat_client.get_current_session().is_none());
+
+        // Add a session
+        let session = ChatSession {
+            id: "session_current".to_string(),
+            title: Some("Current Session".to_string()),
+            created_at: chrono::Utc::now().to_rfc3339(),
+            messages: vec![],
+        };
+
+        chat_client.sessions.insert(session.id.clone(), session.clone());
+        chat_client.set_current_session(Some("session_current".to_string()));
+
+        // Should now have current session
+        let current = chat_client.get_current_session();
+        assert!(current.is_some(), "Should have current session");
+        assert_eq!(current.unwrap().id, "session_current");
+    }
+
+    #[tokio::test]
+    async fn test_set_current_session() {
+        let (mut chat_client, _temp) = create_test_chat_client();
+
+        // Set current session
+        chat_client.set_current_session(Some("session_xyz".to_string()));
+
+        // Verify it was set
+        assert_eq!(chat_client.current_session, Some("session_xyz".to_string()));
+
+        // Clear current session
+        chat_client.set_current_session(None);
+        assert_eq!(chat_client.current_session, None);
+    }
 }
