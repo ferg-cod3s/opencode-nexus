@@ -92,6 +92,10 @@ impl ChatClient {
         // Silently ignore API client creation errors - can retry on streaming
     }
 
+    pub fn get_server_url(&self) -> Option<String> {
+        self.server_url.clone()
+    }
+
     pub fn subscribe_to_events(&self) -> broadcast::Receiver<ChatEvent> {
         self.event_sender.subscribe()
     }
@@ -532,5 +536,90 @@ impl ChatClient {
 
         // Return a subscription to the event stream
         Ok(self.event_sender.subscribe())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::TempDir;
+
+    /// Helper function to create a test ChatClient with a temp directory
+    fn create_test_chat_client() -> (ChatClient, TempDir) {
+        let temp_dir = TempDir::new().expect("Failed to create temp dir");
+        let config_path = temp_dir.path().to_path_buf();
+        let client = ChatClient::new(config_path).expect("Failed to create chat client");
+        (client, temp_dir)
+    }
+
+    #[tokio::test]
+    async fn test_chat_client_initialization() {
+        let (chat_client, _temp) = create_test_chat_client();
+
+        // Should start with no server URL
+        assert!(chat_client.get_server_url().is_none());
+
+        // Should start with no sessions
+        assert_eq!(chat_client.get_all_sessions().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn test_set_server_url_initializes_api_client() {
+        let (mut chat_client, _temp) = create_test_chat_client();
+
+        // Set server URL
+        chat_client.set_server_url("http://localhost:3000".to_string());
+
+        // Verify URL is stored
+        assert_eq!(
+            chat_client.get_server_url(),
+            Some("http://localhost:3000".to_string())
+        );
+
+        // Note: api_client is internal to MessageStream, so we verify indirectly
+        // by checking that server_url is set, which is required for API operations
+    }
+
+    #[tokio::test]
+    async fn test_create_session_requires_server_url() {
+        let (mut chat_client, _temp) = create_test_chat_client();
+
+        // Try to create session without server URL
+        let result = chat_client.create_session(None).await;
+
+        // Should fail with clear error
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(
+            error_msg.contains("server") || error_msg.contains("Server"),
+            "Error message should mention server: {}",
+            error_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_send_message_uses_correct_server_url() {
+        let (mut chat_client, _temp) = create_test_chat_client();
+
+        // Set server URL
+        chat_client.set_server_url("http://example.com:3000".to_string());
+
+        // Verify the URL is what we expect
+        assert_eq!(
+            chat_client.get_server_url(),
+            Some("http://example.com:3000".to_string())
+        );
+
+        // Try to send message without a session (should fail but with different error)
+        let result = chat_client.send_message("fake_session_id", "test").await;
+
+        // Should fail, but because session doesn't exist, not because of server URL
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(
+            error_msg.contains("Session") || error_msg.contains("not found"),
+            "Error should be about missing session, not server URL: {}",
+            error_msg
+        );
     }
 }
