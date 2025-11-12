@@ -4543,6 +4543,7 @@ dependencies = [
  "tauri-plugin-opener",
  "tempfile",
  "tokio",
+ "url",
  "urlencoding",
  "uuid",
  "winapi",
