@@ -1,14 +1,10 @@
 mod api_client;
-mod auth;
 mod chat_client;
 mod connection_manager;
 mod message_stream;
-mod onboarding;
 
-use auth::AuthManager;
 use chat_client::{ChatClient, ChatMessage, ChatSession};
 use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection, ServerInfo};
-use onboarding::{OnboardingManager, OnboardingState, SystemRequirements};
 
 use chrono::Utc;
 use std::fs::OpenOptions;
@@ -74,328 +70,20 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
-// Onboarding commands
-#[tauri::command]
-async fn get_onboarding_state() -> Result<OnboardingState, String> {
-    log_info!("🚀 [ONBOARDING] Getting onboarding state...");
-
-    let manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-    let state = manager.get_onboarding_state().map_err(|e| e.to_string())?;
-
-    log_info!(
-        "🚀 [ONBOARDING] State: config_exists={}, is_completed={}",
-        state.config.is_some(),
-        state
-            .config
-            .as_ref()
-            .map(|c| c.is_completed)
-            .unwrap_or(false)
-    );
-
-    Ok(state)
-}
-
-#[tauri::command]
-async fn check_system_requirements() -> Result<SystemRequirements, String> {
-    use std::process::Command;
-
-    // Check OS - assume compatible for now
-    let os_check = true;
-
-    // Check memory using system commands
-    let memory_check = match std::env::consts::OS {
-        "linux" => {
-            match Command::new("sh")
-                .arg("-c")
-                .arg("free -g | awk 'NR==2{print $2}'")
-                .output()
-            {
-                Ok(output) => {
-                    let mem_str = String::from_utf8_lossy(&output.stdout);
-                    mem_str.trim().parse::<u64>().unwrap_or(0) >= 4
-                }
-                Err(_) => true, // Assume sufficient if command fails
-            }
-        }
-        "macos" => {
-            match Command::new("sysctl").args(&["-n", "hw.memsize"]).output() {
-                Ok(output) => {
-                    let mem_bytes = String::from_utf8_lossy(&output.stdout);
-                    let memory_gb = mem_bytes.trim().parse::<u64>().unwrap_or(0) as f64
-                        / 1024.0
-                        / 1024.0
-                        / 1024.0;
-                    memory_gb >= 4.0
-                }
-                Err(_) => true, // Assume sufficient if command fails
-            }
-        }
-        "windows" => {
-            match Command::new("wmic")
-                .args(&["OS", "get", "TotalVisibleMemorySize", "/Value"])
-                .output()
-            {
-                Ok(output) => {
-                    let mem_str = String::from_utf8_lossy(&output.stdout);
-                    // Parse Windows memory in KB and convert to GB
-                    if let Some(line) = mem_str
-                        .lines()
-                        .find(|l| l.contains("TotalVisibleMemorySize"))
-                    {
-                        if let Some(value) = line.split('=').nth(1) {
-                            value.trim().parse::<u64>().unwrap_or(0) >= 4_000_000
-                        // 4GB in KB
-                        } else {
-                            true
-                        }
-                    } else {
-                        true
-                    }
-                }
-                Err(_) => true, // Assume sufficient if command fails
-            }
-        }
-        _ => true, // Assume sufficient for other OS
-    };
-
-    // Check disk space (simplified - assume sufficient)
-    let disk_check = true;
-
-    // Check network connectivity (simple ping test)
-    let network_check = match Command::new("ping")
-        .args(&["-c", "1", "-W", "2", "8.8.8.8"])
-        .output()
-    {
-        Ok(output) => output.status.success(),
-        Err(_) => false,
-    };
-
-    Ok(SystemRequirements {
-        os_compatible: os_check,
-        memory_sufficient: memory_check,
-        disk_space_sufficient: disk_check,
-        network_available: network_check,
-        required_permissions: true, // Assume permissions are okay for now
-    })
-}
-
-#[tauri::command]
-async fn complete_onboarding() -> Result<(), String> {
-    let manager = OnboardingManager::new()
-        .map_err(|e| format!("Failed to initialize onboarding manager: {}", e))?;
-
-    manager
-        .complete_onboarding()
-        .map_err(|e| format!("Failed to complete onboarding: {}", e))
-}
-
-#[tauri::command]
-async fn skip_onboarding() -> Result<(), String> {
-    log_info!("🚀 [ONBOARDING] Skipping onboarding...");
-
-    let manager = OnboardingManager::new()
-        .map_err(|e| format!("Failed to initialize onboarding manager: {}", e))?;
-
-    // Mark onboarding as completed without full setup
-    manager
-        .skip_onboarding()
-        .map_err(|e| format!("Failed to skip onboarding: {}", e))
-}
-
-// SECURITY: create_user command removed to prevent unauthorized account creation
-// Desktop applications should use owner-only authentication, not public registration
-
-// Secure owner account creation - ONLY during onboarding
-#[tauri::command]
-async fn create_owner_account(username: String, password: String) -> Result<(), String> {
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-
-    // This will fail if owner account already exists - prevents security violations
-    onboarding_manager
-        .create_owner_account(&username, &password)
-        .map_err(|e| {
-            // Log security violation attempts
-            sentry::capture_message(
-                &format!("SECURITY: Attempted unauthorized account creation: {}", e),
-                sentry::Level::Error,
-            );
-            e.to_string()
-        })
-}
-
-// Authentication commands
-
-#[tauri::command]
-async fn authenticate_user(username: String, password: String) -> Result<bool, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    // SECURITY: Verify this is the owner account attempting to authenticate
-    let onboarding_manager = OnboardingManager::new().map_err(|e| e.to_string())?;
-
-    if let Ok(Some(config)) = onboarding_manager.load_config() {
-        if !config.owner_account_created {
-            // No owner account exists - must complete onboarding first
-            return Ok(false);
-        }
-
-        if let Some(owner_username) = config.owner_username {
-            if username != owner_username {
-                // SECURITY: Someone trying to authenticate as non-owner account
-                sentry::capture_message(
-                    &format!(
-                        "SECURITY: Attempted authentication as non-owner account: {} (owner: {})",
-                        username, owner_username
-                    ),
-                    sentry::Level::Warning,
-                );
-                return Ok(false);
-            }
-        }
-    } else {
-        // No configuration exists - onboarding required
-        return Ok(false);
-    }
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-
-    match auth_manager.authenticate(&username, &password) {
-        Ok(_session) => Ok(true),
-        Err(_) => Ok(false), // Don't expose specific error details for security
-    }
-}
-
-#[tauri::command]
-async fn change_password(
-    username: String,
-    old_password: String,
-    new_password: String,
-) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-    auth_manager
-        .change_password(&username, &old_password, &new_password)
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn is_auth_configured() -> Result<bool, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-    Ok(auth_manager.is_configured())
-}
-
-#[tauri::command]
-async fn is_authenticated() -> Result<bool, String> {
-    log_info!("🔐 [AUTH] Checking authentication status...");
-
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-
-    // Check if auth is configured
-    if !auth_manager.is_configured() {
-        log_info!("🔐 [AUTH] Authentication not configured - returning false");
-        return Ok(false);
-    }
-
-    log_info!("🔐 [AUTH] Authentication configured - user is authenticated");
-    Ok(true)
-}
-
-#[tauri::command]
-async fn get_user_info() -> Result<Option<(String, String, Option<String>)>, String> {
-    log_info!("👤 [USER] Getting user information...");
-
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-
-    match auth_manager.get_user_info() {
-        Ok(Some((username, created_at, last_login_at))) => {
-            log_info!(
-                "👤 [USER] Found user: {} (created: {}, last login: {:?})",
-                username,
-                created_at.format("%Y-%m-%d %H:%M:%S UTC"),
-                last_login_at.map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
-            );
-            Ok(Some((
-                username,
-                created_at.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
-                last_login_at.map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string()),
-            )))
-        }
-
-        Ok(None) => {
-            log_info!("👤 [USER] No user information found");
-            Ok(None)
-        }
-        Err(e) => {
-            log_info!("❌ [USER] Error getting user info: {}", e);
-            Err(e.to_string())
-        }
-    }
-}
-
-#[tauri::command]
-async fn reset_failed_attempts(username: String) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-    auth_manager
-        .reset_failed_attempts(&username)
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn create_persistent_session(username: String) -> Result<String, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-    let session = auth_manager
-        .create_persistent_session(&username)
-        .map_err(|e| e.to_string())?;
-    Ok(session.session_id)
-}
-
-#[tauri::command]
-async fn validate_persistent_session(session_id: String) -> Result<Option<String>, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-    auth_manager
-        .validate_persistent_session(&session_id)
-        .map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-async fn invalidate_session(session_id: String) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-    auth_manager
-        .invalidate_session(&session_id)
-        .map_err(|e| e.to_string())
-}
+// ============================================================================
+// AUTHENTICATION SYSTEM REMOVED
+// ============================================================================
+// The previous authentication system (auth.rs, onboarding.rs) has been removed
+// in favor of a simpler connection-based architecture. OpenCode Nexus now acts
+// as a client that connects to OpenCode servers without requiring user accounts.
+//
+// Connection security is handled at the transport layer:
+// - Localhost: Direct connection (http://localhost:4096)
+// - Cloudflare Tunnel: Cloudflare handles authentication
+// - Reverse Proxy: API key + HMAC request signing
+//
+// See docs/client/CONNECTION-SETUP.md for details.
+// ============================================================================
 
 // Helper functions
 fn get_config_dir() -> Result<std::path::PathBuf, String> {
@@ -657,49 +345,12 @@ async fn clear_application_logs() -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-async fn cleanup_expired_sessions() -> Result<usize, String> {
-    log_info!("🧹 [SESSIONS] Cleaning up expired sessions...");
-
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let auth_manager = AuthManager::new(config_dir).map_err(|e| e.to_string())?;
-    let cleaned_count = auth_manager
-        .cleanup_expired_sessions()
-        .map_err(|e| e.to_string())?;
-
-    log_info!(
-        "🧹 [SESSIONS] Cleaned up {} expired sessions",
-        cleaned_count
-    );
-    Ok(cleaned_count)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             greet,
-            // Onboarding commands
-            get_onboarding_state,
-            complete_onboarding,
-            skip_onboarding,
-            check_system_requirements,
-            create_owner_account, // Secure owner account creation during onboarding only
-            // Authentication commands
-            authenticate_user,
-            change_password,
-            is_auth_configured,
-            is_authenticated,
-            get_user_info,
-            reset_failed_attempts,
-            create_persistent_session,
-            validate_persistent_session,
-            invalidate_session,
-            cleanup_expired_sessions,
             // Connection management commands
             connect_to_server,
             test_server_connection,
