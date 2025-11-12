@@ -5,9 +5,50 @@
 ### 🎯 **PROJECT PIVOT STATUS**
 **From**: Desktop server management app → **To**: Mobile client connecting to OpenCode servers
 **Timeline**: 8 weeks to MVP
-**Status**: ✅ **DOGFOOD READY** (November 11, 2025)
-**Current Phase**: Phase 1 - Architecture Foundation (Core Complete)
-**Overall Progress**: 20% (Security + Architecture Foundation)
+**Status**: 🎉 **CONNECTION ARCHITECTURE COMPLETE** (November 12, 2025)
+**Current Phase**: Phase 2 - Connection-Based Architecture (Complete)
+**Overall Progress**: 35% (Security + Architecture + Connection System)
+
+---
+
+### 🎉 **PHASE 2 COMPLETE** (November 12, 2025)
+
+**✅ Major Architectural Refactor:**
+- **Removed**: ~3,100 lines of authentication code (Argon2, account lockout, sessions)
+- **Removed**: All server management code (replaced by connection manager)
+- **Added**: Connection-based architecture with 3 connection methods
+- **Added**: Modern connection UI (1,031 lines)
+- **Added**: Comprehensive connection documentation (464 lines)
+- **Result**: -2,275 net lines (18% codebase reduction)
+
+**✅ Backend Connection System:**
+- `connect_to_server(url, api_key, method, name)` - Full connection management
+- `test_server_connection(url, api_key)` - Connection validation
+- Supports localhost, Cloudflare Tunnel, and Reverse Proxy
+- Verified against official OpenCode docs (port 4096, no built-in auth)
+
+**✅ Frontend Connection UI:**
+- Modern connection page with 3 connection methods
+- Real-time validation and user feedback
+- Mobile-responsive design (WCAG 2.2 AA compliant)
+- Inline help guide with setup instructions
+
+**✅ E2E Tests Refactored:**
+- **Deleted**: 18 auth tests, 4 auth helper files (~800 lines)
+- **Added**: 24 connection tests (simpler, faster)
+- Focus on connection flow, accessibility, mobile responsiveness
+
+**Files Changed (5 commits):**
+1. Connection documentation + UI (CONNECTION-SETUP.md, connect.astro, index.astro)
+2. Authentication system removal (auth.rs, onboarding.rs, login.astro, onboarding.astro)
+3. Backend connection commands (lib.rs, Cargo.toml with url crate)
+4. E2E test refactor (connection.spec.ts replaces authentication.spec.ts)
+5. This TODO update
+
+**Branch**: `claude/phase1-next-steps-011CV32DaRoZ7LBZ4hiDxh3p`
+**Commits**: 6d317be → 38b2795 (5 commits)
+
+---
 
 ### ✅ **DOGFOOD PHASE - READY** (November 11, 2025)
 
