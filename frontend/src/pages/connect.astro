@@ -1,0 +1,1014 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus - Connect to Server">
+  <main class="connect-container">
+    <div class="connect-content">
+      <header class="connect-header">
+        <h1 class="connect-title">
+          <span class="logo-icon" aria-hidden="true">🔗</span>
+          Connect to OpenCode Server
+        </h1>
+        <p class="connect-subtitle">
+          Enter your OpenCode server URL to start chatting with AI
+        </p>
+      </header>
+
+      <form class="connect-form" id="connect-form" data-testid="connect-form" novalidate>
+        <!-- Connection Method Selector -->
+        <div class="form-group">
+          <label for="connection-method" class="form-label">
+            Connection Method
+          </label>
+          <select
+            id="connection-method"
+            name="connection-method"
+            class="form-select"
+            data-testid="connection-method-select"
+            aria-label="Select connection method"
+          >
+            <option value="localhost">🏠 Localhost (Development)</option>
+            <option value="tunnel">☁️ Cloudflare Tunnel</option>
+            <option value="proxy">🔒 Reverse Proxy</option>
+          </select>
+          <p class="help-text">
+            Choose how your OpenCode server is exposed
+          </p>
+        </div>
+
+        <!-- Server URL Input -->
+        <div class="form-group">
+          <label for="server-url" class="form-label">
+            Server URL
+            <span class="required-indicator" aria-label="required">*</span>
+          </label>
+          <input
+            type="url"
+            id="server-url"
+            name="server-url"
+            class="form-input"
+            data-testid="server-url-input"
+            placeholder="http://localhost:4096"
+            required
+            autocomplete="url"
+            aria-label="Server URL"
+            aria-describedby="server-url-error server-url-help"
+            aria-invalid="false"
+          >
+          <p id="server-url-help" class="help-text">
+            Enter the URL where your OpenCode server is running
+          </p>
+          <div id="server-url-error" class="error-message" data-testid="server-url-error" role="alert" aria-live="polite">
+            <!-- Error message will be populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- API Key Input (Optional for localhost/tunnel, Required for proxy) -->
+        <div class="form-group" id="api-key-group">
+          <label for="api-key" class="form-label">
+            API Key
+            <span class="optional-indicator" id="api-key-optional">(optional)</span>
+            <span class="required-indicator" id="api-key-required" style="display: none;" aria-label="required">*</span>
+          </label>
+          <div class="password-input-container">
+            <input
+              type="password"
+              id="api-key"
+              name="api-key"
+              class="form-input"
+              data-testid="api-key-input"
+              placeholder="Enter API key if required"
+              autocomplete="off"
+              aria-label="API key"
+              aria-describedby="api-key-error api-key-help"
+              aria-invalid="false"
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              id="api-key-toggle"
+              aria-label="Show API key"
+              tabindex="-1"
+            >
+              <span class="toggle-icon" aria-hidden="true">👁️</span>
+            </button>
+          </div>
+          <p id="api-key-help" class="help-text">
+            Required for reverse proxy connections (HMAC signing)
+          </p>
+          <div id="api-key-error" class="error-message" data-testid="api-key-error" role="alert" aria-live="polite">
+            <!-- Error message will be populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Connection Name (Optional) -->
+        <div class="form-group">
+          <label for="connection-name" class="form-label">
+            Connection Name
+            <span class="optional-indicator">(optional)</span>
+          </label>
+          <input
+            type="text"
+            id="connection-name"
+            name="connection-name"
+            class="form-input"
+            data-testid="connection-name-input"
+            placeholder="My OpenCode Server"
+            autocomplete="off"
+            aria-label="Connection name"
+            aria-describedby="connection-name-help"
+          >
+          <p id="connection-name-help" class="help-text">
+            Give this connection a friendly name for easy identification
+          </p>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="form-actions">
+          <button
+            type="button"
+            class="btn-secondary btn-test-connection"
+            id="test-connection-button"
+            data-testid="test-connection-button"
+          >
+            <span class="button-text">Test Connection</span>
+            <span class="loading-spinner" aria-hidden="true"></span>
+          </button>
+
+          <button
+            type="submit"
+            class="btn-primary btn-connect"
+            id="connect-button"
+            data-testid="connect-button"
+            aria-describedby="connect-help"
+          >
+            <span class="button-text">Connect</span>
+            <span class="loading-spinner" aria-hidden="true"></span>
+          </button>
+
+          <p id="connect-help" class="help-text">
+            Test your connection first, then click Connect to start chatting
+          </p>
+
+          <div id="connect-error" class="error-message" data-testid="connect-error" role="alert" aria-live="polite" style="display: none;">
+            <!-- Connection error message will be populated by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Connection Guide -->
+        <div class="form-footer">
+          <details class="help-section">
+            <summary class="help-toggle">
+              <span class="help-icon" aria-hidden="true">❓</span>
+              Connection Setup Guide
+            </summary>
+            <div class="help-content">
+              <h3>How to Connect</h3>
+
+              <div class="guide-section">
+                <h4>🏠 Localhost (Same Machine)</h4>
+                <ul>
+                  <li><strong>URL:</strong> <code>http://localhost:4096</code></li>
+                  <li><strong>API Key:</strong> Not required</li>
+                  <li><strong>Setup:</strong> <code>opencode serve</code> (default port 4096)</li>
+                </ul>
+              </div>
+
+              <div class="guide-section">
+                <h4>☁️ Cloudflare Tunnel</h4>
+                <ul>
+                  <li><strong>URL:</strong> <code>https://your-tunnel.trycloudflare.com</code></li>
+                  <li><strong>API Key:</strong> Not required (Cloudflare handles auth)</li>
+                  <li><strong>Setup:</strong> <code>cloudflared tunnel --url http://localhost:4096</code></li>
+                </ul>
+              </div>
+
+              <div class="guide-section">
+                <h4>🔒 Reverse Proxy</h4>
+                <ul>
+                  <li><strong>URL:</strong> <code>https://opencode.yourdomain.com</code></li>
+                  <li><strong>API Key:</strong> Required (for HMAC signing)</li>
+                  <li><strong>Setup:</strong> Configure nginx/Caddy with SSL + API key validation</li>
+                </ul>
+              </div>
+
+              <p>
+                <strong>Need more help?</strong>
+                <a href="https://docs.opencode.ai/client/connection-setup" target="_blank" rel="noopener">
+                  Read the full connection setup guide
+                </a>
+              </p>
+            </div>
+          </details>
+        </div>
+      </form>
+
+      <!-- Status Indicator -->
+      <div class="connection-status" role="region" aria-labelledby="connection-status-title">
+        <h2 id="connection-status-title" class="sr-only">Connection Status</h2>
+        <div class="status-item">
+          <span class="status-icon" id="status-icon" aria-hidden="true">⏳</span>
+          <span class="status-text" id="status-text">Ready to connect</span>
+        </div>
+      </div>
+
+      <!-- Global Alert -->
+      <div
+        id="global-alert"
+        class="global-alert"
+        role="alert"
+        aria-live="assertive"
+        aria-atomic="true"
+        style="display: none;"
+      >
+        <div class="alert-content">
+          <span class="alert-icon" aria-hidden="true"></span>
+          <span class="alert-message"></span>
+          <button class="alert-dismiss" aria-label="Dismiss alert">
+            <span aria-hidden="true">✕</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<style>
+  .connect-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, hsl(220, 90%, 25%) 0%, hsl(220, 90%, 35%) 100%);
+    padding: 1rem;
+  }
+
+  .connect-content {
+    background: white;
+    border-radius: 1rem;
+    box-shadow: 0 20px 25px -5px hsla(0, 0%, 0%, 0.1), 0 10px 10px -5px hsla(0, 0%, 0%, 0.04);
+    max-width: 560px;
+    width: 100%;
+    padding: 2rem;
+  }
+
+  .connect-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .connect-title {
+    font-size: 1.75rem;
+    color: hsl(220, 90%, 25%);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+
+  .logo-icon {
+    font-size: 2rem;
+  }
+
+  .connect-subtitle {
+    color: hsl(220, 20%, 60%);
+    font-size: 1rem;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .connect-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-label {
+    font-weight: 500;
+    color: hsl(220, 90%, 25%);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .required-indicator {
+    color: hsl(0, 70%, 50%);
+    font-weight: bold;
+  }
+
+  .optional-indicator {
+    color: hsl(220, 20%, 60%);
+    font-weight: normal;
+    font-size: 0.875rem;
+  }
+
+  .form-input, .form-select {
+    padding: 0.875rem 1rem;
+    border: 2px solid hsl(0, 0%, 90%);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    background: white;
+    color: hsl(220, 15%, 20%);
+  }
+
+  .form-select {
+    cursor: pointer;
+  }
+
+  .form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: hsl(220, 90%, 60%);
+    box-shadow: 0 0 0 3px hsla(220, 90%, 60%, 0.1);
+  }
+
+  .password-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .password-toggle {
+    position: absolute;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    color: hsl(220, 20%, 60%);
+    transition: color 0.3s ease;
+  }
+
+  .password-toggle:hover {
+    color: hsl(220, 90%, 60%);
+  }
+
+  .password-toggle:focus {
+    outline: 2px solid hsl(220, 90%, 60%);
+    outline-offset: 2px;
+  }
+
+  .help-text {
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 60%);
+    margin-top: 0.5rem;
+    margin-bottom: 0;
+    line-height: 1.4;
+  }
+
+  .help-text code {
+    background: hsl(0, 0%, 95%);
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85em;
+  }
+
+  .error-message {
+    font-size: 0.875rem;
+    color: hsl(0, 70%, 50%);
+    margin-top: 0.5rem;
+    min-height: 1.2em;
+    font-weight: 500;
+  }
+
+  .error-message:empty {
+    display: none;
+  }
+
+  .form-actions {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btn-connect, .btn-test-connection {
+    width: 100%;
+    padding: 1rem 1.5rem;
+    border: none;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .btn-connect {
+    background: hsl(220, 90%, 60%);
+    color: white;
+  }
+
+  .btn-connect:hover:not(:disabled) {
+    background: hsl(220, 90%, 50%);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 15px -3px hsla(0, 0%, 0%, 0.1);
+  }
+
+  .btn-test-connection {
+    background: white;
+    color: hsl(220, 90%, 60%);
+    border: 2px solid hsl(220, 90%, 60%);
+  }
+
+  .btn-test-connection:hover:not(:disabled) {
+    background: hsl(220, 90%, 95%);
+  }
+
+  .btn-connect:disabled, .btn-test-connection:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .loading-spinner {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid transparent;
+    border-top: 2px solid currentColor;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    display: none;
+  }
+
+  .btn-connect.loading .loading-spinner,
+  .btn-test-connection.loading .loading-spinner {
+    display: block;
+  }
+
+  .btn-connect.loading .button-text,
+  .btn-test-connection.loading .button-text {
+    opacity: 0.7;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+  .form-footer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid hsl(0, 0%, 95%);
+  }
+
+  .help-section {
+    background: hsl(0, 0%, 98%);
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+
+  .help-toggle {
+    padding: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: hsl(220, 90%, 25%);
+    font-weight: 500;
+    transition: background-color 0.3s ease;
+    list-style: none;
+  }
+
+  .help-toggle:hover {
+    background: hsl(0, 0%, 95%);
+  }
+
+  .help-toggle::marker {
+    display: none;
+  }
+
+  .help-content {
+    padding: 0 1rem 1rem 1rem;
+    color: hsl(220, 20%, 40%);
+  }
+
+  .help-content h3 {
+    color: hsl(220, 90%, 25%);
+    margin-bottom: 1rem;
+    font-size: 1rem;
+  }
+
+  .guide-section {
+    margin-bottom: 1.5rem;
+  }
+
+  .guide-section h4 {
+    color: hsl(220, 90%, 25%);
+    margin-bottom: 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .guide-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .guide-section li {
+    padding: 0.375rem 0;
+    line-height: 1.5;
+    font-size: 0.875rem;
+  }
+
+  .help-content a {
+    color: hsl(220, 90%, 60%);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .help-content a:hover {
+    text-decoration: underline;
+  }
+
+  .connection-status {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: hsl(0, 0%, 98%);
+    border-radius: 0.5rem;
+    border: 1px solid hsl(0, 0%, 90%);
+  }
+
+  .status-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    color: hsl(220, 20%, 60%);
+  }
+
+  .status-icon {
+    font-size: 1rem;
+  }
+
+  .global-alert {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    max-width: 400px;
+    z-index: 1000;
+    animation: slideIn 0.3s ease;
+  }
+
+  .alert-content {
+    background: white;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    box-shadow: 0 10px 15px -3px hsla(0, 0%, 0%, 0.1);
+    border-left: 4px solid hsl(220, 90%, 60%);
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .global-alert.error .alert-content {
+    border-left-color: hsl(0, 70%, 50%);
+  }
+
+  .global-alert.success .alert-content {
+    border-left-color: hsl(120, 50%, 50%);
+  }
+
+  .alert-dismiss {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    color: hsl(220, 20%, 60%);
+    border-radius: 0.25rem;
+  }
+
+  .alert-dismiss:hover {
+    background: hsl(0, 0%, 95%);
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  /* Responsive design */
+  @media (max-width: 568px) {
+    .connect-content {
+      padding: 1.5rem;
+    }
+
+    .connect-title {
+      font-size: 1.5rem;
+    }
+
+    .form-actions {
+      gap: 0.5rem;
+    }
+  }
+
+  /* Accessibility */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-connect,
+    .btn-test-connection,
+    .loading-spinner,
+    .global-alert {
+      animation: none;
+      transition: none;
+    }
+
+    .btn-connect:hover,
+    .btn-test-connection:hover {
+      transform: none;
+    }
+  }
+</style>
+
+<script>
+  import { invoke, checkEnvironment } from '../utils/tauri-api';
+
+  class ConnectionManager {
+    private form: HTMLFormElement;
+    private methodSelect: HTMLSelectElement;
+    private serverUrlInput: HTMLInputElement;
+    private apiKeyInput: HTMLInputElement;
+    private connectionNameInput: HTMLInputElement;
+    private testButton: HTMLButtonElement;
+    private connectButton: HTMLButtonElement;
+    private apiKeyToggle: HTMLButtonElement;
+    private isApiKeyVisible: boolean = false;
+
+    constructor() {
+      this.form = document.getElementById('connect-form') as HTMLFormElement;
+      this.methodSelect = document.getElementById('connection-method') as HTMLSelectElement;
+      this.serverUrlInput = document.getElementById('server-url') as HTMLInputElement;
+      this.apiKeyInput = document.getElementById('api-key') as HTMLInputElement;
+      this.connectionNameInput = document.getElementById('connection-name') as HTMLInputElement;
+      this.testButton = document.getElementById('test-connection-button') as HTMLButtonElement;
+      this.connectButton = document.getElementById('connect-button') as HTMLButtonElement;
+      this.apiKeyToggle = document.getElementById('api-key-toggle') as HTMLButtonElement;
+
+      this.init();
+    }
+
+    private init() {
+      this.bindEvents();
+      this.updatePlaceholders();
+      this.focusServerUrl();
+    }
+
+    private bindEvents() {
+      this.form.addEventListener('submit', this.handleConnect.bind(this));
+      this.testButton.addEventListener('click', this.handleTestConnection.bind(this));
+      this.methodSelect.addEventListener('change', this.handleMethodChange.bind(this));
+      this.apiKeyToggle.addEventListener('click', this.toggleApiKeyVisibility.bind(this));
+
+      // Real-time validation
+      this.serverUrlInput.addEventListener('input', () => this.validateField('server-url'));
+      this.apiKeyInput.addEventListener('input', () => this.validateField('api-key'));
+
+      // Clear errors on focus
+      this.serverUrlInput.addEventListener('focus', () => this.clearFieldError('server-url'));
+      this.apiKeyInput.addEventListener('focus', () => this.clearFieldError('api-key'));
+
+      // Global alert dismiss
+      document.addEventListener('click', (e) => {
+        if (e.target && (e.target as HTMLElement).closest('.alert-dismiss')) {
+          this.dismissAlert();
+        }
+      });
+    }
+
+    private handleMethodChange() {
+      this.updatePlaceholders();
+      this.updateApiKeyRequirement();
+      this.validateForm();
+    }
+
+    private updatePlaceholders() {
+      const method = this.methodSelect.value;
+
+      switch (method) {
+        case 'localhost':
+          this.serverUrlInput.placeholder = 'http://localhost:4096';
+          this.apiKeyInput.placeholder = 'Not required for localhost';
+          break;
+        case 'tunnel':
+          this.serverUrlInput.placeholder = 'https://your-tunnel.trycloudflare.com';
+          this.apiKeyInput.placeholder = 'Not required (Cloudflare handles auth)';
+          break;
+        case 'proxy':
+          this.serverUrlInput.placeholder = 'https://opencode.yourdomain.com';
+          this.apiKeyInput.placeholder = 'Enter your API key (required)';
+          break;
+      }
+    }
+
+    private updateApiKeyRequirement() {
+      const method = this.methodSelect.value;
+      const optionalIndicator = document.getElementById('api-key-optional');
+      const requiredIndicator = document.getElementById('api-key-required');
+
+      if (method === 'proxy') {
+        optionalIndicator!.style.display = 'none';
+        requiredIndicator!.style.display = 'inline';
+        this.apiKeyInput.required = true;
+      } else {
+        optionalIndicator!.style.display = 'inline';
+        requiredIndicator!.style.display = 'none';
+        this.apiKeyInput.required = false;
+      }
+    }
+
+    private async handleTestConnection(event: Event) {
+      event.preventDefault();
+
+      if (!this.validateForm()) {
+        return;
+      }
+
+      this.setLoading(this.testButton, true);
+      this.updateStatus('⏳', 'Testing connection...');
+
+      try {
+        const serverUrl = this.serverUrlInput.value.trim();
+        const apiKey = this.apiKeyInput.value.trim() || undefined;
+
+        const result = await invoke('test_server_connection', {
+          serverUrl,
+          apiKey
+        });
+
+        if (result) {
+          this.updateStatus('✅', 'Connection successful!');
+          this.showAlert('Connection test successful! Server is reachable.', 'success', '✅');
+        } else {
+          throw new Error('Connection test failed');
+        }
+      } catch (error) {
+        console.error('Connection test error:', error);
+        this.updateStatus('❌', 'Connection failed');
+        this.showAlert(
+          `Connection test failed: ${error instanceof Error ? error.message : 'Server unreachable'}`,
+          'error',
+          '❌'
+        );
+      } finally {
+        this.setLoading(this.testButton, false);
+      }
+    }
+
+    private async handleConnect(event: Event) {
+      event.preventDefault();
+
+      if (!this.validateForm()) {
+        return;
+      }
+
+      this.setLoading(this.connectButton, true);
+      this.updateStatus('⏳', 'Connecting to server...');
+
+      try {
+        const serverUrl = this.serverUrlInput.value.trim();
+        const apiKey = this.apiKeyInput.value.trim() || undefined;
+        const method = this.methodSelect.value as 'localhost' | 'tunnel' | 'proxy';
+        const name = this.connectionNameInput.value.trim() || this.getDefaultConnectionName(method, serverUrl);
+
+        const connectionId = await invoke('connect_to_server', {
+          serverUrl,
+          apiKey,
+          method,
+          name
+        });
+
+        if (connectionId) {
+          this.updateStatus('✅', 'Connected successfully!');
+          this.showAlert('Connected to OpenCode server! Redirecting to chat...', 'success', '✅');
+
+          // Store connection info
+          sessionStorage.setItem('connected', 'true');
+          sessionStorage.setItem('connectionId', connectionId as string);
+          sessionStorage.setItem('serverUrl', serverUrl);
+
+          // Redirect to chat
+          setTimeout(() => {
+            window.location.href = '/chat';
+          }, 1500);
+        } else {
+          throw new Error('Connection failed');
+        }
+      } catch (error) {
+        console.error('Connection error:', error);
+        this.updateStatus('❌', 'Connection failed');
+        this.showAlert(
+          `Failed to connect: ${error instanceof Error ? error.message : 'Server unreachable'}`,
+          'error',
+          '❌'
+        );
+        this.setFieldError('server-url', 'Could not connect to server');
+      } finally {
+        this.setLoading(this.connectButton, false);
+      }
+    }
+
+    private getDefaultConnectionName(method: string, url: string): string {
+      switch (method) {
+        case 'localhost':
+          return 'Local Development';
+        case 'tunnel':
+          return 'Cloudflare Tunnel';
+        case 'proxy':
+          try {
+            const hostname = new URL(url).hostname;
+            return hostname;
+          } catch {
+            return 'Remote Server';
+          }
+        default:
+          return 'OpenCode Server';
+      }
+    }
+
+    private validateForm(): boolean {
+      let isValid = true;
+
+      if (!this.validateField('server-url')) {
+        isValid = false;
+      }
+
+      if (this.methodSelect.value === 'proxy' && !this.validateField('api-key')) {
+        isValid = false;
+      }
+
+      return isValid;
+    }
+
+    private validateField(fieldName: 'server-url' | 'api-key'): boolean {
+      const field = fieldName === 'server-url' ? this.serverUrlInput : this.apiKeyInput;
+      const value = field.value.trim();
+
+      this.clearFieldError(fieldName);
+
+      if (fieldName === 'server-url') {
+        if (!value) {
+          this.setFieldError('server-url', 'Server URL is required');
+          return false;
+        }
+
+        try {
+          const url = new URL(value);
+          const method = this.methodSelect.value;
+
+          // Validate protocol based on connection method
+          if (method === 'localhost') {
+            if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+              this.setFieldError('server-url', 'Localhost URL must use http:// or https://');
+              return false;
+            }
+          } else {
+            // Tunnel and proxy must use HTTPS
+            if (url.protocol !== 'https:') {
+              this.setFieldError('server-url', 'Remote connections require HTTPS');
+              return false;
+            }
+          }
+        } catch {
+          this.setFieldError('server-url', 'Please enter a valid URL');
+          return false;
+        }
+      }
+
+      if (fieldName === 'api-key' && this.methodSelect.value === 'proxy') {
+        if (!value) {
+          this.setFieldError('api-key', 'API key is required for reverse proxy connections');
+          return false;
+        }
+
+        if (value.length < 16) {
+          this.setFieldError('api-key', 'API key seems too short (minimum 16 characters)');
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    private setFieldError(fieldName: 'server-url' | 'api-key', message: string) {
+      const field = fieldName === 'server-url' ? this.serverUrlInput : this.apiKeyInput;
+      const errorElement = document.getElementById(`${fieldName}-error`);
+
+      field.setAttribute('aria-invalid', 'true');
+      field.classList.add('error');
+
+      if (errorElement) {
+        errorElement.textContent = message;
+      }
+    }
+
+    private clearFieldError(fieldName: 'server-url' | 'api-key') {
+      const field = fieldName === 'server-url' ? this.serverUrlInput : this.apiKeyInput;
+      const errorElement = document.getElementById(`${fieldName}-error`);
+
+      field.setAttribute('aria-invalid', 'false');
+      field.classList.remove('error');
+
+      if (errorElement) {
+        errorElement.textContent = '';
+      }
+    }
+
+    private toggleApiKeyVisibility() {
+      this.isApiKeyVisible = !this.isApiKeyVisible;
+
+      this.apiKeyInput.type = this.isApiKeyVisible ? 'text' : 'password';
+      this.apiKeyToggle.setAttribute('aria-label', this.isApiKeyVisible ? 'Hide API key' : 'Show API key');
+
+      const toggleIcon = this.apiKeyToggle.querySelector('.toggle-icon');
+      if (toggleIcon) {
+        toggleIcon.textContent = this.isApiKeyVisible ? '🙈' : '👁️';
+      }
+    }
+
+    private setLoading(button: HTMLButtonElement, loading: boolean) {
+      button.disabled = loading;
+      button.classList.toggle('loading', loading);
+
+      if (loading) {
+        button.setAttribute('aria-busy', 'true');
+      } else {
+        button.removeAttribute('aria-busy');
+      }
+    }
+
+    private showAlert(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info', icon: string = 'ℹ️') {
+      const alertElement = document.getElementById('global-alert');
+      const messageElement = alertElement?.querySelector('.alert-message');
+      const iconElement = alertElement?.querySelector('.alert-icon');
+
+      if (!alertElement || !messageElement || !iconElement) return;
+
+      messageElement.textContent = message;
+      iconElement.textContent = icon;
+
+      alertElement.className = `global-alert ${type}`;
+      alertElement.style.display = 'block';
+
+      // Auto-dismiss after 5 seconds for success messages
+      if (type === 'success') {
+        setTimeout(() => this.dismissAlert(), 5000);
+      }
+    }
+
+    private dismissAlert() {
+      const alertElement = document.getElementById('global-alert');
+      if (alertElement) {
+        alertElement.style.display = 'none';
+      }
+    }
+
+    private updateStatus(icon: string, message: string) {
+      const iconElement = document.getElementById('status-icon');
+      const textElement = document.getElementById('status-text');
+
+      if (iconElement) iconElement.textContent = icon;
+      if (textElement) textElement.textContent = message;
+    }
+
+    private focusServerUrl() {
+      this.serverUrlInput.focus();
+    }
+  }
+
+  // Initialize connection manager when page loads
+  document.addEventListener('DOMContentLoaded', () => {
+    new ConnectionManager();
+  });
+</script>

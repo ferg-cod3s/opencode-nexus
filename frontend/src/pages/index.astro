@@ -156,29 +156,19 @@ import Layout from '../layouts/Layout.astro';
   // Initialize the application
   async function initializeApp() {
     try {
-      // Get onboarding state first
-      const onboardingState = await invoke('get_onboarding_state');
+      // Check if connected to server
+      const isConnected = sessionStorage.getItem('connected') === 'true';
+      const serverUrl = sessionStorage.getItem('serverUrl');
 
-      // If onboarding config doesn't exist or isn't completed, redirect to onboarding
-      if (!onboardingState.config || !onboardingState.config.is_completed) {
-        window.location.href = '/onboarding';
+      // If not connected, redirect to connection page
+      if (!isConnected || !serverUrl) {
+        window.location.href = '/connect';
         return;
       }
 
-      // Check authentication status
-      const isAuthenticated = await invoke('is_authenticated');
-      if (!isAuthenticated) {
-        window.location.href = '/login';
-        return;
-      }
+      console.log(`Connected to OpenCode server: ${serverUrl}`);
 
-      // Get user info
-      const userInfo = await invoke('get_user_info');
-      if (userInfo && userInfo[0]) {
-        console.log(`Welcome back, ${userInfo[0]}!`);
-      }
-
-      // Enable start button since onboarding is complete
+      // Enable start button since we're connected
       startChatBtn.disabled = false;
       startChatBtn.textContent = 'Start New Chat';
 
