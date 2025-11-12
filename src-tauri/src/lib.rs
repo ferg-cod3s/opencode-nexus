@@ -113,37 +113,81 @@ fn ensure_server_connected() -> Result<String, String> {
 #[tauri::command]
 async fn connect_to_server(
     app_handle: tauri::AppHandle,
-    hostname: String,
-    port: u16,
-    secure: bool,
-) -> Result<(), String> {
+    server_url: String,
+    api_key: Option<String>,
+    method: String,
+    name: String,
+) -> Result<String, String> {
+    log_info!("🔗 [CONNECTION] Connecting to server: {} (method: {})", server_url, method);
+
+    // Parse the server URL to extract components
+    let url = url::Url::parse(&server_url).map_err(|e| format!("Invalid server URL: {}", e))?;
+    let hostname = url.host_str().ok_or("No hostname in URL")?.to_string();
+    let port = url.port().unwrap_or(if url.scheme() == "https" { 443 } else { 4096 });
+    let secure = url.scheme() == "https";
+
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
 
     let mut connection_manager =
         ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+
+    // Connect to the server
     connection_manager
         .connect_to_server(&hostname, port, secure)
-        .await
+        .await?;
+
+    // TODO: Store API key securely if provided
+    if let Some(key) = &api_key {
+        log_info!("🔐 [CONNECTION] API key provided (length: {})", key.len());
+        // Store in secure storage (keychain/keystore)
+        // For now, just log that we received it
+    }
+
+    log_info!("✅ [CONNECTION] Successfully connected to: {}", server_url);
+
+    // Return a connection ID (could be UUID or hash of server_url)
+    let connection_id = format!("{}-{}", method, hostname);
+    Ok(connection_id)
 }
 
 #[tauri::command]
 async fn test_server_connection(
-    app_handle: tauri::AppHandle,
-    hostname: String,
-    port: u16,
-    secure: bool,
-) -> Result<ServerInfo, String> {
+    server_url: String,
+    #[allow(unused_variables)] api_key: Option<String>,
+) -> Result<bool, String> {
+    log_info!("🧪 [CONNECTION] Testing connection to: {}", server_url);
+    // Note: API key will be used for HMAC signing in future implementation
+
+    // Parse the server URL to extract components
+    let url = url::Url::parse(&server_url).map_err(|e| format!("Invalid server URL: {}", e))?;
+    let hostname = url.host_str().ok_or("No hostname in URL")?.to_string();
+    let port = url.port().unwrap_or(if url.scheme() == "https" { 443 } else { 4096 });
+    let secure = url.scheme() == "https";
+
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
 
+    // Create a temporary connection manager for testing (no app_handle needed)
     let connection_manager =
-        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
-    connection_manager
+        ConnectionManager::new(config_dir, None).map_err(|e| e.to_string())?;
+
+    // Test the connection
+    match connection_manager
         .test_server_connection(&hostname, port, secure)
         .await
+    {
+        Ok(_server_info) => {
+            log_info!("✅ [CONNECTION] Test successful: {}", server_url);
+            Ok(true)
+        }
+        Err(e) => {
+            log_error!("❌ [CONNECTION] Test failed: {}", e);
+            Err(e)
+        }
+    }
 }
 
 #[tauri::command]
