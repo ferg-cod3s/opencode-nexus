@@ -332,7 +332,8 @@ impl ChatClient {
                 // Merge server sessions into local cache
                 for server_session in server_sessions {
                     // Server sessions override local ones (server is source of truth)
-                    self.sessions.insert(server_session.id.clone(), server_session);
+                    self.sessions
+                        .insert(server_session.id.clone(), server_session);
                 }
                 // Persist the merged sessions to disk
                 self.save_sessions()?;
@@ -341,7 +342,10 @@ impl ChatClient {
             Err(e) => {
                 // If server sync fails, just continue with local sessions
                 // This allows offline-first behavior
-                eprintln!("Warning: Failed to sync sessions with server: {}. Using local cache.", e);
+                eprintln!(
+                    "Warning: Failed to sync sessions with server: {}. Using local cache.",
+                    e
+                );
                 Ok(())
             }
         }
@@ -636,7 +640,9 @@ mod tests {
         };
 
         // Add session to client
-        chat_client.sessions.insert(session.id.clone(), session.clone());
+        chat_client
+            .sessions
+            .insert(session.id.clone(), session.clone());
 
         // Save sessions to disk
         let result = chat_client.save_sessions();
@@ -648,8 +654,14 @@ mod tests {
 
         // Verify file contents
         let json = std::fs::read_to_string(&file_path).expect("Should read file");
-        assert!(json.contains("session_123"), "File should contain session ID");
-        assert!(json.contains("Test Session"), "File should contain session title");
+        assert!(
+            json.contains("session_123"),
+            "File should contain session ID"
+        );
+        assert!(
+            json.contains("Test Session"),
+            "File should contain session title"
+        );
     }
 
     #[tokio::test]
@@ -664,7 +676,9 @@ mod tests {
             messages: vec![],
         };
 
-        chat_client.sessions.insert(session.id.clone(), session.clone());
+        chat_client
+            .sessions
+            .insert(session.id.clone(), session.clone());
         chat_client.save_sessions().expect("Should save sessions");
 
         // Clear sessions in memory
@@ -676,7 +690,11 @@ mod tests {
         assert!(result.is_ok(), "Should load sessions successfully");
 
         // Verify session was loaded
-        assert_eq!(chat_client.sessions.len(), 1, "Should have 1 session loaded");
+        assert_eq!(
+            chat_client.sessions.len(),
+            1,
+            "Should have 1 session loaded"
+        );
         assert!(
             chat_client.sessions.contains_key("session_456"),
             "Should contain the saved session"
@@ -725,7 +743,10 @@ mod tests {
         assert!(file_path.exists(), "Sessions file should exist");
 
         let json = std::fs::read_to_string(&file_path).expect("Should read file");
-        assert!(json.contains("session_persist"), "File should contain session");
+        assert!(
+            json.contains("session_persist"),
+            "File should contain session"
+        );
     }
 
     #[tokio::test]
@@ -735,8 +756,8 @@ mod tests {
 
         // Create first client instance and save a session
         {
-            let mut client1 = ChatClient::new(config_path.clone())
-                .expect("Failed to create first client");
+            let mut client1 =
+                ChatClient::new(config_path.clone()).expect("Failed to create first client");
 
             let session = ChatSession {
                 id: "session_restart".to_string(),
@@ -755,8 +776,8 @@ mod tests {
 
         // Create second client instance and load sessions
         {
-            let mut client2 = ChatClient::new(config_path.clone())
-                .expect("Failed to create second client");
+            let mut client2 =
+                ChatClient::new(config_path.clone()).expect("Failed to create second client");
 
             // Load sessions from disk
             client2.load_sessions().expect("Should load sessions");
@@ -790,7 +811,9 @@ mod tests {
             messages: vec![],
         };
 
-        chat_client.sessions.insert(session.id.clone(), session.clone());
+        chat_client
+            .sessions
+            .insert(session.id.clone(), session.clone());
         chat_client.set_current_session(Some("session_current".to_string()));
 
         // Should now have current session

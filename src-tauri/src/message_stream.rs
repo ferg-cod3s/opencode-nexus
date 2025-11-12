@@ -231,7 +231,8 @@ mod tests {
         assert!(stream.api_client.is_none());
 
         // Set API client
-        let api_client = ApiClient::new("http://localhost:3000").expect("Failed to create API client");
+        let api_client =
+            ApiClient::new("http://localhost:3000").expect("Failed to create API client");
         stream.set_api_client(api_client);
 
         // Should now have API client
@@ -301,7 +302,10 @@ mod tests {
         // Should receive MessageReceived event
         let event = receiver.recv().await.expect("Should receive event");
         match event {
-            ChatEvent::MessageReceived { session_id, message } => {
+            ChatEvent::MessageReceived {
+                session_id,
+                message,
+            } => {
                 assert_eq!(session_id, "session_456");
                 assert_eq!(message.id, "msg_789");
                 assert_eq!(message.content, "Complete message");
@@ -382,11 +386,8 @@ mod tests {
         MessageStream::handle_streaming_message(&streaming_msg, &sender).await;
 
         // Should not emit any event for unknown roles
-        let result = tokio::time::timeout(
-            std::time::Duration::from_millis(100),
-            receiver.recv()
-        )
-        .await;
+        let result =
+            tokio::time::timeout(std::time::Duration::from_millis(100), receiver.recv()).await;
 
         // Should timeout because no event was emitted
         assert!(result.is_err(), "Should not emit event for unknown role");

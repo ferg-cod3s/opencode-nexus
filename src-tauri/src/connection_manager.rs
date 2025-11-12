@@ -382,8 +382,8 @@ mod tests {
     fn create_test_connection_manager() -> (ConnectionManager, TempDir) {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let config_path = temp_dir.path().to_path_buf();
-        let manager = ConnectionManager::new(config_path, None)
-            .expect("Failed to create connection manager");
+        let manager =
+            ConnectionManager::new(config_path, None).expect("Failed to create connection manager");
         (manager, temp_dir)
     }
 
@@ -392,7 +392,10 @@ mod tests {
         let (manager, _temp) = create_test_connection_manager();
 
         // Should start disconnected
-        assert_eq!(manager.get_connection_status(), ConnectionStatus::Disconnected);
+        assert_eq!(
+            manager.get_connection_status(),
+            ConnectionStatus::Disconnected
+        );
 
         // Should have no server URL initially
         assert_eq!(manager.get_server_url(), None);
@@ -429,11 +432,17 @@ mod tests {
         let (manager, _temp) = create_test_connection_manager();
 
         // Initial state
-        assert_eq!(manager.get_connection_status(), ConnectionStatus::Disconnected);
+        assert_eq!(
+            manager.get_connection_status(),
+            ConnectionStatus::Disconnected
+        );
 
         // Simulate connection status change
         *manager.connection_status.lock().unwrap() = ConnectionStatus::Connecting;
-        assert_eq!(manager.get_connection_status(), ConnectionStatus::Connecting);
+        assert_eq!(
+            manager.get_connection_status(),
+            ConnectionStatus::Connecting
+        );
 
         // Connected
         *manager.connection_status.lock().unwrap() = ConnectionStatus::Connected;
@@ -441,7 +450,10 @@ mod tests {
 
         // Disconnected
         *manager.connection_status.lock().unwrap() = ConnectionStatus::Disconnected;
-        assert_eq!(manager.get_connection_status(), ConnectionStatus::Disconnected);
+        assert_eq!(
+            manager.get_connection_status(),
+            ConnectionStatus::Disconnected
+        );
     }
 
     #[tokio::test]
@@ -464,24 +476,29 @@ mod tests {
             .insert(connection.name.clone(), connection.clone());
 
         // Save to disk
-        manager.save_connections().expect("Failed to save connections");
+        manager
+            .save_connections()
+            .expect("Failed to save connections");
 
         // Verify file was created
         let file_path = manager.get_connections_file_path();
         assert!(file_path.exists(), "Connections file should exist");
 
         // Create new manager and load connections
-        let mut manager2 = ConnectionManager::new(
-            manager.config_dir.clone(),
-            None,
-        )
-        .expect("Failed to create second manager");
+        let mut manager2 = ConnectionManager::new(manager.config_dir.clone(), None)
+            .expect("Failed to create second manager");
 
-        manager2.load_connections().expect("Failed to load connections");
+        manager2
+            .load_connections()
+            .expect("Failed to load connections");
 
         // Verify connections were loaded
         let loaded_connections = manager2.get_saved_connections();
-        assert_eq!(loaded_connections.len(), 1, "Should have 1 loaded connection");
+        assert_eq!(
+            loaded_connections.len(),
+            1,
+            "Should have 1 loaded connection"
+        );
         assert_eq!(loaded_connections[0].name, "test_server");
         assert_eq!(loaded_connections[0].hostname, "localhost");
         assert_eq!(loaded_connections[0].port, 3000);
@@ -506,7 +523,10 @@ mod tests {
 
         // URL should be cleared
         assert_eq!(manager.get_server_url(), None);
-        assert_eq!(manager.get_connection_status(), ConnectionStatus::Disconnected);
+        assert_eq!(
+            manager.get_connection_status(),
+            ConnectionStatus::Disconnected
+        );
     }
 
     #[tokio::test]
@@ -526,11 +546,7 @@ mod tests {
         let _ = manager.event_sender.send(event.clone());
 
         // Receive the event (with timeout)
-        let received = tokio::time::timeout(
-            Duration::from_secs(1),
-            receiver.recv(),
-        )
-        .await;
+        let received = tokio::time::timeout(Duration::from_secs(1), receiver.recv()).await;
 
         assert!(received.is_ok(), "Should receive the event");
         assert!(
