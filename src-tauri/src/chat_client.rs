@@ -15,6 +15,17 @@ pub struct ChatSession {
     pub messages: Vec<ChatMessage>,
 }
 
+/// Lightweight metadata for local caching (mobile-optimized)
+/// Full message history is fetched from server on-demand
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionMetadata {
+    pub id: String,
+    pub title: Option<String>,
+    pub created_at: String,
+    pub updated_at: Option<String>,
+    pub message_count: usize,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatMessage {
     pub id: String,
@@ -52,7 +63,8 @@ pub enum ChatEvent {
 pub struct ChatClient {
     server_url: Option<String>,
     client: Client,
-    sessions: HashMap<String, ChatSession>,
+    /// Lightweight metadata cache (mobile-optimized - no full messages stored locally)
+    session_metadata: HashMap<String, SessionMetadata>,
     pub event_sender: broadcast::Sender<ChatEvent>,
     config_dir: PathBuf,
     current_session: Option<String>,
@@ -72,7 +84,7 @@ impl ChatClient {
         Ok(Self {
             server_url: None,
             client,
-            sessions: HashMap::new(),
+            session_metadata: HashMap::new(),
             event_sender: event_sender.clone(),
             config_dir,
             current_session: None,
@@ -145,22 +157,30 @@ impl ChatClient {
             .await
             .map_err(|e| format!("Failed to parse session response: {}", e))?;
 
-        // Convert to our ChatSession format
+        // Store lightweight metadata locally (mobile-optimized)
+        let metadata = SessionMetadata {
+            id: open_code_session.id.clone(),
+            title: open_code_session.title.clone(),
+            created_at: open_code_session.created_at.clone(),
+            updated_at: None,
+            message_count: 0,
+        };
+
+        self.session_metadata.insert(metadata.id.clone(), metadata.clone());
+        self.current_session = Some(metadata.id.clone());
+
+        // Persist metadata to disk
+        if let Err(e) = self.save_session_metadata() {
+            eprintln!("Warning: Failed to persist session metadata: {}", e);
+        }
+
+        // Convert to ChatSession for response (no messages yet)
         let session = ChatSession {
             id: open_code_session.id,
             title: open_code_session.title,
             created_at: open_code_session.created_at,
             messages: Vec::new(),
         };
-
-        // Store session locally
-        self.sessions.insert(session.id.clone(), session.clone());
-        self.current_session = Some(session.id.clone());
-
-        // Persist to disk
-        if let Err(e) = self.save_sessions() {
-            eprintln!("Warning: Failed to persist session: {}", e);
-        }
 
         // Emit event
         let _ = self.event_sender.send(ChatEvent::SessionCreated {
@@ -176,22 +196,13 @@ impl ChatClient {
             .as_ref()
             .ok_or_else(|| "Server URL not set".to_string())?;
 
-        // Ensure session exists locally
-        let session = self
-            .sessions
-            .get_mut(session_id)
-            .ok_or_else(|| format!("Session {} not found", session_id))?;
-
-        // Create user message
+        // Create user message (for event emission only - not stored locally)
         let user_message = ChatMessage {
             id: format!("msg_{}", chrono::Utc::now().timestamp_millis()),
             role: MessageRole::User,
             content: content.to_string(),
             timestamp: chrono::Utc::now().to_rfc3339(),
         };
-
-        // Add user message to local session
-        session.messages.push(user_message.clone());
 
         // Send message via OpenCode API using the correct format
         #[derive(Serialize)]
@@ -238,12 +249,15 @@ impl ChatClient {
             return Err(format!("API error: {} - {}", status, error_text));
         }
 
-        // For now, we'll rely on streaming events for AI responses
-        // The MessageStream will handle receiving the AI response via SSE
+        // Update metadata: increment message count, update timestamp
+        if let Some(metadata) = self.session_metadata.get_mut(session_id) {
+            metadata.message_count += 1;
+            metadata.updated_at = Some(chrono::Utc::now().to_rfc3339());
 
-        // Persist updated session to disk
-        if let Err(e) = self.save_sessions() {
-            eprintln!("Warning: Failed to persist session after message: {}", e);
+            // Persist metadata to disk
+            if let Err(e) = self.save_session_metadata() {
+                eprintln!("Warning: Failed to persist metadata after message: {}", e);
+            }
         }
 
         // Emit user message event
@@ -252,98 +266,120 @@ impl ChatClient {
             message: user_message,
         });
 
+        // MessageStream will handle receiving AI responses via SSE
         Ok(())
     }
 
-    pub fn get_session(&self, session_id: &str) -> Option<&ChatSession> {
-        self.sessions.get(session_id)
+    /// Get session metadata from local cache
+    pub fn get_session_metadata(&self, session_id: &str) -> Option<&SessionMetadata> {
+        self.session_metadata.get(session_id)
     }
 
-    pub fn get_all_sessions(&self) -> Vec<&ChatSession> {
-        self.sessions.values().collect()
+    /// Get all session metadata from local cache
+    pub fn get_all_session_metadata(&self) -> Vec<&SessionMetadata> {
+        self.session_metadata.values().collect()
     }
 
-    pub fn get_sessions(&self) -> &HashMap<String, ChatSession> {
-        &self.sessions
+    /// Get session metadata map (for iteration)
+    pub fn get_session_metadata_map(&self) -> &HashMap<String, SessionMetadata> {
+        &self.session_metadata
     }
 
-    pub fn get_sessions_mut(&mut self) -> &mut HashMap<String, ChatSession> {
-        &mut self.sessions
-    }
+    /// Delete session from server and local cache
+    pub async fn delete_session(&mut self, session_id: &str) -> Result<(), String> {
+        // Delete from server first
+        self.delete_session_from_server(session_id).await?;
 
-    pub fn delete_session(&mut self, session_id: &str) -> Result<(), String> {
-        self.sessions
+        // Then remove from local metadata cache
+        self.session_metadata
             .remove(session_id)
-            .ok_or_else(|| format!("Session {} not found", session_id))?;
+            .ok_or_else(|| format!("Session {} not found in local cache", session_id))?;
+
+        // Persist updated metadata
+        self.save_session_metadata()?;
+
         Ok(())
     }
 
+    /// Get full session history from server (not cached locally)
     pub async fn get_session_history(&self, session_id: &str) -> Result<Vec<ChatMessage>, String> {
-        let session = self
-            .sessions
-            .get(session_id)
-            .ok_or_else(|| format!("Session {} not found", session_id))?;
-
-        Ok(session.messages.clone())
+        // Always fetch from server - mobile-optimized (no local message storage)
+        self.get_session_messages_from_server(session_id).await
     }
 
-    fn get_sessions_file_path(&self) -> PathBuf {
-        self.config_dir.join("chat_sessions.json")
+    fn get_session_metadata_file_path(&self) -> PathBuf {
+        self.config_dir.join("session_metadata.json")
     }
 
-    pub fn save_sessions(&self) -> Result<(), String> {
-        let sessions_vec: Vec<&ChatSession> = self.sessions.values().collect();
-        let json = serde_json::to_string_pretty(&sessions_vec)
-            .map_err(|e| format!("Failed to serialize sessions: {}", e))?;
+    /// Save lightweight metadata to disk (mobile-optimized - only IDs, titles, counts)
+    pub fn save_session_metadata(&self) -> Result<(), String> {
+        let metadata_vec: Vec<&SessionMetadata> = self.session_metadata.values().collect();
+        let json = serde_json::to_string_pretty(&metadata_vec)
+            .map_err(|e| format!("Failed to serialize metadata: {}", e))?;
 
-        std::fs::write(self.get_sessions_file_path(), json)
-            .map_err(|e| format!("Failed to write sessions file: {}", e))?;
+        std::fs::write(self.get_session_metadata_file_path(), json)
+            .map_err(|e| format!("Failed to write metadata file: {}", e))?;
 
         Ok(())
     }
 
-    pub fn load_sessions(&mut self) -> Result<(), String> {
-        let file_path = self.get_sessions_file_path();
+    /// Load lightweight metadata from disk (mobile-optimized)
+    pub fn load_session_metadata(&mut self) -> Result<(), String> {
+        let file_path = self.get_session_metadata_file_path();
 
         if !file_path.exists() {
-            return Ok(()); // No sessions file yet, that's fine
+            return Ok(()); // No metadata file yet, that's fine
         }
 
         let json = std::fs::read_to_string(&file_path)
-            .map_err(|e| format!("Failed to read sessions file: {}", e))?;
+            .map_err(|e| format!("Failed to read metadata file: {}", e))?;
 
-        let sessions_vec: Vec<ChatSession> = serde_json::from_str(&json)
-            .map_err(|e| format!("Failed to deserialize sessions: {}", e))?;
+        let metadata_vec: Vec<SessionMetadata> = serde_json::from_str(&json)
+            .map_err(|e| format!("Failed to deserialize metadata: {}", e))?;
 
-        self.sessions.clear();
-        for session in sessions_vec {
-            self.sessions.insert(session.id.clone(), session);
+        self.session_metadata.clear();
+        for metadata in metadata_vec {
+            self.session_metadata.insert(metadata.id.clone(), metadata);
         }
 
         Ok(())
     }
 
-    /// Sync sessions with the server, merging server sessions with local cache
-    /// Server is the source of truth - any server sessions will override local ones
-    pub async fn sync_sessions_with_server(&mut self) -> Result<(), String> {
+    /// Sync session metadata with server (mobile-optimized - only metadata, no messages)
+    /// Server is the source of truth for session list
+    pub async fn sync_session_metadata_with_server(&mut self) -> Result<(), String> {
         // Try to fetch sessions from server
         match self.list_sessions_from_server().await {
             Ok(server_sessions) => {
-                // Merge server sessions into local cache
+                // Convert server sessions to lightweight metadata
                 for server_session in server_sessions {
-                    // Server sessions override local ones (server is source of truth)
-                    self.sessions
-                        .insert(server_session.id.clone(), server_session);
+                    // Preserve message count if we already have this session cached
+                    let existing_count = self.session_metadata
+                        .get(&server_session.id)
+                        .map(|m| m.message_count)
+                        .unwrap_or(0);
+
+                    let metadata = SessionMetadata {
+                        id: server_session.id.clone(),
+                        title: server_session.title,
+                        created_at: server_session.created_at,
+                        updated_at: None, // Will be updated when messages arrive
+                        message_count: existing_count,
+                    };
+
+                    // Server metadata overrides local (server is source of truth)
+                    self.session_metadata.insert(metadata.id.clone(), metadata);
                 }
-                // Persist the merged sessions to disk
-                self.save_sessions()?;
+
+                // Persist the merged metadata to disk
+                self.save_session_metadata()?;
                 Ok(())
             }
             Err(e) => {
-                // If server sync fails, just continue with local sessions
-                // This allows offline-first behavior
+                // If server sync fails, continue with local metadata
+                // Allows viewing cached sessions when offline
                 eprintln!(
-                    "Warning: Failed to sync sessions with server: {}. Using local cache.",
+                    "Warning: Failed to sync with server: {}. Using local metadata cache.",
                     e
                 );
                 Ok(())
@@ -351,15 +387,14 @@ impl ChatClient {
         }
     }
 
-    pub fn persist_session(&mut self, session: &ChatSession) -> Result<(), String> {
-        self.sessions.insert(session.id.clone(), session.clone());
-        self.save_sessions()
+    pub fn get_current_session_id(&self) -> Option<&String> {
+        self.current_session.as_ref()
     }
 
-    pub fn get_current_session(&self) -> Option<&ChatSession> {
+    pub fn get_current_session_metadata(&self) -> Option<&SessionMetadata> {
         self.current_session
             .as_ref()
-            .and_then(|id| self.sessions.get(id))
+            .and_then(|id| self.session_metadata.get(id))
     }
 
     pub fn set_current_session(&mut self, session_id: Option<String>) {
@@ -628,29 +663,30 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_save_sessions_to_disk() {
+    async fn test_save_session_metadata_to_disk() {
         let (mut chat_client, _temp) = create_test_chat_client();
 
-        // Create a test session
-        let session = ChatSession {
+        // Create test metadata
+        let metadata = SessionMetadata {
             id: "session_123".to_string(),
             title: Some("Test Session".to_string()),
             created_at: chrono::Utc::now().to_rfc3339(),
-            messages: vec![],
+            updated_at: None,
+            message_count: 0,
         };
 
-        // Add session to client
+        // Add metadata to client
         chat_client
-            .sessions
-            .insert(session.id.clone(), session.clone());
+            .session_metadata
+            .insert(metadata.id.clone(), metadata.clone());
 
-        // Save sessions to disk
-        let result = chat_client.save_sessions();
-        assert!(result.is_ok(), "Should save sessions successfully");
+        // Save metadata to disk
+        let result = chat_client.save_session_metadata();
+        assert!(result.is_ok(), "Should save metadata successfully");
 
         // Verify file was created
-        let file_path = chat_client.get_sessions_file_path();
-        assert!(file_path.exists(), "Sessions file should exist");
+        let file_path = chat_client.get_session_metadata_file_path();
+        assert!(file_path.exists(), "Metadata file should exist");
 
         // Verify file contents
         let json = std::fs::read_to_string(&file_path).expect("Should read file");
@@ -665,160 +701,149 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_load_sessions_from_disk() {
+    async fn test_load_session_metadata_from_disk() {
         let (mut chat_client, _temp) = create_test_chat_client();
 
-        // Create and save a session
-        let session = ChatSession {
+        // Create and save metadata
+        let metadata = SessionMetadata {
             id: "session_456".to_string(),
             title: Some("Persisted Session".to_string()),
             created_at: chrono::Utc::now().to_rfc3339(),
-            messages: vec![],
+            updated_at: None,
+            message_count: 5,
         };
 
         chat_client
-            .sessions
-            .insert(session.id.clone(), session.clone());
-        chat_client.save_sessions().expect("Should save sessions");
+            .session_metadata
+            .insert(metadata.id.clone(), metadata.clone());
+        chat_client
+            .save_session_metadata()
+            .expect("Should save metadata");
 
-        // Clear sessions in memory
-        chat_client.sessions.clear();
-        assert_eq!(chat_client.sessions.len(), 0, "Sessions should be cleared");
-
-        // Load sessions from disk
-        let result = chat_client.load_sessions();
-        assert!(result.is_ok(), "Should load sessions successfully");
-
-        // Verify session was loaded
+        // Clear metadata in memory
+        chat_client.session_metadata.clear();
         assert_eq!(
-            chat_client.sessions.len(),
+            chat_client.session_metadata.len(),
+            0,
+            "Metadata should be cleared"
+        );
+
+        // Load metadata from disk
+        let result = chat_client.load_session_metadata();
+        assert!(result.is_ok(), "Should load metadata successfully");
+
+        // Verify metadata was loaded
+        assert_eq!(
+            chat_client.session_metadata.len(),
             1,
-            "Should have 1 session loaded"
+            "Should have 1 metadata loaded"
         );
         assert!(
-            chat_client.sessions.contains_key("session_456"),
-            "Should contain the saved session"
+            chat_client.session_metadata.contains_key("session_456"),
+            "Should contain the saved metadata"
         );
 
-        let loaded_session = &chat_client.sessions["session_456"];
-        assert_eq!(loaded_session.title, Some("Persisted Session".to_string()));
+        let loaded_metadata = &chat_client.session_metadata["session_456"];
+        assert_eq!(
+            loaded_metadata.title,
+            Some("Persisted Session".to_string())
+        );
+        assert_eq!(loaded_metadata.message_count, 5);
     }
 
     #[tokio::test]
-    async fn test_load_sessions_when_file_not_exists() {
+    async fn test_load_metadata_when_file_not_exists() {
         let (mut chat_client, _temp) = create_test_chat_client();
 
-        // Try to load sessions when file doesn't exist
-        let result = chat_client.load_sessions();
+        // Try to load metadata when file doesn't exist
+        let result = chat_client.load_session_metadata();
 
         // Should succeed (no-op) when file doesn't exist
         assert!(result.is_ok(), "Should succeed when file doesn't exist");
-        assert_eq!(chat_client.sessions.len(), 0, "Should have no sessions");
-    }
-
-    #[tokio::test]
-    async fn test_persist_session() {
-        let (mut chat_client, _temp) = create_test_chat_client();
-
-        // Create a session
-        let session = ChatSession {
-            id: "session_persist".to_string(),
-            title: Some("Persist Test".to_string()),
-            created_at: chrono::Utc::now().to_rfc3339(),
-            messages: vec![],
-        };
-
-        // Persist the session
-        let result = chat_client.persist_session(&session);
-        assert!(result.is_ok(), "Should persist session successfully");
-
-        // Verify session is in memory
-        assert!(
-            chat_client.sessions.contains_key("session_persist"),
-            "Session should be in memory"
-        );
-
-        // Verify session is on disk
-        let file_path = chat_client.get_sessions_file_path();
-        assert!(file_path.exists(), "Sessions file should exist");
-
-        let json = std::fs::read_to_string(&file_path).expect("Should read file");
-        assert!(
-            json.contains("session_persist"),
-            "File should contain session"
+        assert_eq!(
+            chat_client.session_metadata.len(),
+            0,
+            "Should have no metadata"
         );
     }
 
     #[tokio::test]
-    async fn test_sessions_survive_restart() {
+    async fn test_metadata_survives_restart() {
         let temp_dir = TempDir::new().expect("Failed to create temp dir");
         let config_path = temp_dir.path().to_path_buf();
 
-        // Create first client instance and save a session
+        // Create first client instance and save metadata
         {
             let mut client1 =
                 ChatClient::new(config_path.clone()).expect("Failed to create first client");
 
-            let session = ChatSession {
+            let metadata = SessionMetadata {
                 id: "session_restart".to_string(),
                 title: Some("Restart Test".to_string()),
                 created_at: chrono::Utc::now().to_rfc3339(),
-                messages: vec![ChatMessage {
-                    id: "msg_1".to_string(),
-                    role: MessageRole::User,
-                    content: "Test message".to_string(),
-                    timestamp: chrono::Utc::now().to_rfc3339(),
-                }],
+                updated_at: Some(chrono::Utc::now().to_rfc3339()),
+                message_count: 5,
             };
 
-            client1.persist_session(&session).expect("Should persist");
+            client1
+                .session_metadata
+                .insert(metadata.id.clone(), metadata);
+            client1
+                .save_session_metadata()
+                .expect("Should save metadata");
         } // client1 dropped here, simulating app shutdown
 
-        // Create second client instance and load sessions
+        // Create second client instance and load metadata
         {
             let mut client2 =
                 ChatClient::new(config_path.clone()).expect("Failed to create second client");
 
-            // Load sessions from disk
-            client2.load_sessions().expect("Should load sessions");
+            // Load metadata from disk
+            client2
+                .load_session_metadata()
+                .expect("Should load metadata");
 
-            // Verify session survived restart
-            assert_eq!(client2.sessions.len(), 1, "Should have 1 session");
+            // Verify metadata survived restart
+            assert_eq!(
+                client2.session_metadata.len(),
+                1,
+                "Should have 1 metadata"
+            );
             assert!(
-                client2.sessions.contains_key("session_restart"),
-                "Should contain persisted session"
+                client2.session_metadata.contains_key("session_restart"),
+                "Should contain persisted metadata"
             );
 
-            let session = &client2.sessions["session_restart"];
-            assert_eq!(session.title, Some("Restart Test".to_string()));
-            assert_eq!(session.messages.len(), 1, "Should have 1 message");
-            assert_eq!(session.messages[0].content, "Test message");
+            let metadata = &client2.session_metadata["session_restart"];
+            assert_eq!(metadata.title, Some("Restart Test".to_string()));
+            assert_eq!(metadata.message_count, 5);
         }
     }
 
     #[tokio::test]
-    async fn test_get_current_session() {
+    async fn test_get_current_session_metadata() {
         let (mut chat_client, _temp) = create_test_chat_client();
 
         // Initially no current session
-        assert!(chat_client.get_current_session().is_none());
+        assert!(chat_client.get_current_session_metadata().is_none());
 
-        // Add a session
-        let session = ChatSession {
+        // Add metadata
+        let metadata = SessionMetadata {
             id: "session_current".to_string(),
             title: Some("Current Session".to_string()),
             created_at: chrono::Utc::now().to_rfc3339(),
-            messages: vec![],
+            updated_at: None,
+            message_count: 0,
         };
 
         chat_client
-            .sessions
-            .insert(session.id.clone(), session.clone());
+            .session_metadata
+            .insert(metadata.id.clone(), metadata.clone());
         chat_client.set_current_session(Some("session_current".to_string()));
 
-        // Should now have current session
-        let current = chat_client.get_current_session();
-        assert!(current.is_some(), "Should have current session");
+        // Should now have current session metadata
+        let current = chat_client.get_current_session_metadata();
+        assert!(current.is_some(), "Should have current session metadata");
         assert_eq!(current.unwrap().id, "session_current");
     }
 

@@ -3,7 +3,7 @@ mod chat_client;
 mod connection_manager;
 mod message_stream;
 
-use chat_client::{ChatClient, ChatMessage, ChatSession};
+use chat_client::{ChatClient, ChatMessage, ChatSession, SessionMetadata};
 use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection, ServerInfo};
 
 use chrono::Utc;
@@ -241,7 +241,7 @@ async fn create_chat_session(
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
     chat_client.set_server_url(server_url);
-    chat_client.load_sessions().map_err(|e| e.to_string())?;
+    chat_client.load_session_metadata().map_err(|e| e.to_string())?;
     chat_client.create_session(title.as_deref()).await
 }
 
@@ -258,27 +258,31 @@ async fn send_chat_message(
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
     chat_client.set_server_url(server_url);
-    chat_client.load_sessions().map_err(|e| e.to_string())?;
+    chat_client.load_session_metadata().map_err(|e| e.to_string())?;
 
     // Send the message and rely on events/streaming for responses
     chat_client.send_message(&session_id, &content).await
 }
 
 #[tauri::command]
-async fn get_chat_sessions(_app_handle: tauri::AppHandle) -> Result<Vec<ChatSession>, String> {
+async fn get_chat_sessions(_app_handle: tauri::AppHandle) -> Result<Vec<SessionMetadata>, String> {
     let config_dir = get_config_dir()?;
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client.load_sessions().map_err(|e| e.to_string())?;
+    chat_client.load_session_metadata().map_err(|e| e.to_string())?;
 
-    // Sync with server to get latest sessions (server is source of truth)
-    // This merges server sessions with local cache and persists to disk
-    // Errors in sync are non-fatal - we fall back to local sessions
-    let _ = chat_client.sync_sessions_with_server().await;
+    // Sync with server to get latest session list (server is source of truth)
+    // This updates local metadata cache - mobile-optimized (no message storage)
+    // Errors in sync are non-fatal - we fall back to local metadata cache
+    let _ = chat_client.sync_session_metadata_with_server().await;
 
-    // Return merged sessions (now includes server sessions)
-    let sessions: Vec<ChatSession> = chat_client.get_sessions().values().cloned().collect();
-    Ok(sessions)
+    // Return lightweight metadata (no messages - fetch from server when needed)
+    let metadata: Vec<SessionMetadata> = chat_client
+        .get_session_metadata_map()
+        .values()
+        .cloned()
+        .collect();
+    Ok(metadata)
 }
 
 #[tauri::command]
@@ -286,10 +290,13 @@ async fn get_chat_session_history(
     _app_handle: tauri::AppHandle,
     session_id: String,
 ) -> Result<Vec<ChatMessage>, String> {
+    let server_url = ensure_server_connected()?;
     let config_dir = get_config_dir()?;
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client.load_sessions().map_err(|e| e.to_string())?;
+    chat_client.set_server_url(server_url);
+
+    // Fetch full message history from server (mobile-optimized - not stored locally)
     chat_client.get_session_history(&session_id).await
 }
 
