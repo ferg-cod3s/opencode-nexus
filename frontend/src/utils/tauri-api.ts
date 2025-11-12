@@ -4,7 +4,12 @@
  * In browser/tests: Uses mocked API for testing
  */
 
-import type { OnboardingState } from '../types/onboarding';
+// Type for mock onboarding state (onboarding removed, kept for backward compatibility)
+type OnboardingState = {
+  completed: boolean;
+  current_step?: string;
+  [key: string]: any; // Legacy mock fields (onboarding system removed)
+};
 
 // Check if we're running in a Tauri environment
 export const isTauriEnvironment = (): boolean => {
@@ -158,6 +163,8 @@ const mockApi = {
      );
      
      return {
+       completed: isCompleted,
+       current_step: isCompleted ? undefined : 'welcome',
        config: isCompleted ? {
          is_completed: true,
          owner_account_created: true,

@@ -138,6 +138,7 @@ import Layout from '../layouts/Layout.astro';
   import { invoke } from '../utils/tauri-api';
   import { listen } from '@tauri-apps/api/event';
   import type { ChatSession, ChatMessage } from '../types/chat';
+  import { MessageRole } from '../types/chat';
 
   // Component instances
   let sessionGridComponent: any = null;
@@ -273,7 +274,7 @@ import Layout from '../layouts/Layout.astro';
         // Create new assistant message for first chunk
         currentSession.messages.push({
           id: `msg_${Date.now()}`,
-          role: 'assistant',
+          role: MessageRole.Assistant,
           content: data.chunk,
           timestamp: new Date().toISOString()
         });
