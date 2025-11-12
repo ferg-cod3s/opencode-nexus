@@ -186,6 +186,13 @@ mod tests {
     use super::*;
     use tokio::sync::broadcast;
 
+    /// Helper function to create a test MessageStream
+    fn create_test_message_stream() -> (MessageStream, broadcast::Receiver<ChatEvent>) {
+        let (sender, receiver) = broadcast::channel(100);
+        let stream = MessageStream::new(sender);
+        (stream, receiver)
+    }
+
     #[test]
     fn test_message_stream_creation() {
         let (sender, _) = broadcast::channel(10);
@@ -214,5 +221,174 @@ mod tests {
 
         stream.stop_streaming();
         assert!(!stream.is_streaming());
+    }
+
+    #[test]
+    fn test_set_api_client() {
+        let (mut stream, _receiver) = create_test_message_stream();
+
+        // Initially no API client
+        assert!(stream.api_client.is_none());
+
+        // Set API client
+        let api_client = ApiClient::new("http://localhost:3000").expect("Failed to create API client");
+        stream.set_api_client(api_client);
+
+        // Should now have API client
+        assert!(stream.api_client.is_some());
+    }
+
+    #[tokio::test]
+    async fn test_start_streaming_requires_api_client() {
+        let (mut stream, _receiver) = create_test_message_stream();
+
+        // Try to start streaming without API client
+        let result = stream.start_streaming().await;
+
+        // Should fail with clear error
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err();
+        assert!(
+            error_msg.contains("API client not available"),
+            "Error should mention API client: {}",
+            error_msg
+        );
+    }
+
+    #[tokio::test]
+    async fn test_parse_sse_message_chunk() {
+        let (sender, mut receiver) = broadcast::channel(100);
+
+        // Simulate streaming message chunk
+        let streaming_msg = StreamingMessage {
+            id: "msg_123".to_string(),
+            content: "Hello".to_string(),
+            role: "assistant".to_string(),
+            session_id: "session_456".to_string(),
+            is_chunk: Some(true),
+        };
+
+        // Handle the streaming message
+        MessageStream::handle_streaming_message(&streaming_msg, &sender).await;
+
+        // Should receive MessageChunk event
+        let event = receiver.recv().await.expect("Should receive event");
+        match event {
+            ChatEvent::MessageChunk { session_id, chunk } => {
+                assert_eq!(session_id, "session_456");
+                assert_eq!(chunk, "Hello");
+            }
+            _ => panic!("Expected MessageChunk event, got {:?}", event),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_parse_sse_complete_message() {
+        let (sender, mut receiver) = broadcast::channel(100);
+
+        // Simulate complete message
+        let streaming_msg = StreamingMessage {
+            id: "msg_789".to_string(),
+            content: "Complete message".to_string(),
+            role: "assistant".to_string(),
+            session_id: "session_456".to_string(),
+            is_chunk: Some(false),
+        };
+
+        // Handle the streaming message
+        MessageStream::handle_streaming_message(&streaming_msg, &sender).await;
+
+        // Should receive MessageReceived event
+        let event = receiver.recv().await.expect("Should receive event");
+        match event {
+            ChatEvent::MessageReceived { session_id, message } => {
+                assert_eq!(session_id, "session_456");
+                assert_eq!(message.id, "msg_789");
+                assert_eq!(message.content, "Complete message");
+                assert!(matches!(message.role, MessageRole::Assistant));
+            }
+            _ => panic!("Expected MessageReceived event, got {:?}", event),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_streaming_message_user_role() {
+        let (sender, mut receiver) = broadcast::channel(100);
+
+        // Simulate user message
+        let streaming_msg = StreamingMessage {
+            id: "msg_user".to_string(),
+            content: "User message".to_string(),
+            role: "user".to_string(),
+            session_id: "session_789".to_string(),
+            is_chunk: Some(false),
+        };
+
+        // Handle the streaming message
+        MessageStream::handle_streaming_message(&streaming_msg, &sender).await;
+
+        // Should receive MessageReceived event with User role
+        let event = receiver.recv().await.expect("Should receive event");
+        match event {
+            ChatEvent::MessageReceived { message, .. } => {
+                assert!(matches!(message.role, MessageRole::User));
+                assert_eq!(message.content, "User message");
+            }
+            _ => panic!("Expected MessageReceived event, got {:?}", event),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_streaming_message_assistant_role() {
+        let (sender, mut receiver) = broadcast::channel(100);
+
+        // Simulate assistant message
+        let streaming_msg = StreamingMessage {
+            id: "msg_assistant".to_string(),
+            content: "Assistant response".to_string(),
+            role: "assistant".to_string(),
+            session_id: "session_789".to_string(),
+            is_chunk: Some(false),
+        };
+
+        // Handle the streaming message
+        MessageStream::handle_streaming_message(&streaming_msg, &sender).await;
+
+        // Should receive MessageReceived event with Assistant role
+        let event = receiver.recv().await.expect("Should receive event");
+        match event {
+            ChatEvent::MessageReceived { message, .. } => {
+                assert!(matches!(message.role, MessageRole::Assistant));
+                assert_eq!(message.content, "Assistant response");
+            }
+            _ => panic!("Expected MessageReceived event, got {:?}", event),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_handle_streaming_message_unknown_role() {
+        let (sender, mut receiver) = broadcast::channel(100);
+
+        // Simulate message with unknown role
+        let streaming_msg = StreamingMessage {
+            id: "msg_unknown".to_string(),
+            content: "Unknown role message".to_string(),
+            role: "unknown_role".to_string(),
+            session_id: "session_789".to_string(),
+            is_chunk: Some(false),
+        };
+
+        // Handle the streaming message
+        MessageStream::handle_streaming_message(&streaming_msg, &sender).await;
+
+        // Should not emit any event for unknown roles
+        let result = tokio::time::timeout(
+            std::time::Duration::from_millis(100),
+            receiver.recv()
+        )
+        .await;
+
+        // Should timeout because no event was emitted
+        assert!(result.is_err(), "Should not emit event for unknown role");
     }
 }
