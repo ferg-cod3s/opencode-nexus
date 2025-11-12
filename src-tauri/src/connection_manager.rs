@@ -1,3 +1,4 @@
+use crate::error::{AppError, RetryConfig, retry_with_backoff};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -172,18 +173,39 @@ impl ConnectionManager {
         port: u16,
         secure: bool,
     ) -> Result<ServerInfo, String> {
-        let url = format!(
-            "{}://{}:{}/session",
-            if secure { "https" } else { "http" },
-            hostname,
-            port
-        );
+        let client = self.client.clone();
+        let hostname_clone = hostname.to_string();
 
-        match self.client.get(&url).send().await {
-            Ok(response) => {
-                if response.status().is_success() {
+        // Use retry logic with exponential backoff for network resilience
+        let result = retry_with_backoff(
+            || {
+                let client = client.clone();
+                let hostname = hostname_clone.clone();
+                async move {
+                    let url = format!(
+                        "{}://{}:{}/session",
+                        if secure { "https" } else { "http" },
+                        hostname,
+                        port
+                    );
+
+                    let response = client.get(&url).send().await?;
+
+                    if !response.status().is_success() {
+                        return Err(AppError::ServerError {
+                            status_code: response.status().as_u16(),
+                            message: format!(
+                                "Server responded with status: {}",
+                                response.status()
+                            ),
+                            details: response.text().await.unwrap_or_default(),
+                        });
+                    }
+
                     // Try to parse server info from response
-                    match response.json::<serde_json::Value>().await {
+                    let json_result = response.json::<serde_json::Value>().await;
+
+                    let (name, version) = match json_result {
                         Ok(json) => {
                             let version = json
                                 .get("version")
@@ -194,41 +216,32 @@ impl ConnectionManager {
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("OpenCode Server")
                                 .to_string();
-
-                            Ok(ServerInfo {
-                                name,
-                                hostname: hostname.to_string(),
-                                port,
-                                secure,
-                                version,
-                                status: ConnectionStatus::Connected,
-                                last_connected: Some(chrono::Utc::now().to_rfc3339()),
-                                last_error: None,
-                            })
+                            (name, version)
                         }
                         Err(_) => {
                             // Server responded but not with expected JSON - still consider it valid
-                            Ok(ServerInfo {
-                                name: format!("{}:{}", hostname, port),
-                                hostname: hostname.to_string(),
-                                port,
-                                secure,
-                                version: None,
-                                status: ConnectionStatus::Connected,
-                                last_connected: Some(chrono::Utc::now().to_rfc3339()),
-                                last_error: None,
-                            })
+                            (format!("{}:{}", hostname, port), None)
                         }
-                    }
-                } else {
-                    Err(format!(
-                        "Server responded with status: {}",
-                        response.status()
-                    ))
+                    };
+
+                    Ok(ServerInfo {
+                        name,
+                        hostname: hostname.clone(),
+                        port,
+                        secure,
+                        version,
+                        status: ConnectionStatus::Connected,
+                        last_connected: Some(chrono::Utc::now().to_rfc3339()),
+                        last_error: None,
+                    })
                 }
-            }
-            Err(e) => Err(format!("Failed to connect to server: {}", e)),
-        }
+            },
+            RetryConfig::default(),
+        )
+        .await;
+
+        // Convert AppError to String for backward compatibility
+        result.map_err(|e| e.user_message())
     }
 
     pub fn get_connection_status(&self) -> ConnectionStatus {

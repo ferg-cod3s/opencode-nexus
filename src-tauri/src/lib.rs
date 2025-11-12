@@ -1,6 +1,7 @@
 mod api_client;
 mod chat_client;
 mod connection_manager;
+mod error;
 mod message_stream;
 
 use chat_client::{ChatClient, ChatMessage, ChatSession, SessionMetadata};

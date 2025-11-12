@@ -1,4 +1,5 @@
 use crate::api_client::ApiClient;
+use crate::error::{AppError, RetryConfig, retry_with_backoff};
 use crate::message_stream::MessageStream;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -204,20 +205,20 @@ impl ChatClient {
             timestamp: chrono::Utc::now().to_rfc3339(),
         };
 
-        // Send message via OpenCode API using the correct format
-        #[derive(Serialize)]
+        // Send message via OpenCode API with retry logic
+        #[derive(Serialize, Clone)]
         struct ModelConfig {
             provider_id: String,
             model_id: String,
         }
 
-        #[derive(Serialize)]
+        #[derive(Serialize, Clone)]
         struct MessagePart {
             r#type: String,
             text: String,
         }
 
-        #[derive(Serialize)]
+        #[derive(Serialize, Clone)]
         struct PromptRequest {
             model: ModelConfig,
             parts: Vec<MessagePart>,
@@ -234,20 +235,41 @@ impl ChatClient {
             }],
         };
 
+        let client = self.client.clone();
         let url = format!("{}/session/{}/prompt", server_url, session_id);
-        let response = self
-            .client
-            .post(&url)
-            .json(&request)
-            .send()
-            .await
-            .map_err(|e| format!("Failed to send message: {}", e))?;
 
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response.text().await.unwrap_or_default();
-            return Err(format!("API error: {} - {}", status, error_text));
-        }
+        // Use retry logic with exponential backoff for network resilience
+        let result = retry_with_backoff(
+            || {
+                let client = client.clone();
+                let url = url.clone();
+                let request = request.clone();
+                async move {
+                    let response = client
+                        .post(&url)
+                        .json(&request)
+                        .send()
+                        .await?;
+
+                    if !response.status().is_success() {
+                        let status_code = response.status().as_u16();
+                        let error_text = response.text().await.unwrap_or_default();
+                        return Err(AppError::ServerError {
+                            status_code,
+                            message: format!("Failed to send message (status {})", status_code),
+                            details: error_text,
+                        });
+                    }
+
+                    Ok(())
+                }
+            },
+            RetryConfig::default(),
+        )
+        .await;
+
+        // Convert AppError to String for backward compatibility
+        result.map_err(|e| e.user_message())?;
 
         // Update metadata: increment message count, update timestamp
         if let Some(metadata) = self.session_metadata.get_mut(session_id) {
