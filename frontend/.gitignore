@@ -3,6 +3,7 @@ dist/
 playwright-report/
 test-results/
 coverage/
+e2e-test-results.txt
 
 # generated types and caches
 .astro/
