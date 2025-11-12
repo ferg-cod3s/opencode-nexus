@@ -15,32 +15,41 @@ This guide covers the three supported connection methods and their security requ
 ## Connection Security Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    OpenCode Server                          │
-│              (NO built-in authentication)                   │
-│                  opencode serve                             │
-│                 localhost:4096                              │
-└─────────────────────────────────────────────────────────────┘
-                           ↑
-                           │
-    ┌──────────────────────┼──────────────────────┐
-    │                      │                      │
-    │ 1. Direct            │ 2. Cloudflare       │ 3. Reverse Proxy
-    │    (localhost)       │    Tunnel           │    (nginx/Caddy)
-    │                      │                      │
-    │ No auth needed       │ Tunnel auth         │ API key + HMAC
-    │ Same machine         │ (Cloudflare)        │ Request signing
-    │                      │                      │
-    └──────────────────────┴──────────────────────┘
-                           ↑
-                           │
-              ┌────────────────────────┐
-              │  OpenCode Nexus Client │
-              │   (This Application)   │
-              └────────────────────────┘
+┌─────────────────┐         ┌──────────────────┐         ┌──────────────┐
+│   Client        │         │   Host Machine   │         │  OpenCode    │
+│  (Mobile/       │◄──auth─▶│  (Your server/   │────────▶│  Server      │
+│   Desktop)      │         │   computer)      │  local  │  (localhost) │
+│                 │         │                  │         │              │
+│  OpenCode       │         │  cloudflared OR  │         │  Port 4096   │
+│  Nexus          │         │  reverse proxy   │         │  No auth     │
+└─────────────────┘         └──────────────────┘         └──────────────┘
 ```
 
-**Key Point**: Authentication happens at the **connection layer** (tunnel/proxy), not at the OpenCode server level.
+### Three Connection Methods
+
+**1. Localhost (Direct)**
+```
+Client = Host (same machine)
+No auth needed - you're already on the machine
+Client → http://localhost:4096
+```
+
+**2. Cloudflare Tunnel**
+```
+Client → Cloudflare (tunnel auth) → Host → OpenCode (localhost:4096)
+Security: Cloudflare Tunnel authentication
+```
+
+**3. Reverse Proxy**
+```
+Client → nginx/Caddy (API key) → Host → OpenCode (localhost:4096)
+Security: Reverse proxy authentication (API key + HMAC)
+```
+
+**Key Points**:
+- OpenCode server **always runs on localhost** (no auth needed at OpenCode level)
+- Security is about **accessing the host machine**, not OpenCode itself
+- Client authenticates to **HOST**, not directly to OpenCode
 
 ---
 
