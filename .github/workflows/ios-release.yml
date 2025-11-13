@@ -79,10 +79,9 @@ jobs:
         env:
           NODE_ENV: production
 
-       - name: Setup Tauri
-         uses: tauri-apps/tauri-action@v0
-         with:
-           tauriScript: echo "Tauri setup complete"
+       - name: Install Tauri CLI
+         run: |
+           which tauri || cargo install tauri-cli --version "2.0" --quiet
 
        - name: Setup iOS build environment
          run: |
