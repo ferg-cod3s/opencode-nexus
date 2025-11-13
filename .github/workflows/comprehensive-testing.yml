@@ -102,11 +102,11 @@ jobs:
       - name: Install frontend dependencies
         working-directory: frontend
         run: bun install
-      
+
       - name: Install Playwright browsers
         working-directory: frontend
         run: bunx playwright install --with-deps
-      
+
       - name: Build frontend
         working-directory: frontend
         run: bun run build
@@ -174,25 +174,25 @@ jobs:
          working-directory: frontend
          run: bunx playwright install --with-deps
 
-       - name: Build frontend
-         working-directory: frontend
-         run: bun run build
+      - name: Build frontend
+        working-directory: frontend
+        run: bun run build
 
-       - name: Start development server
-         working-directory: frontend
-         run: |
-           bun run dev &
-           sleep 10
+      - name: Start development server
+        working-directory: frontend
+        run: |
+          bun run dev &
+          sleep 10
 
-       - name: Run performance tests
-         working-directory: frontend
-         run: bunx playwright test --grep "performance"
+      - name: Run performance tests
+        working-directory: frontend
+        run: bunx playwright test --grep "performance"
 
-       - name: Generate Lighthouse report
-         working-directory: frontend
-         run: |
-           bunx lighthouse http://localhost:4321 --output json --output-path ./lighthouse-report.json
-         continue-on-error: true
+      - name: Generate Lighthouse report
+        working-directory: frontend
+        run: |
+          bunx lighthouse http://localhost:4321 --output json --output-path ./lighthouse-report.json
+        continue-on-error: true
       
       - name: Upload performance reports
         uses: actions/upload-artifact@v3
