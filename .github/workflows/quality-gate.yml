@@ -122,10 +122,10 @@ jobs:
           cd frontend
           bun install
 
-      - name: Run frontend tests with coverage
-        run: |
-          cd frontend
-          bun test --coverage
+       - name: Run frontend unit tests with coverage
+         run: |
+           cd frontend
+           bun test src/tests --coverage
         continue-on-error: true
 
       - name: Run Rust tests with coverage

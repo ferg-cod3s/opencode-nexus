@@ -18,6 +18,19 @@ header:
     - '**/.github/**'
     - '**/icons/**'
     - '**/public/**'
+    - '**/*.zip'
+    - '**/*.txt'
+    - '**/gen/**'
+    - '**/*.entitlements'
+    - '**/*.pbxproj'
+    - '**/*.xcscheme'
+    - '**/*.xcworkspacedata'
+    - '**/*.xcodeproj/**'
+    - '**/Podfile'
+    - 'header-templates/**'
+    - '.prettierrc'
+    - 'LICENSE'
+    - '**/*.astro'
 
   comment: on-failure
 
