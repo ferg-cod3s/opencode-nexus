@@ -178,15 +178,21 @@ jobs:
         working-directory: frontend
         run: bun run build
       
-      - name: Run performance tests
-        working-directory: frontend
-        run: bunx playwright test --grep "performance"
-      
-      - name: Generate Lighthouse report
-        working-directory: frontend
-        run: |
-          bunx lighthouse http://localhost:4321 --output json --output-path ./lighthouse-report.json
-        continue-on-error: true
+       - name: Start development server
+         working-directory: frontend
+         run: |
+           bun run dev &
+           sleep 10
+
+       - name: Run performance tests
+         working-directory: frontend
+         run: bunx playwright test --grep "performance"
+
+       - name: Generate Lighthouse report
+         working-directory: frontend
+         run: |
+           bunx lighthouse http://localhost:4321 --output json --output-path ./lighthouse-report.json
+         continue-on-error: true
       
       - name: Upload performance reports
         uses: actions/upload-artifact@v3
@@ -226,16 +232,20 @@ jobs:
         working-directory: frontend
         run: bunx playwright test --grep "accessibility"
       
-      - name: Install axe-core
-        run: bunx npm install -g @axe-core/cli
-      
-      - name: Run axe accessibility scan
-        working-directory: frontend
-        run: |
-          bunx serve dist -p 3000 &
-          sleep 5
-          bunx axe http://localhost:3000
-        continue-on-error: true
+       - name: Start development server for accessibility testing
+         working-directory: frontend
+         run: |
+           bun run dev &
+           sleep 10
+
+       - name: Install axe-core
+         run: bunx npm install -g @axe-core/cli
+
+       - name: Run axe accessibility scan
+         working-directory: frontend
+         run: |
+           bunx axe http://localhost:4321
+         continue-on-error: true
 
   # Build Test
   build-test:
