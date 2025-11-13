@@ -124,12 +124,6 @@ jobs:
           cd frontend
           bun install
 
-      - name: Run Rust tests with coverage
-        run: |
-          cd src-tauri
-          cargo tarpaulin --out Xml --output-dir ../coverage
-        continue-on-error: true
-
        - name: Run Rust tests with coverage
          run: |
            cd src-tauri
