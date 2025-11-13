@@ -79,9 +79,10 @@ jobs:
         env:
           NODE_ENV: production
 
-       - name: Install Tauri CLI
-         run: |
-           npm install -g @tauri-apps/cli@2.0.0
+       - name: Setup Tauri
+         uses: tauri-apps/tauri-action@v0
+         with:
+           projectPath: src-tauri
 
        - name: Setup iOS build environment
          run: |
