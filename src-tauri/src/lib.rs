@@ -119,12 +119,18 @@ async fn connect_to_server(
     method: String,
     name: String,
 ) -> Result<String, String> {
-    log_info!("🔗 [CONNECTION] Connecting to server: {} (method: {})", server_url, method);
+    log_info!(
+        "🔗 [CONNECTION] Connecting to server: {} (method: {})",
+        server_url,
+        method
+    );
 
     // Parse the server URL to extract components
     let url = url::Url::parse(&server_url).map_err(|e| format!("Invalid server URL: {}", e))?;
     let hostname = url.host_str().ok_or("No hostname in URL")?.to_string();
-    let port = url.port().unwrap_or(if url.scheme() == "https" { 443 } else { 4096 });
+    let port = url
+        .port()
+        .unwrap_or(if url.scheme() == "https" { 443 } else { 4096 });
     let secure = url.scheme() == "https";
 
     let config_dir = dirs::config_dir()
@@ -164,7 +170,9 @@ async fn test_server_connection(
     // Parse the server URL to extract components
     let url = url::Url::parse(&server_url).map_err(|e| format!("Invalid server URL: {}", e))?;
     let hostname = url.host_str().ok_or("No hostname in URL")?.to_string();
-    let port = url.port().unwrap_or(if url.scheme() == "https" { 443 } else { 4096 });
+    let port = url
+        .port()
+        .unwrap_or(if url.scheme() == "https" { 443 } else { 4096 });
     let secure = url.scheme() == "https";
 
     let config_dir = dirs::config_dir()
@@ -172,8 +180,7 @@ async fn test_server_connection(
         .join("opencode-nexus");
 
     // Create a temporary connection manager for testing (no app_handle needed)
-    let connection_manager =
-        ConnectionManager::new(config_dir, None).map_err(|e| e.to_string())?;
+    let connection_manager = ConnectionManager::new(config_dir, None).map_err(|e| e.to_string())?;
 
     // Test the connection
     match connection_manager
@@ -242,7 +249,9 @@ async fn create_chat_session(
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
     chat_client.set_server_url(server_url);
-    chat_client.load_session_metadata().map_err(|e| e.to_string())?;
+    chat_client
+        .load_session_metadata()
+        .map_err(|e| e.to_string())?;
     chat_client.create_session(title.as_deref()).await
 }
 
@@ -259,7 +268,9 @@ async fn send_chat_message(
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
     chat_client.set_server_url(server_url);
-    chat_client.load_session_metadata().map_err(|e| e.to_string())?;
+    chat_client
+        .load_session_metadata()
+        .map_err(|e| e.to_string())?;
 
     // Send the message and rely on events/streaming for responses
     chat_client.send_message(&session_id, &content).await
@@ -270,7 +281,9 @@ async fn get_chat_sessions(_app_handle: tauri::AppHandle) -> Result<Vec<SessionM
     let config_dir = get_config_dir()?;
 
     let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client.load_session_metadata().map_err(|e| e.to_string())?;
+    chat_client
+        .load_session_metadata()
+        .map_err(|e| e.to_string())?;
 
     // Sync with server to get latest session list (server is source of truth)
     // This updates local metadata cache - mobile-optimized (no message storage)

@@ -1,5 +1,5 @@
 use crate::api_client::ApiClient;
-use crate::error::{AppError, RetryConfig, retry_with_backoff};
+use crate::error::{retry_with_backoff, AppError, RetryConfig};
 use crate::message_stream::MessageStream;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -167,7 +167,8 @@ impl ChatClient {
             message_count: 0,
         };
 
-        self.session_metadata.insert(metadata.id.clone(), metadata.clone());
+        self.session_metadata
+            .insert(metadata.id.clone(), metadata.clone());
         self.current_session = Some(metadata.id.clone());
 
         // Persist metadata to disk
@@ -245,11 +246,7 @@ impl ChatClient {
                 let url = url.clone();
                 let request = request.clone();
                 async move {
-                    let response = client
-                        .post(&url)
-                        .json(&request)
-                        .send()
-                        .await?;
+                    let response = client.post(&url).json(&request).send().await?;
 
                     if !response.status().is_success() {
                         let status_code = response.status().as_u16();
@@ -376,7 +373,8 @@ impl ChatClient {
                 // Convert server sessions to lightweight metadata
                 for server_session in server_sessions {
                     // Preserve message count if we already have this session cached
-                    let existing_count = self.session_metadata
+                    let existing_count = self
+                        .session_metadata
                         .get(&server_session.id)
                         .map(|m| m.message_count)
                         .unwrap_or(0);
@@ -766,10 +764,7 @@ mod tests {
         );
 
         let loaded_metadata = &chat_client.session_metadata["session_456"];
-        assert_eq!(
-            loaded_metadata.title,
-            Some("Persisted Session".to_string())
-        );
+        assert_eq!(loaded_metadata.title, Some("Persisted Session".to_string()));
         assert_eq!(loaded_metadata.message_count, 5);
     }
 
@@ -826,11 +821,7 @@ mod tests {
                 .expect("Should load metadata");
 
             // Verify metadata survived restart
-            assert_eq!(
-                client2.session_metadata.len(),
-                1,
-                "Should have 1 metadata"
-            );
+            assert_eq!(client2.session_metadata.len(), 1, "Should have 1 metadata");
             assert!(
                 client2.session_metadata.contains_key("session_restart"),
                 "Should contain persisted metadata"

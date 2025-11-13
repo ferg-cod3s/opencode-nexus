@@ -1,4 +1,4 @@
-use crate::error::{AppError, RetryConfig, retry_with_backoff};
+use crate::error::{retry_with_backoff, AppError, RetryConfig};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -194,10 +194,7 @@ impl ConnectionManager {
                     if !response.status().is_success() {
                         return Err(AppError::ServerError {
                             status_code: response.status().as_u16(),
-                            message: format!(
-                                "Server responded with status: {}",
-                                response.status()
-                            ),
+                            message: format!("Server responded with status: {}", response.status()),
                             details: response.text().await.unwrap_or_default(),
                         });
                     }

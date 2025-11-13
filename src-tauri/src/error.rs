@@ -5,7 +5,6 @@
 ///
 /// Provides structured error types with user-friendly messages,
 /// retry logic with exponential backoff, and detailed error context.
-
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::time::Duration;
@@ -26,20 +25,11 @@ pub enum AppError {
         details: String,
     },
     /// Authentication/authorization failures
-    AuthError {
-        message: String,
-        details: String,
-    },
+    AuthError { message: String, details: String },
     /// Invalid input or configuration
-    ValidationError {
-        field: String,
-        message: String,
-    },
+    ValidationError { field: String, message: String },
     /// Session not found or invalid
-    SessionError {
-        session_id: String,
-        message: String,
-    },
+    SessionError { session_id: String, message: String },
     /// File system errors (read, write, permissions)
     FileSystemError {
         path: String,
@@ -47,23 +37,16 @@ pub enum AppError {
         details: String,
     },
     /// Data parsing or serialization errors
-    DataError {
-        message: String,
-        details: String,
-    },
+    DataError { message: String, details: String },
     /// Server is not connected
-    NotConnectedError {
-        message: String,
-    },
+    NotConnectedError { message: String },
     /// Operation timed out
     TimeoutError {
         operation: String,
         timeout_secs: u64,
     },
     /// Generic error with message
-    Other {
-        message: String,
-    },
+    Other { message: String },
 }
 
 impl AppError {
@@ -73,17 +56,19 @@ impl AppError {
             AppError::NetworkError { message, .. } => {
                 format!("Network error: {}", message)
             }
-            AppError::ServerError { status_code, message, .. } => {
-                match status_code {
-                    400 => format!("Invalid request: {}", message),
-                    401 => "Authentication required. Please check your API key.".to_string(),
-                    403 => "Access denied. Please verify your permissions.".to_string(),
-                    404 => format!("Not found: {}", message),
-                    429 => "Too many requests. Please wait a moment and try again.".to_string(),
-                    500..=599 => format!("Server error: {}", message),
-                    _ => format!("Server responded with error ({}): {}", status_code, message),
-                }
-            }
+            AppError::ServerError {
+                status_code,
+                message,
+                ..
+            } => match status_code {
+                400 => format!("Invalid request: {}", message),
+                401 => "Authentication required. Please check your API key.".to_string(),
+                403 => "Access denied. Please verify your permissions.".to_string(),
+                404 => format!("Not found: {}", message),
+                429 => "Too many requests. Please wait a moment and try again.".to_string(),
+                500..=599 => format!("Server error: {}", message),
+                _ => format!("Server responded with error ({}): {}", status_code, message),
+            },
             AppError::AuthError { message, .. } => {
                 format!("Authentication failed: {}", message)
             }
@@ -102,7 +87,10 @@ impl AppError {
             AppError::NotConnectedError { message } => {
                 format!("Not connected: {}", message)
             }
-            AppError::TimeoutError { operation, timeout_secs } => {
+            AppError::TimeoutError {
+                operation,
+                timeout_secs,
+            } => {
                 format!("{} timed out after {} seconds", operation, timeout_secs)
             }
             AppError::Other { message } => message.clone(),
@@ -118,7 +106,10 @@ impl AppError {
             AppError::ValidationError { field, message } => {
                 format!("Field: {}, Message: {}", field, message)
             }
-            AppError::SessionError { session_id, message } => {
+            AppError::SessionError {
+                session_id,
+                message,
+            } => {
                 format!("Session: {}, Message: {}", session_id, message)
             }
             AppError::FileSystemError { path, details, .. } => {
@@ -126,7 +117,10 @@ impl AppError {
             }
             AppError::DataError { details, .. } => details.clone(),
             AppError::NotConnectedError { message } => message.clone(),
-            AppError::TimeoutError { operation, timeout_secs } => {
+            AppError::TimeoutError {
+                operation,
+                timeout_secs,
+            } => {
                 format!("Operation: {}, Timeout: {}s", operation, timeout_secs)
             }
             AppError::Other { message } => message.clone(),
@@ -196,7 +190,10 @@ impl From<reqwest::Error> for AppError {
         } else if let Some(status) = error.status() {
             AppError::ServerError {
                 status_code: status.as_u16(),
-                message: status.canonical_reason().unwrap_or("Unknown error").to_string(),
+                message: status
+                    .canonical_reason()
+                    .unwrap_or("Unknown error")
+                    .to_string(),
                 details: error.to_string(),
             }
         } else {
@@ -273,18 +270,15 @@ impl RetryConfig {
 
     /// Get delay for retry attempt number (0-indexed)
     pub fn get_delay(&self, attempt: u32) -> Duration {
-        let delay_ms = (self.initial_delay_ms as f64
-            * self.backoff_multiplier.powi(attempt as i32)) as u64;
+        let delay_ms =
+            (self.initial_delay_ms as f64 * self.backoff_multiplier.powi(attempt as i32)) as u64;
         let capped_delay_ms = delay_ms.min(self.max_delay_ms);
         Duration::from_millis(capped_delay_ms)
     }
 }
 
 /// Retry a future with exponential backoff
-pub async fn retry_with_backoff<F, Fut, T>(
-    operation: F,
-    config: RetryConfig,
-) -> Result<T, AppError>
+pub async fn retry_with_backoff<F, Fut, T>(operation: F, config: RetryConfig) -> Result<T, AppError>
 where
     F: Fn() -> Fut,
     Fut: std::future::Future<Output = Result<T, AppError>>,
