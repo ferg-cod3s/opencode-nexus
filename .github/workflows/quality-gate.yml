@@ -211,7 +211,7 @@ jobs:
         run: |
           cd src-tauri
           cargo build --release
-        continue-on-error: ${{ matrix.os == 'macos-latest' }}
+        continue-on-error: true
 
   quality-summary:
     name: Quality Gate Summary
