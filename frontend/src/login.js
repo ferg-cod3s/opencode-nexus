@@ -1,6 +1,9 @@
 // Simple test
 console.log('🔍 LOGIN.JS: Script is executing!');
 
+// Import Tauri APIs
+import { invoke, checkEnvironment } from './utils/tauri-api.js';
+
 class LoginManager {
   constructor() {
     console.log('🔍 LoginManager: Initializing...');
