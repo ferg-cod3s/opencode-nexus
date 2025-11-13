@@ -738,5 +738,5 @@
       min-height: 48px;
     }
   }
-</style></content>
+ </style>
 <parameter name="filePath">frontend/src/components/ConnectionStatus.svelte

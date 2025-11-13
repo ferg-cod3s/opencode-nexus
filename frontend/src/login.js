@@ -1,7 +1,40 @@
 // Simple test
 console.log('🔍 LOGIN.JS: Script is executing!');
 
-  private bindEvents() {
+class LoginManager {
+  constructor() {
+    console.log('🔍 LoginManager: Initializing...');
+    this.initialize();
+  }
+
+  async initialize() {
+    console.log('🔍 LoginManager: Starting initialization...');
+
+    // Get DOM elements
+    this.form = document.getElementById('login-form');
+    this.usernameField = document.getElementById('username');
+    this.passwordField = document.getElementById('password');
+    this.passwordToggle = document.getElementById('password-toggle');
+    this.loginButton = document.getElementById('login-button');
+
+    if (!this.form || !this.usernameField || !this.passwordField || !this.loginButton) {
+      console.error('🔍 LoginManager: Required DOM elements not found');
+      return;
+    }
+
+    console.log('🔍 LoginManager: DOM elements found, binding events...');
+    this.bindEvents();
+
+    console.log('🔍 LoginManager: Checking authentication configuration...');
+    await this.checkAuthConfiguration();
+
+    console.log('🔍 LoginManager: Focusing first field...');
+    this.focusFirstField();
+
+    console.log('🔍 LoginManager: Initialization complete');
+  }
+
+  bindEvents() {
     this.form.addEventListener('submit', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -26,7 +59,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     });
   }
 
-  private async checkAuthConfiguration() {
+  async checkAuthConfiguration() {
     try {
       console.log('🔍 LoginManager: Checking environment...');
       const env = checkEnvironment();
@@ -75,7 +108,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     }
   }
 
-  private async handleSubmit(event) {
+  async handleSubmit(event) {
     console.log('🔍 LoginManager: handleSubmit called');
     event.preventDefault();
 
@@ -132,7 +165,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     }
   }
 
-  private validateForm() {
+  validateForm() {
     let isValid = true;
 
     if (!this.validateField('username')) {
@@ -146,7 +179,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     return isValid;
   }
 
-  private validateField(fieldName) {
+  validateField(fieldName) {
     const field = fieldName === 'username' ? this.usernameField : this.passwordField;
     const value = field.value.trim();
 
@@ -170,7 +203,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     return true;
   }
 
-  private setFieldError(fieldName, message) {
+  setFieldError(fieldName, message) {
     const field = fieldName === 'username' ? this.usernameField : this.passwordField;
     const errorElement = document.getElementById(`${fieldName}-error`);
 
@@ -182,7 +215,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     }
   }
 
-  private clearFieldError(fieldName) {
+  clearFieldError(fieldName) {
     const field = fieldName === 'username' ? this.usernameField : this.passwordField;
     const errorElement = document.getElementById(`${fieldName}-error`);
 
@@ -194,7 +227,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     }
   }
 
-  private togglePasswordVisibility() {
+  togglePasswordVisibility() {
     this.isPasswordVisible = !this.isPasswordVisible;
 
     this.passwordField.type = this.isPasswordVisible ? 'text' : 'password';
@@ -206,7 +239,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     }
   }
 
-  private setLoading(loading) {
+  setLoading(loading) {
     this.loginButton.disabled = loading;
     this.loginButton.classList.toggle('loading', loading);
 
@@ -217,7 +250,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     }
   }
 
-  private showAlert(message, type = 'info', icon = 'ℹ️') {
+  showAlert(message, type = 'info', icon = 'ℹ️') {
     const alertElement = document.getElementById('global-alert');
     const messageElement = alertElement?.querySelector('.alert-message');
     const iconElement = alertElement?.querySelector('.alert-icon');
@@ -236,14 +269,14 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     }
   }
 
-  private dismissAlert() {
+  dismissAlert() {
     const alertElement = document.getElementById('global-alert');
     if (alertElement) {
       alertElement.style.display = 'none';
     }
   }
 
-  private showLoginError(message) {
+  showLoginError(message) {
     const errorElement = document.getElementById('login-error');
     if (errorElement) {
       errorElement.textContent = message;
@@ -252,7 +285,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     }
   }
 
-  private showAccountLocked(unlockTime) {
+  showAccountLocked(unlockTime) {
     const lockoutElement = document.createElement('div');
     lockoutElement.id = 'account-locked';
     lockoutElement.setAttribute('data-testid', 'account-locked');
@@ -294,7 +327,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     this.startLockoutTimer(timerElement, unlockTime);
   }
 
-  private startLockoutTimer(timerElement, unlockTime) {
+  startLockoutTimer(timerElement, unlockTime) {
     const endTime = unlockTime ? new Date(unlockTime).getTime() : Date.now() + (30 * 60 * 1000);
 
     const updateTimer = () => {
@@ -317,7 +350,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     updateTimer();
   }
 
-  private updateSystemStatus(icon, message, type = 'info') {
+  updateSystemStatus(icon, message, type = 'info') {
     const iconElement = document.getElementById('auth-status-icon');
     const textElement = document.getElementById('auth-status-text');
 
@@ -328,7 +361,7 @@ console.log('🔍 LOGIN.JS: Script is executing!');
     }
   }
 
-  private focusFirstField() {
+  focusFirstField() {
     // Focus the first empty field
     if (!this.usernameField.value) {
       this.usernameField.focus();
