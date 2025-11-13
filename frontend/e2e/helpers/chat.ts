@@ -1,3 +1,27 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2025 OpenCode Nexus Contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 import { Page, expect } from '@playwright/test';
 
 export class ChatHelper {
@@ -77,7 +101,7 @@ export class ChatHelper {
           const ChatInterface = chatModule.default;
           const { activeSessionStore, chatStateStore } = await import('/src/stores/chat.ts');
           const { invoke } = await import('/src/utils/tauri-api.js');
-          
+
           // Try to import svelte/store, but continue if it fails
           let get;
           try {
@@ -92,75 +116,79 @@ export class ChatHelper {
             };
           }
 
-        // Display username
-        const username = sessionStorage.getItem('username') || 'User';
-        const usernameDisplay = document.getElementById('username-display');
-        if (usernameDisplay) {
-          usernameDisplay.textContent = username;
-        }
-
-        // Load or create test session
-        let sessions = [];
-        try {
-          sessions = await invoke('get_chat_sessions');
-          console.log('📍 Chat init: Loaded sessions:', sessions);
-        } catch (error) {
-          console.log('📍 Chat init: No sessions, creating test session');
-        }
-
-        // Set up active session
-        if (sessions && sessions.length > 0) {
-          activeSessionStore.setSession(sessions[0]);
-        } else {
-          const defaultSession = {
-            id: `test-session-${Date.now()}`,
-            title: 'Test Chat Session',
-            messages: [],
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-          activeSessionStore.setSession(defaultSession);
-        }
-
-        // Remove loading state and mount component
-        const chatRoot = document.getElementById('chat-root');
-        if (chatRoot) {
-          const loadingState = document.getElementById('loading-state');
-          if (loadingState) {
-            loadingState.remove();
+          // Display username
+          const username = sessionStorage.getItem('username') || 'User';
+          const usernameDisplay = document.getElementById('username-display');
+          if (usernameDisplay) {
+            usernameDisplay.textContent = username;
           }
 
-          // Mount ChatInterface
-          new ChatInterface({
-            target: chatRoot,
-            props: {
-              onSendMessage: async (content: string) => {
-                const activeSession = get(activeSessionStore);
-                if (!activeSession) {
-                  console.error('No active session');
-                  return;
-                }
-                console.log('📤 Sending message:', content, 'to session:', activeSession.id);
-                
-                // Add user message to store immediately
-                activeSessionStore.addMessage({
-                  id: `user-${Date.now()}`,
-                  role: 'user',
-                  content,
-                  timestamp: new Date().toISOString()
-                });
+          // Load or create test session
+          let sessions = [];
+          try {
+            sessions = await invoke('get_chat_sessions');
+            console.log('📍 Chat init: Loaded sessions:', sessions);
+          } catch (error) {
+            console.log('📍 Chat init: No sessions, creating test session');
+          }
 
-                // Send via API
-                await invoke('send_chat_message', { 
-                  session_id: activeSession.id, 
-                  content 
-                });
-              },
-              onClose: () => console.log('Chat closed')
+          // Set up active session
+          if (sessions && sessions.length > 0) {
+            activeSessionStore.setSession(sessions[0]);
+          } else {
+            const defaultSession = {
+              id: `test-session-${Date.now()}`,
+              title: 'Test Chat Session',
+              messages: [],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            activeSessionStore.setSession(defaultSession);
+          }
+
+          // Remove loading state and mount component
+          const chatRoot = document.getElementById('chat-root');
+          if (chatRoot) {
+            const loadingState = document.getElementById('loading-state');
+            if (loadingState) {
+              loadingState.remove();
             }
-          });
 
-          console.log('📍 Chat init: Component mounted successfully');
+            // Mount ChatInterface
+            new ChatInterface({
+              target: chatRoot,
+              props: {
+                onSendMessage: async (content: string) => {
+                  const activeSession = get(activeSessionStore);
+                  if (!activeSession) {
+                    console.error('No active session');
+                    return;
+                  }
+                  console.log('📤 Sending message:', content, 'to session:', activeSession.id);
+
+                  // Add user message to store immediately
+                  activeSessionStore.addMessage({
+                    id: `user-${Date.now()}`,
+                    role: 'user',
+                    content,
+                    timestamp: new Date().toISOString()
+                  });
+
+                  // Send via API
+                  await invoke('send_chat_message', {
+                    session_id: activeSession.id,
+                    content
+                  });
+                },
+                onClose: () => console.log('Chat closed')
+              }
+            });
+
+            console.log('📍 Chat init: Component mounted successfully');
+          }
+        } catch (error) {
+          console.error('📍 Chat init: Failed to initialize:', error);
+          throw error;
         }
       });
 

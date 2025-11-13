@@ -136,7 +136,9 @@ import Layout from '../layouts/Layout.astro';
   import SessionGrid from '../components/SessionGrid.svelte';
   import ChatInterface from '../components/ChatInterface.svelte';
   import { invoke } from '../utils/tauri-api';
-  import type { ChatSession } from '../types/chat';
+  import { listen } from '@tauri-apps/api/event';
+  import type { ChatSession, ChatMessage } from '../types/chat';
+  import { MessageRole } from '../types/chat';
 
   // Component instances
   let sessionGridComponent: any = null;
@@ -156,31 +158,33 @@ import Layout from '../layouts/Layout.astro';
   // Initialize the application
   async function initializeApp() {
     try {
-      // Get onboarding state first
-      const onboardingState = await invoke('get_onboarding_state');
+      // Check if connected to server
+      const isConnected = sessionStorage.getItem('connected') === 'true';
+      const serverUrl = sessionStorage.getItem('serverUrl');
 
-      // If onboarding config doesn't exist or isn't completed, redirect to onboarding
-      if (!onboardingState.config || !onboardingState.config.is_completed) {
-        window.location.href = '/onboarding';
+      // If not connected, redirect to connection page
+      if (!isConnected || !serverUrl) {
+        window.location.href = '/connect';
         return;
       }
 
-      // Check authentication status
-      const isAuthenticated = await invoke('is_authenticated');
-      if (!isAuthenticated) {
-        window.location.href = '/login';
-        return;
-      }
+      console.log(`Connected to OpenCode server: ${serverUrl}`);
 
-      // Get user info
-      const userInfo = await invoke('get_user_info');
-      if (userInfo && userInfo[0]) {
-        console.log(`Welcome back, ${userInfo[0]}!`);
-      }
-
-      // Enable start button since onboarding is complete
+      // Enable start button since we're connected
       startChatBtn.disabled = false;
       startChatBtn.textContent = 'Start New Chat';
+
+      // Start SSE message stream from OpenCode server
+      try {
+        await invoke('start_message_stream');
+        console.log('Message stream started successfully');
+      } catch (error) {
+        console.error('Failed to start message stream:', error);
+        // Non-fatal - app can still work, just no real-time updates
+      }
+
+      // Listen for chat events from backend
+      setupChatEventListener();
 
       // Mount SessionGrid component
       mountSessionGrid();
@@ -220,6 +224,63 @@ import Layout from '../layouts/Layout.astro';
       sessionGridComponent.$on('createSession', handleCreateSession);
       sessionGridComponent.$on('selectSession', handleSelectSession);
       sessionGridComponent.$on('deleteSession', handleDeleteSession);
+    }
+  }
+
+  function setupChatEventListener() {
+    // Listen for chat events from backend SSE stream
+    listen('chat-event', (event: any) => {
+      console.log('Received chat event:', event.payload);
+
+      const chatEvent = event.payload;
+
+      // Handle different event types
+      if (chatEvent.SessionCreated) {
+        console.log('Session created:', chatEvent.SessionCreated.session);
+        // Session is already set by create_chat_session, but we could update UI here
+      } else if (chatEvent.MessageReceived) {
+        console.log('Message received:', chatEvent.MessageReceived);
+        handleIncomingMessage(chatEvent.MessageReceived);
+      } else if (chatEvent.MessageChunk) {
+        console.log('Message chunk:', chatEvent.MessageChunk);
+        handleMessageChunk(chatEvent.MessageChunk);
+      } else if (chatEvent.Error) {
+        console.error('Chat error:', chatEvent.Error.message);
+      }
+    });
+  }
+
+  function handleIncomingMessage(data: { session_id: string, message: ChatMessage }) {
+    // Add message to current session if it matches
+    if (currentSession && currentSession.id === data.session_id) {
+      // Check if message already exists (avoid duplicates)
+      const existingMessage = currentSession.messages.find(m => m.id === data.message.id);
+      if (!existingMessage) {
+        currentSession.messages.push(data.message);
+        updateChatInterface();
+      }
+    }
+  }
+
+  function handleMessageChunk(data: { session_id: string, chunk: string }) {
+    // Handle streaming chunks (append to last assistant message or create new one)
+    if (currentSession && currentSession.id === data.session_id) {
+      const lastMessage = currentSession.messages[currentSession.messages.length - 1];
+
+      if (lastMessage && lastMessage.role === 'assistant') {
+        // Append chunk to existing assistant message
+        lastMessage.content += data.chunk;
+      } else {
+        // Create new assistant message for first chunk
+        currentSession.messages.push({
+          id: `msg_${Date.now()}`,
+          role: MessageRole.Assistant,
+          content: data.chunk,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      updateChatInterface();
     }
   }
 

@@ -1,10 +1,39 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2025 OpenCode Nexus Contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 /**
  * Tauri API wrapper that provides fallbacks for browser/E2E test environments
  * In actual Tauri app: Uses real Tauri API
  * In browser/tests: Uses mocked API for testing
  */
 
-import type { OnboardingState } from '../types/onboarding';
+// Type for mock onboarding state (onboarding removed, kept for backward compatibility)
+type OnboardingState = {
+  completed: boolean;
+  current_step?: string;
+  [key: string]: any; // Legacy mock fields (onboarding system removed)
+};
 
 // Check if we're running in a Tauri environment
 export const isTauriEnvironment = (): boolean => {
@@ -19,13 +48,21 @@ let tauriEmit: ((event: string, payload?: any) => Promise<void>) | undefined = u
 // Load Tauri APIs if in Tauri environment
 if (isTauriEnvironment()) {
   try {
-    // Use require-style dynamic import for Tauri APIs
-    const win = window as any;
-    if (win.__TAURI_INTERNALS__) {
-      tauriInvoke = win.__TAURI_INTERNALS__.invoke;
-    }
+    // Dynamically import Tauri APIs
+    import('@tauri-apps/api/core').then((module) => {
+      tauriInvoke = module.invoke;
+    }).catch((error) => {
+      console.warn('[TAURI API] Failed to load Tauri core API:', error);
+    });
+
+    import('@tauri-apps/api/event').then((module) => {
+      tauriListen = module.listen;
+      tauriEmit = module.emit;
+    }).catch((error) => {
+      console.warn('[TAURI API] Failed to load Tauri event API:', error);
+    });
   } catch (error) {
-    console.warn('[TAURI API] Failed to load Tauri invoke API:', error);
+    console.warn('[TAURI API] Failed to load Tauri APIs:', error);
   }
 }
 
@@ -150,6 +187,8 @@ const mockApi = {
      );
      
      return {
+       completed: isCompleted,
+       current_step: isCompleted ? undefined : 'welcome',
        config: isCompleted ? {
          is_completed: true,
          owner_account_created: true,
@@ -435,15 +474,23 @@ export const invoke = async <T = any>(command: string, args?: Record<string, any
 const mockEventListeners = new Map<string, Function[]>();
 
 /**
- * Mock implementation of Tauri's event listening system
+ * Listener type helper
  */
-export const listen = async (event: string, handler: (event: any) => void): Promise<() => void> => {
-  if (isTauriEnvironment() && tauriListen) {
+type EventListener = (event: any) => void;
+
+/**
+ * Event listening system with Tauri/mock fallback
+ */
+export const listen = async (event: string, handler: EventListener): Promise<() => void> => {
+  if (isTauriEnvironment()) {
     try {
+      // Try to load Tauri listen at runtime
+      const { listen: tauriListenFn } = await import('@tauri-apps/api/event');
       // Use real Tauri event API
-      return await tauriListen(event, handler);
+      return await tauriListenFn(event, handler);
     } catch (error) {
       console.error(`[TAURI EVENT] Failed to listen to ${event}:`, error);
+      // Fall through to mock system
     }
   }
 
@@ -469,15 +516,18 @@ export const listen = async (event: string, handler: (event: any) => void): Prom
 };
 
 /**
- * Mock implementation for emitting events (mainly for testing)
+ * Event emission system with Tauri/mock fallback
  */
 export const emit = async (event: string, payload?: any): Promise<void> => {
-  if (isTauriEnvironment() && tauriEmit) {
+  if (isTauriEnvironment()) {
     try {
-      await tauriEmit(event, payload);
+      // Try to load Tauri emit at runtime
+      const { emit: tauriEmitFn } = await import('@tauri-apps/api/event');
+      await tauriEmitFn(event, payload);
       return;
     } catch (error) {
       console.error(`[TAURI EVENT] Failed to emit ${event}:`, error);
+      // Fall through to mock system
     }
   }
 

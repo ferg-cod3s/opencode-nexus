@@ -1,3 +1,27 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2025 OpenCode Nexus Contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 /**
  * Offline conversation caching utility for OpenCode Nexus
  * Provides local storage integration with proper serialization, quota management,
@@ -220,8 +244,17 @@ class StorageManager {
 export class OfflineStorage {
   private static readonly VERSION = '1.0.0';
 
+  // Check if localStorage is available (browser environment)
+  private static isLocalStorageAvailable(): boolean {
+    return typeof localStorage !== 'undefined';
+  }
+
   // Session storage methods
   static async storeSession(session: ChatSession): Promise<void> {
+    if (!this.isLocalStorageAvailable()) {
+      console.warn('localStorage not available, skipping session storage');
+      return;
+    }
     try {
       await StorageManager.enforceStorageLimits();
 
@@ -247,6 +280,9 @@ export class OfflineStorage {
   }
 
   static async getStoredSessions(): Promise<ChatSession[]> {
+    if (!this.isLocalStorageAvailable()) {
+      return [];
+    }
     try {
       const compressed = localStorage.getItem(STORAGE_KEYS.SESSIONS);
       if (!compressed) return [];
@@ -387,6 +423,9 @@ export class OfflineStorage {
 
   // Connection status methods
   static async setConnectionStatus(isOnline: boolean): Promise<void> {
+    if (!this.isLocalStorageAvailable()) {
+      return;
+    }
     try {
       const status: ConnectionStatus = {
         isOnline,
@@ -408,6 +447,9 @@ export class OfflineStorage {
   }
 
   static async getConnectionStatus(): Promise<ConnectionStatus | null> {
+    if (!this.isLocalStorageAvailable()) {
+      return null;
+    }
     try {
       const data = localStorage.getItem(STORAGE_KEYS.CONNECTION_STATUS);
       return data ? JSON.parse(data) : null;
@@ -419,6 +461,17 @@ export class OfflineStorage {
 
   // Storage metadata methods
   static async getStorageMetadata(): Promise<StorageMetadata> {
+    if (!this.isLocalStorageAvailable()) {
+      // Return default metadata when localStorage is not available
+      return {
+        version: this.VERSION,
+        lastSync: new Date().toISOString(),
+        totalSize: 0,
+        sessionCount: 0,
+        messageCount: 0,
+        lastCleanup: new Date().toISOString()
+      };
+    }
     try {
       const data = localStorage.getItem(STORAGE_KEYS.STORAGE_METADATA);
       if (data) {
@@ -440,6 +493,9 @@ export class OfflineStorage {
   }
 
   static async updateStorageMetadata(metadata?: Partial<StorageMetadata>): Promise<void> {
+    if (!this.isLocalStorageAvailable()) {
+      return;
+    }
     try {
       const current = await this.getStorageMetadata();
       const updated = { ...current, ...metadata };
@@ -544,25 +600,30 @@ export class OfflineStorage {
 
 // Connection monitoring utility
 export class ConnectionMonitor {
-  private static isOnline = navigator.onLine;
+  private static isOnline: boolean = typeof navigator !== 'undefined' ? navigator.onLine : true;
   private static listeners: ((isOnline: boolean) => void)[] = [];
 
   static init(): void {
-    // Set initial status
+    // Set initial status from navigator if available
+    if (typeof navigator !== 'undefined') {
+      this.isOnline = navigator.onLine;
+    }
     OfflineStorage.setConnectionStatus(this.isOnline);
 
-    // Listen for online/offline events
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      this.notifyListeners(true);
-      OfflineStorage.setConnectionStatus(true);
-    });
+    // Listen for online/offline events (only in browser environment)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        this.isOnline = true;
+        this.notifyListeners(true);
+        OfflineStorage.setConnectionStatus(true);
+      });
 
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-      this.notifyListeners(false);
-      OfflineStorage.setConnectionStatus(false);
-    });
+      window.addEventListener('offline', () => {
+        this.isOnline = false;
+        this.notifyListeners(false);
+        OfflineStorage.setConnectionStatus(false);
+      });
+    }
   }
 
   static getIsOnline(): boolean {
@@ -592,11 +653,13 @@ export class ConnectionMonitor {
   }
 }
 
-// Initialize storage on module load (client-side only)
-if (typeof window !== 'undefined') {
-  OfflineStorage.migrateStorage().catch(error => {
-    console.error('Failed to migrate offline storage:', error);
-  });
+// Initialize storage when explicitly called (client-side only)
+export function initializeOfflineStorage(): void {
+  if (typeof window !== 'undefined') {
+    OfflineStorage.migrateStorage().catch(error => {
+      console.error('Failed to migrate offline storage:', error);
+    });
 
-  ConnectionMonitor.init();
+    ConnectionMonitor.init();
+  }
 }

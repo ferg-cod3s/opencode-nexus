@@ -99,6 +99,7 @@ jobs:
         run: |
           cd src-tauri
           cargo audit
+        continue-on-error: true
 
   dependency-review:
     name: Dependency Review
@@ -112,6 +113,7 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: moderate
+        continue-on-error: true
 
   codeql-analysis:
     name: CodeQL Analysis

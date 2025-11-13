@@ -15,7 +15,7 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:report": "playwright show-report",
-    "lint": "eslint . --ext .js,.ts,.jsx,.tsx,.svelte,.astro",
+    "lint": "eslint . --ext .js,.ts,.jsx,.tsx,.svelte,.astro --max-warnings 2000",
     "lint:fix": "eslint . --ext .js,.ts,.jsx,.tsx,.svelte,.astro --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

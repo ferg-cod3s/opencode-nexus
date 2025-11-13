@@ -1,6 +1,30 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2025 OpenCode Nexus Contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 
-// Mock localStorage BEFORE importing anything that uses it
+// Mock browser APIs BEFORE importing anything that uses them
 const mockLocalStorage = (() => {
   let store: Record<string, string> = {};
   return {
@@ -13,12 +37,19 @@ const mockLocalStorage = (() => {
   };
 })();
 
-(global as any).localStorage = mockLocalStorage;
-(global as any).window = {
-  addEventListener: () => {},
-  dispatchEvent: () => {},
-  onLine: true  // Set initial online status
+const mockWindow = {
+  addEventListener: mock(() => {}),
+  dispatchEvent: mock(() => {}),
+  onLine: true
 };
+
+const mockNavigator = {
+  onLine: true
+};
+
+(global as any).localStorage = mockLocalStorage;
+(global as any).window = mockWindow;
+(global as any).navigator = mockNavigator;
 
 import { get } from 'svelte/store';
 import {
@@ -35,11 +66,15 @@ import {
 } from '../../stores/chat';
 import type { ChatSession, ChatMessage } from '../../types/chat';
 import { MessageRole } from '../../types/chat';
+import { initializeOfflineStorage } from '../../utils/offline-storage';
 
 describe('Chat Store - Error Handling & State Management', () => {
   beforeEach(async () => {
     // Clear localStorage before each test
     mockLocalStorage.clear();
+
+    // Initialize offline storage after mocks are set up
+    initializeOfflineStorage();
 
     // Initialize and reset all stores before each test
     try {
