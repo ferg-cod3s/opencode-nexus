@@ -653,11 +653,13 @@ export class ConnectionMonitor {
   }
 }
 
-// Initialize storage on module load (client-side only)
-if (typeof window !== 'undefined') {
-  OfflineStorage.migrateStorage().catch(error => {
-    console.error('Failed to migrate offline storage:', error);
-  });
+// Initialize storage when explicitly called (client-side only)
+export function initializeOfflineStorage(): void {
+  if (typeof window !== 'undefined') {
+    OfflineStorage.migrateStorage().catch(error => {
+      console.error('Failed to migrate offline storage:', error);
+    });
 
-  ConnectionMonitor.init();
+    ConnectionMonitor.init();
+  }
 }

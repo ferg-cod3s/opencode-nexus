@@ -66,11 +66,15 @@ import {
 } from '../../stores/chat';
 import type { ChatSession, ChatMessage } from '../../types/chat';
 import { MessageRole } from '../../types/chat';
+import { initializeOfflineStorage } from '../../utils/offline-storage';
 
 describe('Chat Store - Error Handling & State Management', () => {
   beforeEach(async () => {
     // Clear localStorage before each test
     mockLocalStorage.clear();
+
+    // Initialize offline storage after mocks are set up
+    initializeOfflineStorage();
 
     // Initialize and reset all stores before each test
     try {
