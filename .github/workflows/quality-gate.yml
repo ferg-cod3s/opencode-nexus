@@ -217,7 +217,7 @@ jobs:
   quality-summary:
     name: Quality Gate Summary
     runs-on: ubuntu-latest
-    needs: [code-quality, test-coverage, build-check]
+    needs: [code-quality, build-check]
     if: always()
     steps:
       - name: Check quality gate
@@ -227,7 +227,6 @@ jobs:
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Code Quality | ${{ needs.code-quality.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Test Coverage | ${{ needs.test-coverage.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build Check | ${{ needs.build-check.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           
            if [ "${{ needs.code-quality.result }}" = "failure" ] || [ "${{ needs.build-check.result }}" = "failure" ]; then
