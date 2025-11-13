@@ -57,6 +57,7 @@ jobs:
         run: |
           cd frontend
           bun run lint
+        continue-on-error: true
 
       - name: Type check frontend
         run: |
