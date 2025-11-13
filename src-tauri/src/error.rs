@@ -1,3 +1,6 @@
+// Copyright (c) 2025 OpenCode Nexus Contributors
+// SPDX-License-Identifier: MIT
+
 /// Comprehensive error handling for OpenCode Nexus
 ///
 /// Provides structured error types with user-friendly messages,

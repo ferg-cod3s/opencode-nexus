@@ -1,3 +1,8 @@
+<!--
+Copyright (c) 2025 OpenCode Nexus Contributors
+SPDX-License-Identifier: MIT
+-->
+
 <script lang="ts">
   /**
    * ErrorToast Component

@@ -1,3 +1,6 @@
+// Copyright (c) 2025 OpenCode Nexus Contributors
+// SPDX-License-Identifier: MIT
+
 /**
  * Error Notification Store
  *
