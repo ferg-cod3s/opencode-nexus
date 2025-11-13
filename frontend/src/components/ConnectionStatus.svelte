@@ -739,4 +739,3 @@
     }
   }
  </style>
-<parameter name="filePath">frontend/src/components/ConnectionStatus.svelte

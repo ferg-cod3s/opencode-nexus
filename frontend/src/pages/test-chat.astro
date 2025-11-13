@@ -197,13 +197,13 @@ import Layout from '../layouts/Layout.astro';
 
       // Load existing sessions
       console.log('🔍 Chat page: Loading existing sessions...');
-      sessions = await invoke<ChatSession[]>('get_chat_sessions') || [];
+      sessions = (await invoke('get_chat_sessions') as ChatSession[]) || [];
       console.log('🔍 Chat page: Loaded sessions:', sessions.length);
 
       // Create default session if none exist
       if (sessions.length === 0) {
         console.log('🔍 Chat page: No sessions found, creating default session...');
-        const defaultSession = await invoke<ChatSession>('create_chat_session', {
+        const defaultSession = await invoke('create_chat_session', {
           title: 'Default Chat Session'
         });
         sessions = [defaultSession];

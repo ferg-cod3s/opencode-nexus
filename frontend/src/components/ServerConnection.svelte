@@ -843,4 +843,3 @@
     min-height: 44px;
   }
  </style>
-<parameter name="filePath">frontend/src/components/ServerConnection.svelte
