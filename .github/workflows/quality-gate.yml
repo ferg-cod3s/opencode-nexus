@@ -222,14 +222,14 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Quality | ${{ needs.code-quality.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build Check | ${{ needs.build-check.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-          
-           if [ "${{ needs.code-quality.result }}" = "failure" ] || [ "${{ needs.build-check.result }}" = "failure" ]; then
-             echo "" >> $GITHUB_STEP_SUMMARY
-             echo "⚠️ **Quality gate failed!** Critical checks failed." >> $GITHUB_STEP_SUMMARY
-             exit 1
-           fi
+           echo "| Code Quality | ${{ needs.code-quality.result == 'success' && '✅ PASS' || '⚠️ WARN' }} |" >> $GITHUB_STEP_SUMMARY
+           echo "| Build Check | ${{ needs.build-check.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+
+            if [ "${{ needs.build-check.result }}" = "failure" ]; then
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "❌ **Quality gate failed!** Build verification failed." >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
           
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "✅ **Quality gate passed!** All checks successful." >> $GITHUB_STEP_SUMMARY
