@@ -79,10 +79,13 @@ jobs:
         env:
           NODE_ENV: production
 
-       - name: Setup Tauri
-         uses: tauri-apps/tauri-action@v0
-         with:
-           projectPath: src-tauri
+       - name: Install Tauri CLI locally
+         run: |
+           cd src-tauri
+           cargo add tauri-cli --version "2.0"
+           cd ..
+           # Add to PATH
+           echo "$(pwd)/src-tauri/target/debug" >> $GITHUB_PATH
 
        - name: Setup iOS build environment
          run: |
