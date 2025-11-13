@@ -220,8 +220,17 @@ class StorageManager {
 export class OfflineStorage {
   private static readonly VERSION = '1.0.0';
 
+  // Check if localStorage is available (browser environment)
+  private static isLocalStorageAvailable(): boolean {
+    return typeof localStorage !== 'undefined';
+  }
+
   // Session storage methods
   static async storeSession(session: ChatSession): Promise<void> {
+    if (!this.isLocalStorageAvailable()) {
+      console.warn('localStorage not available, skipping session storage');
+      return;
+    }
     try {
       await StorageManager.enforceStorageLimits();
 
@@ -247,6 +256,9 @@ export class OfflineStorage {
   }
 
   static async getStoredSessions(): Promise<ChatSession[]> {
+    if (!this.isLocalStorageAvailable()) {
+      return [];
+    }
     try {
       const compressed = localStorage.getItem(STORAGE_KEYS.SESSIONS);
       if (!compressed) return [];
@@ -387,6 +399,9 @@ export class OfflineStorage {
 
   // Connection status methods
   static async setConnectionStatus(isOnline: boolean): Promise<void> {
+    if (!this.isLocalStorageAvailable()) {
+      return;
+    }
     try {
       const status: ConnectionStatus = {
         isOnline,
@@ -408,6 +423,9 @@ export class OfflineStorage {
   }
 
   static async getConnectionStatus(): Promise<ConnectionStatus | null> {
+    if (!this.isLocalStorageAvailable()) {
+      return null;
+    }
     try {
       const data = localStorage.getItem(STORAGE_KEYS.CONNECTION_STATUS);
       return data ? JSON.parse(data) : null;
@@ -419,6 +437,17 @@ export class OfflineStorage {
 
   // Storage metadata methods
   static async getStorageMetadata(): Promise<StorageMetadata> {
+    if (!this.isLocalStorageAvailable()) {
+      // Return default metadata when localStorage is not available
+      return {
+        version: this.VERSION,
+        lastSync: new Date().toISOString(),
+        totalSize: 0,
+        sessionCount: 0,
+        messageCount: 0,
+        lastCleanup: new Date().toISOString()
+      };
+    }
     try {
       const data = localStorage.getItem(STORAGE_KEYS.STORAGE_METADATA);
       if (data) {
@@ -440,6 +469,9 @@ export class OfflineStorage {
   }
 
   static async updateStorageMetadata(metadata?: Partial<StorageMetadata>): Promise<void> {
+    if (!this.isLocalStorageAvailable()) {
+      return;
+    }
     try {
       const current = await this.getStorageMetadata();
       const updated = { ...current, ...metadata };
@@ -554,18 +586,20 @@ export class ConnectionMonitor {
     }
     OfflineStorage.setConnectionStatus(this.isOnline);
 
-    // Listen for online/offline events
-    window.addEventListener('online', () => {
-      this.isOnline = true;
-      this.notifyListeners(true);
-      OfflineStorage.setConnectionStatus(true);
-    });
+    // Listen for online/offline events (only in browser environment)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('online', () => {
+        this.isOnline = true;
+        this.notifyListeners(true);
+        OfflineStorage.setConnectionStatus(true);
+      });
 
-    window.addEventListener('offline', () => {
-      this.isOnline = false;
-      this.notifyListeners(false);
-      OfflineStorage.setConnectionStatus(false);
-    });
+      window.addEventListener('offline', () => {
+        this.isOnline = false;
+        this.notifyListeners(false);
+        OfflineStorage.setConnectionStatus(false);
+      });
+    }
   }
 
   static getIsOnline(): boolean {

@@ -50,7 +50,7 @@ jobs:
       
       - name: Run unit tests
         working-directory: frontend
-        run: bun test
+        run: bun run test
 
   # Backend Unit Tests
   backend-unit-tests:

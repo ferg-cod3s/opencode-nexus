@@ -1,14 +1,20 @@
+/**
+ * @deprecated These tests are for the OLD architecture (server management).
+ * After the client pivot, these flows no longer apply.
+ * Tests need to be rewritten for connection-based architecture.
+ */
+
 import { test, expect } from '@playwright/test';
 import { ChatHelper } from './helpers/chat';
 import { ServerHelper } from './helpers/server-management';
-import { AuthHelper } from './helpers/auth';
 
-test.describe('Critical End-to-End User Flows', () => {
+// Skip all tests in this file - they test deprecated server management flows
+test.describe.skip('Critical End-to-End User Flows (DEPRECATED - Server Management)', () => {
   test.describe('First-Time User Journey', () => {
     test('complete first-time user experience: onboarding → chat', async ({ page }) => {
       test.setTimeout(120000); // 2 minutes for complete flow
-      
-      const auth = new AuthHelper(page);
+
+      // const auth = new AuthHelper(page); // Removed - deprecated
       const server = new ServerHelper(page);
       const chat = new ChatHelper(page);
       
@@ -155,15 +161,15 @@ test.describe('Critical End-to-End User Flows', () => {
   test.describe('Returning User Workflows', () => {
     test('returning user quick access flow', async ({ page }) => {
       test.setTimeout(45000);
-      
-      const auth = new AuthHelper(page);
+
+      // const auth = new AuthHelper(page); // Removed - deprecated
       const server = new ServerHelper(page);
       const chat = new ChatHelper(page);
       
       // Simulate existing user setup
       await test.step('Setup existing user state', async () => {
         // Login as existing user
-        await auth.loginAsTestUser();
+        // await auth.loginAsTestUser(); // Removed - deprecated
         await expect(page).toHaveURL('/dashboard');
       });
       
@@ -382,10 +388,10 @@ test.describe('Critical End-to-End User Flows', () => {
   test.describe('Error Recovery Workflows', () => {
     test('graceful handling of complete system failure and recovery', async ({ page }) => {
       test.setTimeout(120000);
-      
+
       const chat = new ChatHelper(page);
       const server = new ServerHelper(page);
-      const auth = new AuthHelper(page);
+      // const auth = new AuthHelper(page); // Removed - deprecated
       
       // Establish working system
       await chat.loginAndStartServer();
@@ -415,7 +421,7 @@ test.describe('Critical End-to-End User Flows', () => {
         
         // Should prompt for re-authentication if session was lost
         if (await page.locator('[data-testid="login-form"]').isVisible()) {
-          await auth.login('testuser', 'SecurePass123!');
+          // await auth.login('testuser', 'SecurePass123!'); // Removed - deprecated
         }
         
         // Should return to functional state
@@ -492,10 +498,10 @@ test.describe('Critical End-to-End User Flows', () => {
   test.describe('Performance Integration', () => {
     test('complete user workflow meets performance targets', async ({ page }) => {
       test.setTimeout(180000); // 3 minutes for complete performance test
-      
+
       const chat = new ChatHelper(page);
       const server = new ServerHelper(page);
-      const auth = new AuthHelper(page);
+      // const auth = new AuthHelper(page); // Removed - deprecated
       
       const performanceMetrics = {
         loginTime: 0,
@@ -507,9 +513,9 @@ test.describe('Critical End-to-End User Flows', () => {
       // Time login process
       await test.step('Timed login', async () => {
         const startTime = Date.now();
-        await auth.loginAsTestUser();
+        // await auth.loginAsTestUser(); // Removed - deprecated
         performanceMetrics.loginTime = Date.now() - startTime;
-        
+
         expect(performanceMetrics.loginTime).toBeLessThan(3000); // < 3 seconds
       });
       
