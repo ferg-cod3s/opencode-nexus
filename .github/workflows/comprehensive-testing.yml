@@ -174,10 +174,10 @@ jobs:
         working-directory: frontend
         run: bunx playwright install --with-deps
       
-      - name: Build frontend
-        working-directory: frontend
-        run: bun run build
-      
+       - name: Build frontend
+         working-directory: frontend
+         run: bun run build
+
        - name: Start development server
          working-directory: frontend
          run: |
@@ -228,10 +228,10 @@ jobs:
         working-directory: frontend
         run: bun run build
       
-      - name: Run accessibility tests
-        working-directory: frontend
-        run: bunx playwright test --grep "accessibility"
-      
+       - name: Run accessibility tests
+         working-directory: frontend
+         run: bunx playwright test --grep "accessibility"
+
        - name: Start development server for accessibility testing
          working-directory: frontend
          run: |
