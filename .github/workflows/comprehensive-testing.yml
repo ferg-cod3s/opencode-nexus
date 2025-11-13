@@ -170,10 +170,10 @@ jobs:
         working-directory: frontend
         run: bun install
       
-      - name: Install Playwright browsers
-        working-directory: frontend
-        run: bunx playwright install --with-deps
-      
+       - name: Install Playwright browsers
+         working-directory: frontend
+         run: bunx playwright install --with-deps
+
        - name: Build frontend
          working-directory: frontend
          run: bun run build
@@ -224,10 +224,10 @@ jobs:
         working-directory: frontend
         run: bunx playwright install --with-deps
       
-      - name: Build frontend
-        working-directory: frontend
-        run: bun run build
-      
+       - name: Build frontend
+         working-directory: frontend
+         run: bun run build
+
        - name: Run accessibility tests
          working-directory: frontend
          run: bunx playwright test --grep "accessibility"
