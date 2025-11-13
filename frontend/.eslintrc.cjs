@@ -1,5 +1,6 @@
 module.exports = {
   root: true,
+  ignorePatterns: ['dist/**', 'node_modules/**'],
   env: {
     browser: true,
     es2022: true,
@@ -17,13 +18,9 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 'latest',
     sourceType: 'module',
-    project: ['./tsconfig.json', './frontend/tsconfig.json'],
     extraFileExtensions: ['.svelte', '.astro'],
   },
-  plugins: ['@typescript-eslint', 'jsx-a11y'],
-  rules: {
-    // Additional custom rules can be added here
-  },
+  plugins: ['@typescript-eslint', 'svelte', 'astro', 'jsx-a11y'],
   overrides: [
     {
       files: ['*.astro'],
@@ -32,6 +29,10 @@ module.exports = {
         parser: '@typescript-eslint/parser',
         extraFileExtensions: ['.astro'],
       },
+      rules: {
+        'astro/no-set-html-directive': 'error',
+        'astro/no-unused-css-selector': 'error',
+      },
     },
     {
       files: ['*.svelte'],
@@ -39,9 +40,21 @@ module.exports = {
       parserOptions: {
         parser: '@typescript-eslint/parser',
       },
+      rules: {
+        'svelte/no-at-html-tags': 'error',
+        'svelte/no-target-blank': 'error',
+      },
+    },
+    {
+      files: ['*.ts', '*.tsx'],
+      parser: '@typescript-eslint/parser',
+      rules: {
+        '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+        '@typescript-eslint/no-explicit-any': 'error',
+      },
     },
   ],
-  settings: {
-    'svelte/typescript': () => require('typescript'),
+  rules: {
+    'no-unused-vars': 'off', // Turn off base rule as it can report incorrect errors
   },
 };
