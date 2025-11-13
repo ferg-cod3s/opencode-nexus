@@ -79,9 +79,9 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Install Tauri CLI
-        run: |
-          cargo install tauri-cli --version "^2" --locked
+       - name: Install Tauri CLI
+         run: |
+           cargo install tauri-cli --version "2.0"
 
        - name: Setup iOS build environment
          run: |
