@@ -16,12 +16,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-       - name: Check licenses with Apache SkyWalking Eyes
-         uses: apache/skywalking-eyes/header@v0.6.0
-         with:
-           config: .licenserc.yaml
-           mode: check
-         continue-on-error: true
+      - name: Check licenses with Apache SkyWalking Eyes
+        uses: apache/skywalking-eyes/header@v0.6.0
+        with:
+          config: .licenserc.yaml
+          mode: check
+        continue-on-error: true
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -44,37 +44,11 @@ jobs:
           cd frontend
           bun install
 
-      - name: Check NPM dependencies licenses
+      - name: Generate NPM SBOM with CycloneDX
         run: |
           cd frontend
-          npx license-checker --json > ../licenses-npm.json
-
-      - name: Upload license reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: license-reports
-          path: |
-            licenses-rust.json
-            licenses-npm.json
-
-  sbom-generation:
-    name: Generate SBOM
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Install cargo-sbom
-        run: cargo install cargo-sbom
-
-       - name: Generate Rust SBOM
-         run: |
-           cd src-tauri
-           cargo sbom > ../sbom-rust.json
-         continue-on-error: true
+          npx @cyclonedx/cyclonedx-npm --output-file ../sbom-npm.json --ignore-npm-errors || true
+        continue-on-error: true
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v1

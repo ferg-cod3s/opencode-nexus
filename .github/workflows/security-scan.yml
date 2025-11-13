@@ -95,11 +95,11 @@ jobs:
       - name: Install cargo-audit
         run: cargo install cargo-audit
 
-       - name: Run Cargo audit
-         run: |
-           cd src-tauri
-           cargo audit
-         continue-on-error: true
+      - name: Run Cargo audit
+        run: |
+          cd src-tauri
+          cargo audit
+        continue-on-error: true
 
   dependency-review:
     name: Dependency Review
@@ -109,11 +109,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-       - name: Dependency Review
-         uses: actions/dependency-review-action@v4
-         with:
-           fail-on-severity: moderate
-         continue-on-error: true
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+        continue-on-error: true
 
   codeql-analysis:
     name: CodeQL Analysis
