@@ -119,10 +119,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      - name: Install frontend dependencies
-        run: |
-          cd frontend
-          bun install
+       - name: Install frontend dependencies
+         run: |
+           cd frontend
+           bun install
 
        - name: Run Rust tests with coverage
          run: |
