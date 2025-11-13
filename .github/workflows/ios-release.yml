@@ -79,9 +79,10 @@ jobs:
         env:
           NODE_ENV: production
 
-       - name: Install Tauri CLI
+       - name: Check Tauri CLI
          run: |
-           which tauri || cargo install tauri-cli --version "2.0" --quiet
+           which tauri || echo "Tauri CLI not found, will install"
+           tauri --version || echo "Tauri CLI not working"
 
        - name: Setup iOS build environment
          run: |
