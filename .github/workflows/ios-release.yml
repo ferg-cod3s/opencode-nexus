@@ -8,29 +8,11 @@ on:
       - 'main'
       - 'test-ios-build'
       - 'release'
-  workflow_dispatch:
-    inputs:
-      tag_name:
-        description: 'Version tag to build (e.g., ios-v1.0.0)'
-        required: false
-        type: string
-      upload_to_testflight:
-        description: 'Upload to TestFlight'
-        required: false
-        default: 'false'
-        type: boolean
 
 jobs:
-  test-workflow:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Test workflow
-        run: echo "Workflow is working!"
-
   build-ios:
     runs-on: macos-14
     timeout-minutes: 90
-    needs: test-workflow
 
     steps:
       - name: Checkout code
