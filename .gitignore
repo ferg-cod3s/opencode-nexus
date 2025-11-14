@@ -147,3 +147,4 @@ _*.svelte
 _*.astro
 _*.rs
 src-tauri/gen/
+.credentials

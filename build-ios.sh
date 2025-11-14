@@ -1,138 +1,151 @@
 #!/bin/bash
-# MIT License
-#
-# Copyright (c) 2025 OpenCode Nexus Contributors
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
-
-# Complete iOS Build Solution for OpenCode Nexus
-# This script provides a complete fix for iOS cross-compilation issues
+# iOS Build Script for OpenCode Nexus
+# Optimized for reliable TestFlight builds
 
 set -e
 
-echo "🍎 OpenCode Nexus iOS Build Solution"
-echo "===================================="
+echo "🚀 OpenCode Nexus iOS Build Script"
+echo "=================================="
 
-# Navigate to project root
-cd "$(dirname "$0")"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
 
-# Step 1: Ensure iOS targets are installed
-echo "📱 Installing iOS targets..."
-rustup target add aarch64-apple-ios
-rustup target add aarch64-apple-ios-sim
-rustup target add x86_64-apple-ios
+# Function to print colored output
+print_status() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
 
-# Step 2: Navigate to src-tauri for build configuration
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Start timing
+START_TIME=$(date +%s)
+print_status "Build started at $(date)"
+
+# Check prerequisites
+print_status "Checking prerequisites..."
+
+# Check if Xcode is available
+if ! command -v xcodebuild &> /dev/null; then
+    print_error "Xcode command line tools not found. Please install Xcode."
+    exit 1
+fi
+
+# Check Rust
+if ! command -v cargo &> /dev/null; then
+    print_error "Cargo not found. Please install Rust."
+    exit 1
+fi
+
+# Check Bun
+if ! command -v bun &> /dev/null; then
+    print_error "Bun not found. Please install Bun."
+    exit 1
+fi
+
+print_success "Prerequisites check passed"
+
+# Ensure iOS targets are installed
+print_status "Ensuring iOS targets are installed..."
+rustup target add aarch64-apple-ios 2>/dev/null || true
+rustup target add aarch64-apple-ios-sim 2>/dev/null || true
+rustup target add x86_64-apple-ios 2>/dev/null || true
+
+# Set iOS-specific environment variables
+export IPHONEOS_DEPLOYMENT_TARGET=14.0
+export CFLAGS="-miphoneos-version-min=14.0"
+export CXXFLAGS="-miphoneos-version-min=14.0"
+export RUST_BACKTRACE=0
+
+# Pre-warm dependencies
+print_status "Pre-warming Rust dependencies..."
+cd src-tauri
+cargo fetch --target aarch64-apple-ios
+cargo check --target aarch64-apple-ios
+cd ..
+print_success "Dependencies pre-warmed"
+
+# Build frontend
+print_status "Building frontend..."
+cd frontend
+bun install --frozen-lockfile
+bun run build
+cd ..
+print_success "Frontend built"
+
+# Build iOS app
+print_status "Building iOS app..."
 cd src-tauri
 
-# Step 3: Create .cargo directory and config
-mkdir -p .cargo
+# Time the Rust build
+RUST_START_TIME=$(date +%s)
+print_status "Compiling Rust code for iOS..."
+cargo build --target aarch64-apple-ios --release
+RUST_BUILD_TIME=$(($(date +%s) - RUST_START_TIME))
+print_success "Rust compilation completed in ${RUST_BUILD_TIME}s"
 
-echo "🔧 Configuring iOS build settings..."
-cat > .cargo/config.toml << 'EOF'
-# iOS Build Configuration for OpenCode Nexus
-# Fixes cross-compilation linker issues
+# Time the Tauri iOS build
+TAURI_START_TIME=$(date +%s)
+print_status "Running Tauri iOS build process..."
+cargo tauri ios build --release
+TAURI_BUILD_TIME=$(($(date +%s) - TAURI_START_TIME))
+print_success "Tauri iOS build completed in ${TAURI_BUILD_TIME}s"
 
-[build]
-target = "aarch64-apple-ios"
+cd ..
+TOTAL_TIME=$(($(date +%s) - START_TIME))
 
-[target.aarch64-apple-ios]
-rustflags = [
-    "-C", "link-arg=-L$(SDKROOT)/usr/lib",
-    "-C", "link-arg=-L$(SDKROOT)/usr/lib/swift",
-    "-C", "link-arg=-framework", "-C", "link-arg=Foundation",
-    "-C", "link-arg=-framework", "-C", "link-arg=UIKit",
-    "-C", "link-arg=-framework", "-C", "link-arg=CoreGraphics",
-    "-C", "link-arg=-framework", "-C", "link-arg=Metal",
-    "-C", "link-arg=-framework", "-C", "link-arg=QuartzCore",
-    "-C", "link-arg=-framework", "-C", "link-arg=Security",
-    "-C", "link-arg=-framework", "-C", "link-arg=WebKit"
-]
-
-[target.aarch64-apple-ios-sim]
-rustflags = [
-    "-C", "link-arg=-L$(SDKROOT)/usr/lib",
-    "-C", "link-arg=-L$(SDKROOT)/usr/lib/swift",
-    "-C", "link-arg=-framework", "-C", "link-arg=Foundation",
-    "-C", "link-arg=-framework", "-C", "link-arg=UIKit",
-    "-C", "link-arg=-framework", "-C", "link-arg=CoreGraphics",
-    "-C", "link-arg=-framework", "-C", "link-arg=Metal",
-    "-C", "link-arg=-framework", "-C", "link-arg=QuartzCore",
-    "-C", "link-arg=-framework", "-C", "link-arg=Security",
-    "-C", "link-arg=-framework", "-C", "link-arg=WebKit"
-]
-
-[target.x86_64-apple-ios]
-rustflags = [
-    "-C", "link-arg=-L$(SDKROOT)/usr/lib",
-    "-C", "link-arg=-L$(SDKROOT)/usr/lib/swift",
-    "-C", "link-arg=-framework", "-C", "link-arg=Foundation",
-    "-C", "link-arg=-framework", "-C", "link-arg=UIKit",
-    "-C", "link-arg=-framework", "-C", "link-arg=CoreGraphics",
-    "-C", "link-arg=-framework", "-C", "link-arg=Metal",
-    "-C", "link-arg=-framework", "-C", "link-arg=QuartzCore",
-    "-C", "link-arg=-framework", "-C", "link-arg=Security",
-    "-C", "link-arg=-framework", "-C", "link-arg=WebKit"
-]
-
-[env]
-IPHONEOS_DEPLOYMENT_TARGET = "14.0"
-CARGO_CFG_TARGET_OS = "ios"
-CARGO_CFG_TARGET_VENDOR = "apple"
-EOF
-
-# Step 4: Clean previous builds
-echo "🧹 Cleaning previous builds..."
-cargo clean
-
-# Step 5: Update dependencies
-echo "📦 Updating dependencies..."
-cargo update
-
-# Step 6: Build frontend first
-echo "🏗️ Building frontend..."
-cd ../frontend
-bun run build
-
-# Step 7: Build for iOS (arm64 - physical devices)
-echo "🏗️ Building for iOS arm64 (physical devices)..."
-cd ../src-tauri
-cargo tauri build --target aarch64-apple-ios
-
+print_success "iOS build completed successfully in ${TOTAL_TIME}s!"
 echo ""
-echo "✅ iOS build completed successfully!"
+echo "📊 Build Timing Summary:"
+echo "  - Total time: ${TOTAL_TIME}s"
+echo "  - Rust compilation: ${RUST_BUILD_TIME}s"
+echo "  - Tauri + Xcode: ${TAURI_BUILD_TIME}s"
 echo ""
-echo "📱 Build artifacts location:"
-echo "  - iOS App: target/aarch64-apple-ios/release/src-tauri"
-echo "  - Xcode Project: gen/apple/src-tauri.xcodeproj"
-echo ""
-echo "🍎 TestFlight Distribution Steps:"
-echo "  1. Open Xcode: open gen/apple/src-tauri.xcodeproj"
-echo "  2. Set your Apple Developer Team ID in project settings"
-echo "  3. Select 'Any iOS Device' as target"
-echo "  4. Product → Archive"
-echo "  5. Distribute to TestFlight"
-echo ""
-echo "🔧 Key fixes applied:"
-echo "  - Fixed iOS cross-compilation linker configuration"
-echo "  - Added proper iOS framework linking"
-echo "  - Configured correct SDK paths"
-echo "  - Set iOS deployment target to 14.0"
-echo "  - Prevented macOS System library linking"
+
+# Check if Xcode project was generated
+if [ -d "src-tauri/gen/apple/src-tauri.xcodeproj" ]; then
+    print_success "Xcode project generated successfully"
+    echo ""
+    echo "🍎 Next Steps for TestFlight:"
+    echo "  1. Open Xcode project:"
+    echo "     open src-tauri/gen/apple/src-tauri.xcodeproj"
+    echo ""
+    echo "  2. In Xcode:"
+    echo "     - Select 'src-tauri_iOS' scheme"
+    echo "     - Set target to 'Any iOS Device'"
+    echo "     - Go to Project Settings → Signing & Capabilities"
+    echo "     - Set your Apple Developer Team"
+    echo "     - Verify bundle identifier: com.agentic-codeflow.opencode-nexus"
+    echo ""
+    echo "  3. Build and Archive:"
+    echo "     - Product → Archive"
+    echo "     - Wait for archive to complete"
+    echo ""
+    echo "  4. Distribute to TestFlight:"
+    echo "     - In Organizer window, select the archive"
+    echo "     - Click 'Distribute App' → 'App Store Connect'"
+    echo "     - Follow the prompts to upload to TestFlight"
+    echo ""
+    echo "  5. Monitor upload:"
+    echo "     - Check App Store Connect → TestFlight"
+    echo "     - Build should appear within 5-10 minutes"
+    echo ""
+else
+    print_error "Xcode project was not generated. Check build logs above."
+    exit 1
+fi
+
+print_success "Build script completed successfully!"
