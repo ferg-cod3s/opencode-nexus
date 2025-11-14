@@ -5,7 +5,9 @@ on:
     tags:
       - 'ios-v*'
     branches:
+      - 'main'
       - 'test-ios-build'
+      - 'release'
   workflow_dispatch:
     inputs:
       tag_name:
@@ -22,8 +24,6 @@ jobs:
   build-ios:
     runs-on: macos-14
     timeout-minutes: 90
-
-    steps:
 
     steps:
       - name: Checkout code
