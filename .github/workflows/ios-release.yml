@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'ios-v*'
+    branches:
+      - 'test-ios-build'
   workflow_dispatch:
     inputs:
       tag_name:
@@ -92,6 +94,19 @@ jobs:
            # Remove macOS target from Podfile since we're only building for iOS
            sed -i.bak '/target.*macOS/,/^end$/d' Podfile
            sed -i.bak '/MACOSX_DEPLOYMENT_TARGET/d' Podfile
+
+           # Create Xcode workspace for Xcode Cloud compatibility
+           mkdir -p src-tauri.xcworkspace/xcshareddata
+           cat > src-tauri.xcworkspace/contents.xcworkspacedata << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:src-tauri.xcodeproj">
+   </FileRef>
+</Workspace>
+EOF
+
            pod install --repo-update || pod install
            cd ../../..
 
