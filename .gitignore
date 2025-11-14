@@ -33,6 +33,7 @@ node_modules
 **/dist
 **/dist-ssr
 src-tauri/target/
+src-tauri/gen/
 target/
 *.dSYM
 frontend/playwright-report/
