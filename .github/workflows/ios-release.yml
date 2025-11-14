@@ -90,7 +90,7 @@ jobs:
 
            cd gen/apple
            # Remove macOS target from Podfile since we're only building for iOS
-           sed -i.bak '/target.*macOS/,/end/d' Podfile
+           sed -i.bak '/target.*macOS/,/^end$/d' Podfile
            sed -i.bak '/MACOSX_DEPLOYMENT_TARGET/d' Podfile
            pod install --repo-update || pod install
            cd ../../..
