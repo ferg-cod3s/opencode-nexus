@@ -16,14 +16,21 @@ on:
         type: string
       upload_to_testflight:
         description: 'Upload to TestFlight'
-        required: true
-        default: 'true'
+        required: false
+        default: 'false'
         type: boolean
 
 jobs:
+  test-workflow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test workflow
+        run: echo "Workflow is working!"
+
   build-ios:
     runs-on: macos-14
     timeout-minutes: 90
+    needs: test-workflow
 
     steps:
       - name: Checkout code
