@@ -34,6 +34,7 @@ node_modules
 **/dist-ssr
 src-tauri/target/
 src-tauri/gen/
+!src-tauri/gen/apple/src-tauri.xcworkspace/
 target/
 *.dSYM
 frontend/playwright-report/
