@@ -144,3 +144,4 @@ _*.tsx
 _*.svelte
 _*.astro
 _*.rs
+src-tauri/gen/
