@@ -21,7 +21,9 @@ on:
 jobs:
   build-ios:
     runs-on: macos-14
-    timeout-minutes: 120
+    timeout-minutes: 90
+
+    steps:
 
     steps:
       - name: Checkout code
@@ -60,14 +62,22 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            ~/.cargo
+            ~/.cargo/registry
+            ~/.cargo/git
             ~/.bun/install/cache
-            src-tauri/target
             frontend/node_modules
-          key: ${{ runner.os }}-ios-build-${{ hashFiles('**/Cargo.lock', '**/bun.lockb') }}
+          key: ${{ runner.os }}-deps-${{ hashFiles('**/Cargo.lock', '**/bun.lockb', 'src-tauri/Cargo.toml', 'frontend/package.json') }}
           restore-keys: |
-            ${{ runner.os }}-ios-build-
+            ${{ runner.os }}-deps-
             ${{ runner.os }}-
+
+      - name: Cache Rust target
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/target
+          key: ${{ runner.os }}-rust-target-${{ hashFiles('**/Cargo.lock', 'src-tauri/src/**/*.rs') }}
+          restore-keys: |
+            ${{ runner.os }}-rust-target-
 
       - name: Install frontend dependencies
         run: |
@@ -84,6 +94,14 @@ jobs:
       - name: Install Tauri CLI
         run: |
           cargo install tauri-cli --version "^2" --locked
+
+      - name: Pre-warm Rust dependencies
+        run: |
+          cd src-tauri
+          echo "Pre-warming Rust dependencies..."
+          cargo fetch --target aarch64-apple-ios
+          cargo build --target aarch64-apple-ios --release --no-run
+          echo "Dependencies pre-warmed"
 
        - name: Setup iOS build environment
          run: |
@@ -160,10 +178,25 @@ EOF
 
       - name: Build iOS app
         run: |
+          echo "::group::Starting iOS build at $(date)"
+          START_TIME=$(date +%s)
+
           cd src-tauri
-          cargo tauri ios build --release
+          echo "Building Rust code for iOS..."
+          RUST_BACKTRACE=0 cargo build --target aarch64-apple-ios --release
+          RUST_BUILD_TIME=$(($(date +%s) - START_TIME))
+          echo "Rust build completed in ${RUST_BUILD_TIME}s"
+
+          echo "Running Tauri iOS build..."
+          TAURI_START_TIME=$(date +%s)
+          RUST_BACKTRACE=0 cargo tauri ios build --release
+          TAURI_BUILD_TIME=$(($(date +%s) - TAURI_START_TIME))
+          TOTAL_TIME=$(($(date +%s) - START_TIME))
+
+          echo "::notice::Build timing: Rust=${RUST_BUILD_TIME}s, Tauri+Xcode=${TAURI_BUILD_TIME}s, Total=${TOTAL_TIME}s"
+          echo "::endgroup::"
         env:
-          RUST_LOG: debug
+          RUST_LOG: warn
 
       - name: Archive iOS app
         run: |
@@ -185,6 +218,7 @@ EOF
           echo "App archived successfully"
 
       - name: Export IPA for App Store
+        id: export
         run: |
           cd src-tauri/gen/apple
 
@@ -206,6 +240,9 @@ EOF
           IPA_SIZE=$(du -h "$IPA_FILE" | cut -f1)
           echo "IPA exported: $IPA_FILE ($IPA_SIZE)"
           echo "IPA_FILE=$IPA_FILE" >> $GITHUB_ENV
+
+          # Set output for next job
+          echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
 
       - name: Upload to TestFlight
         if: github.event.inputs.upload_to_testflight != 'false' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_to_testflight == 'true')
