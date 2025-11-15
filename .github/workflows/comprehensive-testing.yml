@@ -170,9 +170,9 @@ jobs:
         working-directory: frontend
         run: bun install
       
-       - name: Install Playwright browsers
-         working-directory: frontend
-         run: bunx playwright install --with-deps
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: bunx playwright install --with-deps
 
       - name: Build frontend
         working-directory: frontend
@@ -238,14 +238,14 @@ jobs:
           bun run dev &
           sleep 10
 
-       - name: Install axe-core
-         run: bunx npm install -g @axe-core/cli
+      - name: Install axe-core
+        run: bunx npm install -g @axe-core/cli
 
-       - name: Run axe accessibility scan
-         working-directory: frontend
-         run: |
-           bunx axe http://localhost:4321
-         continue-on-error: true
+      - name: Run axe accessibility scan
+        working-directory: frontend
+        run: |
+          bunx axe http://localhost:4321
+        continue-on-error: true
 
   # Build Test
   build-test:
