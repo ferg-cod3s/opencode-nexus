@@ -14,6 +14,18 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Cleanup function
+cleanup() {
+    if [ ! -z "$DEV_SERVER_PID" ]; then
+        echo "Stopping development server..."
+        kill $DEV_SERVER_PID 2>/dev/null || true
+        wait $DEV_SERVER_PID 2>/dev/null || true
+    fi
+}
+
+# Set trap for cleanup on exit
+trap cleanup EXIT
+
 print_status() {
     echo -e "${BLUE}[INFO]${NC} $1"
 }
@@ -110,6 +122,15 @@ ARCHIVE_START=$(date +%s)
 # Clean build folder
 print_status "Cleaning build folder..."
 xcodebuild clean -project "$PROJECT_PATH" -scheme "$SCHEME" -configuration Release 2>&1 | tail -5 || true
+
+# Start development server for Tauri build process
+print_status "Starting development server for build process..."
+cd frontend
+bun run dev &
+DEV_SERVER_PID=$!
+cd ..
+sleep 5  # Give the server time to start
+print_success "Development server started"
 
 # Build archive
 print_status "Creating archive..."
@@ -233,6 +254,14 @@ else
         tail -30 upload.log
         exit 1
     fi
+fi
+
+# Cleanup development server
+if [ ! -z "$DEV_SERVER_PID" ]; then
+    print_status "Stopping development server..."
+    kill $DEV_SERVER_PID 2>/dev/null || true
+    wait $DEV_SERVER_PID 2>/dev/null || true
+    print_success "Development server stopped"
 fi
 
 TOTAL_TIME=$(($(date +%s) - START_TIME))
