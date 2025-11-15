@@ -92,30 +92,19 @@ jobs:
           cargo build --target aarch64-apple-ios --release --no-run
           echo "Dependencies pre-warmed"
 
-       - name: Setup iOS build environment
-         run: |
-           cd src-tauri
-           cargo tauri ios init
+      - name: Setup iOS build environment
+        run: |
+          cd src-tauri
+          cargo tauri ios init
 
-           cd gen/apple
-           # Remove macOS target from Podfile since we're only building for iOS
-           sed -i.bak '/target.*macOS/,/^end$/d' Podfile
-           sed -i.bak '/MACOSX_DEPLOYMENT_TARGET/d' Podfile
+          cd gen/apple
+          # Remove macOS target from Podfile since we're only building for iOS
+          sed -i.bak '/target.*macOS/,/^end$/d' Podfile
+          sed -i.bak '/MACOSX_DEPLOYMENT_TARGET/d' Podfile
 
-           # Create Xcode workspace for Xcode Cloud compatibility
-           mkdir -p src-tauri.xcworkspace/xcshareddata
-           cat > src-tauri.xcworkspace/contents.xcworkspacedata << 'EOF'
-<?xml version="1.0" encoding="UTF-8"?>
-<Workspace
-   version = "1.0">
-   <FileRef
-      location = "group:src-tauri.xcodeproj">
-   </FileRef>
-</Workspace>
-EOF
-
-           pod install --repo-update || pod install
-           cd ../../..
+          # Install CocoaPods dependencies for iOS target
+          pod install --repo-update || pod install
+          cd ../../..
 
       - name: Setup code signing
         env:
@@ -165,7 +154,7 @@ EOF
 
           echo "Provisioning profile installed"
 
-      - name: Build iOS app
+      - name: Build iOS app (Tauri + Xcode)
         run: |
           echo "::group::Starting iOS build at $(date)"
           START_TIME=$(date +%s)
@@ -176,9 +165,9 @@ EOF
           RUST_BUILD_TIME=$(($(date +%s) - START_TIME))
           echo "Rust build completed in ${RUST_BUILD_TIME}s"
 
-          echo "Running Tauri iOS build..."
+          echo "Running Tauri iOS build (no archive export)..."
           TAURI_START_TIME=$(date +%s)
-          RUST_BACKTRACE=0 cargo tauri ios build --release
+          RUST_BACKTRACE=0 cargo tauri ios build --release --no-codesign
           TAURI_BUILD_TIME=$(($(date +%s) - TAURI_START_TIME))
           TOTAL_TIME=$(($(date +%s) - START_TIME))
 
@@ -186,6 +175,7 @@ EOF
           echo "::endgroup::"
         env:
           RUST_LOG: warn
+
 
       - name: Archive iOS app
         run: |
@@ -232,6 +222,74 @@ EOF
 
           # Set output for next job
           echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
+
+      - name: Normalize IPA for TestFlight
+        run: |
+          set -e
+          echo "Normalizing IPA for TestFlight..."
+
+          IPA_FILE="${{ env.IPA_FILE }}"
+          WORK_DIR="$(pwd)"
+
+          rm -rf build/ipa_work temp_app Payload
+          mkdir -p build/ipa_work
+
+          cd build/ipa_work
+          cp "$WORK_DIR/$IPA_FILE" app.ipa
+          unzip -q app.ipa -d temp_app
+
+          if [ ! -d "temp_app/Payload" ]; then
+            echo "Payload directory not found in IPA"
+            exit 1
+          fi
+
+          APP_DIR=$(find temp_app/Payload -maxdepth 1 -type d -name "*.app" | head -n 1)
+          if [ -z "$APP_DIR" ]; then
+            echo "App bundle not found in Payload"
+            exit 1
+          fi
+
+          echo "App bundle: $APP_DIR"
+
+          # Update Info.plist version to match tag-derived VERSION_NUMBER
+          INFO_PLIST="$APP_DIR/Info.plist"
+          /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION_NUMBER" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set CFBundleVersion $VERSION_NUMBER" "$INFO_PLIST"
+
+          # Remove forbidden static library if present
+          if [ -f "$APP_DIR/libapp.a" ]; then
+            echo "Removing forbidden static library libapp.a from app bundle"
+            rm -f "$APP_DIR/libapp.a"
+          fi
+
+          # Re-embed provisioning profile from secrets-based file if present
+          PROFILE_PATH="${HOME}/Library/MobileDevice/Provisioning Profiles/OpenCodeNexus_AppStore.mobileprovision"
+          if [ -f "$PROFILE_PATH" ]; then
+            cp "$PROFILE_PATH" "$APP_DIR/embedded.mobileprovision"
+          fi
+
+          # Create minimal distribution entitlements plist
+          rm -f distribution_entitlements.plist
+          plutil -create xml1 distribution_entitlements.plist
+          /usr/libexec/PlistBuddy -c "Add :application-identifier string PCJU8QD9FN.com.agentic-codeflow.opencode-nexus" distribution_entitlements.plist
+          /usr/libexec/PlistBuddy -c "Add :com.apple.developer.team-identifier string PCJU8QD9FN" distribution_entitlements.plist
+          /usr/libexec/PlistBuddy -c "Add :get-task-allow bool false" distribution_entitlements.plist
+
+          # Re-sign app with distribution certificate
+          codesign --force \
+            --sign "Apple Distribution: John Ferguson (PCJU8QD9FN)" \
+            --entitlements distribution_entitlements.plist \
+            "$APP_DIR"
+
+          # Re-pack IPA with correct Payload structure
+          cd temp_app
+          rm -f "$WORK_DIR/$IPA_FILE"
+          zip -qr "$WORK_DIR/$IPA_FILE" Payload
+
+          cd "$WORK_DIR"
+
+          echo "Normalized IPA ready: $IPA_FILE"
+
 
       - name: Upload to TestFlight
         if: github.event.inputs.upload_to_testflight != 'false' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_to_testflight == 'true')
