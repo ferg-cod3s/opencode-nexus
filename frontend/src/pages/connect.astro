@@ -679,10 +679,69 @@ import Layout from '../layouts/Layout.astro';
       this.init();
     }
 
-    private init() {
+    private async init() {
       this.bindEvents();
       this.updatePlaceholders();
+      await this.checkExistingConnection();
       this.focusServerUrl();
+    }
+
+    private async checkExistingConnection() {
+      try {
+        const status = await invoke('get_connection_status');
+        if (status === 'Connected') {
+          // Get current connection details
+          const connection = await invoke('get_current_connection');
+          if (connection) {
+            this.showConnectedState(connection);
+            return;
+          }
+        }
+      } catch (error) {
+        // No existing connection or error checking - continue with normal flow
+        console.log('No existing connection found:', error);
+      }
+    }
+
+    private showConnectedState(connection: any) {
+      // Update UI to show connected state
+      const statusElement = document.getElementById('connection-status');
+      if (statusElement) {
+        statusElement.textContent = `Connected to ${connection.name || connection.hostname}`;
+        statusElement.className = 'status-connected';
+      }
+
+      // Disable form inputs
+      this.serverUrlInput.disabled = true;
+      this.apiKeyInput.disabled = true;
+      this.connectionNameInput.disabled = true;
+      this.methodSelect.disabled = true;
+
+      // Update buttons
+      this.connectButton.textContent = 'Disconnect';
+      this.connectButton.onclick = this.handleDisconnect.bind(this);
+      this.testButton.disabled = true;
+
+      // Show disconnect option
+      const disconnectButton = document.createElement('button');
+      disconnectButton.textContent = 'Disconnect';
+      disconnectButton.className = 'disconnect-button';
+      disconnectButton.onclick = this.handleDisconnect.bind(this);
+
+      const buttonContainer = document.querySelector('.button-container');
+      if (buttonContainer) {
+        buttonContainer.appendChild(disconnectButton);
+      }
+    }
+
+    private async handleDisconnect() {
+      try {
+        await invoke('disconnect_from_server');
+        // Reload page to reset UI
+        window.location.reload();
+      } catch (error) {
+        this.showError('Failed to disconnect: ' + error);
+      }
     }
 
     private bindEvents() {

@@ -232,6 +232,17 @@ async fn get_connection_status(app_handle: tauri::AppHandle) -> Result<Connectio
 }
 
 #[tauri::command]
+async fn get_current_connection(app_handle: tauri::AppHandle) -> Result<Option<ServerConnection>, String> {
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("opencode-nexus");
+
+    let connection_manager =
+        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    Ok(connection_manager.get_current_connection())
+}
+
+#[tauri::command]
 async fn disconnect_from_server(app_handle: tauri::AppHandle) -> Result<(), String> {
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
@@ -436,12 +447,41 @@ async fn clear_application_logs() -> Result<(), String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            // Restore connection on app startup
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                let config_dir = match dirs::config_dir() {
+                    Some(dir) => dir.join("opencode-nexus"),
+                    None => {
+                        log_warn!("Could not determine config directory");
+                        return;
+                    }
+                };
+
+                let mut connection_manager = match ConnectionManager::new(config_dir, Some(app_handle)) {
+                    Ok(cm) => cm,
+                    Err(e) => {
+                        log_warn!("Failed to create connection manager: {}", e);
+                        return;
+                    }
+                };
+
+                // Attempt to restore the last connection
+                if let Err(e) = connection_manager.restore_connection().await {
+                    log_warn!("Failed to restore connection on startup: {}", e);
+                }
+            });
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             greet,
             // Connection management commands
             connect_to_server,
             test_server_connection,
             get_connection_status,
+            get_current_connection,
             disconnect_from_server,
             get_saved_connections,
             // Chat commands

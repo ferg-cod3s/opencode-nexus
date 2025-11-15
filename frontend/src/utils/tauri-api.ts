@@ -28,6 +28,8 @@
  * In browser/tests: Uses mocked API for testing
  */
 
+import { getEnvironmentInfo, shouldEnableAuthentication } from './environment';
+
 // Type for mock onboarding state (onboarding removed, kept for backward compatibility)
 type OnboardingState = {
   completed: boolean;
@@ -552,17 +554,11 @@ export const checkEnvironment = (): {
   canAuthenticate: boolean;
   environment: 'tauri' | 'browser' | 'test'
 } => {
-  const isTauri = isTauriEnvironment();
-
-  // Detect test environment
-  const isTest = typeof window !== 'undefined' && (
-    window.location.hostname === 'localhost' &&
-    (window.location.port === '1420' || window.location.port === '1421' || window.location.port === '4173')
-  );
+  const env = getEnvironmentInfo();
 
   return {
-    isTauri,
-    canAuthenticate: isTauri || isTest,
-    environment: isTauri ? 'tauri' : (isTest ? 'test' : 'browser')
+    isTauri: env.isTauri,
+    canAuthenticate: shouldEnableAuthentication(),
+    environment: env.isTauri ? 'tauri' : (env.isTest ? 'test' : 'browser')
   };
 };

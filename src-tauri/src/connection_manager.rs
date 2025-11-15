@@ -30,6 +30,23 @@ use std::time::{Duration, SystemTime};
 use tauri::Emitter;
 use tokio::sync::broadcast;
 
+// Enhanced logging macros that log to both console and file
+macro_rules! log_info {
+    ($($arg:tt)*) => {
+        let message = format!("[INFO] {}", format!($($arg)*));
+        println!("{}", message);
+        crate::log_to_file(&message);
+    };
+}
+
+macro_rules! log_warn {
+    ($($arg:tt)*) => {
+        let message = format!("[WARN] {}", format!($($arg)*));
+        println!("{}", message);
+        crate::log_to_file(&message);
+    };
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Copy)]
 pub enum ConnectionStatus {
     Disconnected,
@@ -352,6 +369,53 @@ impl ConnectionManager {
         }
 
         Ok(())
+    }
+
+    /// Restore the last known connection on app startup
+    /// Attempts to reconnect to the most recently used server
+    pub async fn restore_connection(&mut self) -> Result<(), String> {
+        // Load saved connections first
+        self.load_connections()?;
+
+        // Find the most recent connection (by last_connected timestamp)
+        let connection_to_restore = {
+            let connections_guard = self.connections.lock().unwrap();
+            connections_guard.values()
+                .filter(|c| c.last_connected.is_some())
+                .max_by_key(|c| c.last_connected.as_ref().unwrap())
+                .or_else(|| connections_guard.values().next())
+                .cloned() // Clone the connection to avoid borrowing issues
+        };
+
+        if let Some(connection) = connection_to_restore {
+            log_info!("🔄 [CONNECTION] Attempting to restore connection to: {}", connection.to_url());
+
+            // Attempt to reconnect
+            match self.connect_to_server(&connection.hostname, connection.port, connection.secure).await {
+                Ok(_) => {
+                    log_info!("✅ [CONNECTION] Successfully restored connection to: {}", connection.to_url());
+                    self.emit_event(&ConnectionEvent {
+                        timestamp: SystemTime::now(),
+                        event_type: ConnectionEventType::Connected,
+                        message: format!("Restored connection to {}", connection.to_url()),
+                    });
+                    Ok(())
+                }
+                Err(e) => {
+                    log_warn!("⚠️ [CONNECTION] Failed to restore connection to {}: {}", connection.to_url(), e);
+                    self.emit_event(&ConnectionEvent {
+                        timestamp: SystemTime::now(),
+                        event_type: ConnectionEventType::Error,
+                        message: format!("Failed to restore connection: {}", e),
+                    });
+                    // Don't return error - just log it. App can still function without auto-connection
+                    Ok(())
+                }
+            }
+        } else {
+            log_info!("ℹ️ [CONNECTION] No previous connections found to restore");
+            Ok(())
+        }
     }
 
     fn start_health_monitoring(&self) {
