@@ -34,7 +34,14 @@
     "targets": "all",
     "iOS": {
       "developmentTeam": "PCJU8QD9FN",
-      "minimumSystemVersion": "14.0"
+      "minimumSystemVersion": "14.0",
+      "features": ["Swift5.5"],
+      "frameworks": [],
+      "privacy": {
+        "NSLocationWhenInUseUsageDescription": "This app requires location access for server connectivity features.",
+        "NSCameraUsageDescription": "This app requires camera access for QR code scanning.",
+        "NSMicrophoneUsageDescription": "This app requires microphone access for voice communication features."
+      }
     },
     "icon": [
       "icons/32x32.png",

@@ -12,6 +12,15 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
+# iOS-specific release profile for smaller app sizes
+[profile.release-ios]
+inherits = "release"
+opt-level = "s"  # Optimize for size on iOS
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
 [profile.dev]
 opt-level = 0
 debug = true
