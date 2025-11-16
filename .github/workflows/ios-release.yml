@@ -330,13 +330,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload IPA to artifacts
-        if: always()
+        if: always() && env.IPA_FILE != ''
         uses: actions/upload-artifact@v4
         with:
           name: opencode-nexus-ios-${{ env.VERSION_NUMBER }}-build-${{ env.BUILD_NUMBER }}
           path: ${{ env.IPA_FILE }}
           retention-days: 30
-          if-no-files-found: ignore
 
       - name: Build summary
         if: success()
