@@ -300,6 +300,22 @@ impl ConnectionManager {
         self.connections.lock().unwrap().values().cloned().collect()
     }
 
+    pub fn get_last_used_connection(&self) -> Option<ServerConnection> {
+        let connections_guard = self.connections.lock().unwrap();
+        let last_used = connections_guard
+            .values()
+            .filter(|c| c.last_connected.is_some())
+            .max_by_key(|c| c.last_connected.clone());
+        match last_used {
+            Some(connection) => Some(connection.clone()),
+            None => connections_guard.values().next().cloned(),
+        }
+    }
+
+    pub fn get_last_used_server_url(&self) -> Option<String> {
+        self.get_last_used_connection().map(|c| c.to_url())
+    }
+
     pub async fn disconnect_from_server(&mut self) -> Result<(), String> {
         let current_status = *self.connection_status.lock().unwrap();
         if matches!(current_status, ConnectionStatus::Disconnected) {
@@ -698,9 +714,77 @@ mod tests {
             .insert(connection_id.clone(), connection.clone());
         *manager.current_connection.lock().unwrap() = Some(connection_id);
 
-        // Get current connection
         let current = manager.get_current_connection();
         assert!(current.is_some(), "Should have current connection");
         assert_eq!(current.unwrap().hostname, "localhost");
+    }
+
+    #[tokio::test]
+    async fn test_get_last_used_connection_picks_most_recent() {
+        let (manager, _temp) = create_test_connection_manager();
+
+        let older = ServerConnection {
+            name: "older".to_string(),
+            hostname: "example.com".to_string(),
+            port: 4096,
+            secure: true,
+            last_connected: Some("2025-01-01T00:00:00Z".to_string()),
+        };
+
+        let newer = ServerConnection {
+            name: "newer".to_string(),
+            hostname: "example.com".to_string(),
+            port: 4096,
+            secure: true,
+            last_connected: Some("2025-02-01T00:00:00Z".to_string()),
+        };
+
+        manager
+            .connections
+            .lock()
+            .unwrap()
+            .insert(older.name.clone(), older.clone());
+        manager
+            .connections
+            .lock()
+            .unwrap()
+            .insert(newer.name.clone(), newer.clone());
+
+        let last_used = manager
+            .get_last_used_connection()
+            .expect("Should pick a last used connection");
+        assert_eq!(last_used.name, "newer");
+        assert_eq!(last_used.hostname, "example.com");
+        assert!(last_used.secure);
+
+        let url = manager.get_last_used_server_url().expect("Should get URL");
+        assert_eq!(url, "https://example.com:4096");
+    }
+
+    #[tokio::test]
+    async fn test_get_last_used_connection_without_timestamps() {
+        let (manager, _temp) = create_test_connection_manager();
+
+        let connection = ServerConnection {
+            name: "test_no_timestamp".to_string(),
+            hostname: "localhost".to_string(),
+            port: 3000,
+            secure: false,
+            last_connected: None,
+        };
+
+        manager
+            .connections
+            .lock()
+            .unwrap()
+            .insert(connection.name.clone(), connection.clone());
+
+        let last_used = manager
+            .get_last_used_connection()
+            .expect("Should pick a connection even without timestamps");
+        assert_eq!(last_used.name, "test_no_timestamp");
+
+        let url = manager.get_last_used_server_url().expect("Should get URL");
+        assert_eq!(url, "http://localhost:3000");
     }
 }

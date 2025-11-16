@@ -117,10 +117,13 @@ fn get_config_dir() -> Result<std::path::PathBuf, String> {
 
 fn get_server_url() -> Result<String, String> {
     let config_dir = get_config_dir()?;
-    let connection_manager = ConnectionManager::new(config_dir, None)
+    let mut connection_manager = ConnectionManager::new(config_dir, None)
         .map_err(|e| format!("Failed to create connection manager: {}", e))?;
     connection_manager
-        .get_server_url()
+        .load_connections()
+        .map_err(|e| format!("Failed to load connections: {}", e))?;
+    connection_manager
+        .get_last_used_server_url()
         .ok_or_else(|| "No server URL available".to_string())
 }
 
@@ -318,12 +321,11 @@ async fn get_chat_sessions(_app_handle: tauri::AppHandle) -> Result<Vec<SessionM
         .load_session_metadata()
         .map_err(|e| e.to_string())?;
 
-    // Sync with server to get latest session list (server is source of truth)
-    // This updates local metadata cache - mobile-optimized (no message storage)
-    // Errors in sync are non-fatal - we fall back to local metadata cache
-    let _ = chat_client.sync_session_metadata_with_server().await;
+    if let Ok(server_url) = get_server_url() {
+        chat_client.set_server_url(server_url);
+        let _ = chat_client.sync_session_metadata_with_server().await;
+    }
 
-    // Return lightweight metadata (no messages - fetch from server when needed)
     let metadata: Vec<SessionMetadata> = chat_client
         .get_session_metadata_map()
         .values()

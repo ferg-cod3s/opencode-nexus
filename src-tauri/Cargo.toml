@@ -1,6 +1,6 @@
 [package]
 name = "src-tauri"
-version = "0.1.4"
+version = "0.1.5"
 description = "OpenCode Nexus - Desktop application for managing OpenCode servers with secure remote access"
 authors = ["f3rg-codes"]
 edition = "2021"
