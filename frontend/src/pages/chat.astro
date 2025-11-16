@@ -52,7 +52,8 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
       setContext: () => {}
     };
   }
-
+ 
+  import { mount } from 'svelte';
   import ChatInterface from '../components/ChatInterface.svelte';
   import SessionPanel from '../components/SessionPanel.svelte';
   import { chatStore } from '../stores/chat';
@@ -63,6 +64,9 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
   } from '../utils/chat-api';
 
   let eventListenerUnsubscribe: (() => void) | null = null;
+  
+  // Guard to prevent duplicate initialization
+  let chatInitialized = false;
 
   // Create error state element safely
   function createErrorElement(): HTMLElement {
@@ -89,6 +93,13 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
 
   // Initialize chat system
   async function initializeChat() {
+    // Guard: prevent duplicate initialization
+    if (chatInitialized) {
+      console.log('🔍 Chat: Already initialized, skipping duplicate initialization');
+      return;
+    }
+    chatInitialized = true;
+
     const sentry = getSentry();
 
     try {
@@ -269,12 +280,11 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
       if (sessionsSidebar) {
         // Mount SessionPanel component in the sidebar
         try {
-          // @ts-ignore - Component instance used for mounting, not stored
-          const sessionPanel = new SessionPanel({
+          mount(SessionPanel, {
             target: sessionsSidebar
           });
           console.log('🔍 Chat: SessionPanel component mounted successfully');
-
+ 
           // Add breadcrumb for successful component mount
           sentry.addBreadcrumb({
             message: 'SessionPanel component mounted',
@@ -283,7 +293,7 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
           });
         } catch (error) {
           console.error('🔍 Chat: Failed to mount SessionPanel:', error);
-
+ 
           // Log component mount error to Sentry
           sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
             contexts: {
@@ -315,11 +325,10 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
         if (loadingState) {
           loadingState.remove();
         }
-
+ 
         // Create and mount the chat interface
         try {
-          // @ts-ignore - Component instance used for mounting, not stored
-          const chatInterface = new ChatInterface({
+          mount(ChatInterface, {
             target: chatRoot,
             props: {
               onSendMessage: async (content: string) => {
@@ -330,14 +339,14 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
                     category: 'chat',
                     level: 'info'
                   });
-
+ 
                   await chatStore.actions.sendMessage(
                     content,
                     chatApiCallbacks.messageSender
                   );
                 } catch (error) {
                   console.error('Failed to send message:', error);
-
+ 
                   // Log message send error to Sentry
                   sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
                     contexts: {
@@ -353,7 +362,7 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
               onClose: () => {
                 // Handle session close if needed
                 console.log('Chat session closed');
-
+ 
                 // Add breadcrumb for session close
                 sentry.addBreadcrumb({
                   message: 'Chat session closed',
@@ -363,9 +372,9 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
               }
             }
           });
-
+ 
           console.log('🔍 Chat: ChatInterface component mounted successfully');
-
+ 
           // Add breadcrumb for successful component mount
           sentry.addBreadcrumb({
             message: 'ChatInterface component mounted',

@@ -86,31 +86,43 @@ function createActiveSessionStore() {
         };
       });
     },
-    appendToLastMessage: (content: string) => {
-      update(session => {
-        if (!session || session.messages.length === 0) return session;
-        const messages = [...session.messages];
-        const lastMessage = messages[messages.length - 1];
-        if (lastMessage.role === MessageRole.Assistant) {
-          messages[messages.length - 1] = {
-            ...lastMessage,
-            content: lastMessage.content + content
-          };
-        } else {
-            // Create new streaming message
-            messages.push({
-              id: `streaming-${Date.now()}`,
-              role: MessageRole.Assistant,
-              content,
-              timestamp: new Date().toISOString()
-            });
-        }
-        return {
-          ...session,
-          messages
-        };
-      });
-    },
+     appendToLastMessage: (content: string) => {
+       update(session => {
+         if (!session) return session;
+         const messages = [...session.messages];
+         
+         // If no messages, create a new streaming message
+         if (messages.length === 0) {
+           messages.push({
+             id: `streaming-${Date.now()}`,
+             role: MessageRole.Assistant,
+             content,
+             timestamp: new Date().toISOString()
+           });
+           return { ...session, messages };
+         }
+         
+         const lastMessage = messages[messages.length - 1];
+         if (lastMessage.role === MessageRole.Assistant) {
+           messages[messages.length - 1] = {
+             ...lastMessage,
+             content: lastMessage.content + content
+           };
+         } else {
+             // Create new streaming message
+             messages.push({
+               id: `streaming-${Date.now()}`,
+               role: MessageRole.Assistant,
+               content,
+               timestamp: new Date().toISOString()
+             });
+         }
+         return {
+           ...session,
+           messages
+         };
+       });
+     },
     clear: () => set(null)
   };
 }
@@ -406,42 +418,53 @@ export const chatActions = {
     }
   },
 
-  // Handle chat events from backend
-  handleChatEvent: async (event: ChatEvent) => {
-    if (event.SessionCreated) {
-      const session = event.SessionCreated.session;
-      sessionsStore.addSession(session);
-      // Cache the new session
-      await OfflineStorage.storeSession(session);
-    } else if (event.MessageReceived) {
-      const { session_id, message } = event.MessageReceived;
-      const activeSession = get(activeSessionStore);
+   // Handle chat events from backend
+   handleChatEvent: async (event: ChatEvent) => {
+     if (event.SessionCreated) {
+       const session = event.SessionCreated.session;
+       sessionsStore.addSession(session);
+       // Cache the new session
+       await OfflineStorage.storeSession(session);
+     } else if (event.MessageReceived) {
+       const { session_id, message } = event.MessageReceived;
+       const activeSession = get(activeSessionStore);
 
-      if (activeSession && activeSession.id === session_id) {
-        activeSessionStore.addMessage(message);
-        // Update cached session
-        const updatedSession = {
-          ...activeSession,
-          messages: [...activeSession.messages, message]
-        };
-        await OfflineStorage.storeSession(updatedSession);
-      }
+       if (activeSession && activeSession.id === session_id) {
+         // Check if message already exists (deduplication)
+         const messageExists = activeSession.messages.some(m => m.id === message.id);
+         if (!messageExists) {
+           activeSessionStore.addMessage(message);
+           // Update cached session
+           const updatedSession = {
+             ...activeSession,
+             messages: [...activeSession.messages, message]
+           };
+           await OfflineStorage.storeSession(updatedSession);
+         }
+       }
 
-      // Update session in sessions store
-      sessionsStore.updateSession(session_id, {
-        messages: [...(activeSession?.messages || []), message]
-      });
-    } else if (event.MessageChunk) {
-      const { session_id, chunk } = event.MessageChunk;
-      const activeSession = get(activeSessionStore);
+       // Update session in sessions store (also with dedup check)
+       const sessions = get(sessionsStore);
+       const sessionToUpdate = sessions.find(s => s.id === session_id);
+       if (sessionToUpdate) {
+         const messageExists = sessionToUpdate.messages.some(m => m.id === message.id);
+         if (!messageExists) {
+           sessionsStore.updateSession(session_id, {
+             messages: [...sessionToUpdate.messages, message]
+           });
+         }
+       }
+     } else if (event.MessageChunk) {
+       const { session_id, chunk } = event.MessageChunk;
+       const activeSession = get(activeSessionStore);
 
-      if (activeSession && activeSession.id === session_id) {
-        activeSessionStore.appendToLastMessage(chunk);
-      }
-    } else if (event.Error) {
-      chatStateStore.setError(event.Error.message);
-    }
-  },
+       if (activeSession && activeSession.id === session_id) {
+         activeSessionStore.appendToLastMessage(chunk);
+       }
+     } else if (event.Error) {
+       chatStateStore.setError(event.Error.message);
+     }
+   },
 
   // Select session
   selectSession: (session: ChatSession) => {

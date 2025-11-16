@@ -479,4 +479,183 @@ describe('Chat Store - Error Handling & State Management', () => {
       expect(state.isComposing).toBe(false);
     });
   });
+
+  describe('Message Deduplication', () => {
+    const mockSession: ChatSession = {
+      id: 'session-1',
+      title: 'Test Chat',
+      created_at: new Date().toISOString(),
+      messages: []
+    };
+
+    const assistantMessage: ChatMessage = {
+      id: 'assistant-msg-1',
+      role: MessageRole.Assistant,
+      content: 'This is a test response',
+      timestamp: new Date().toISOString()
+    };
+
+    beforeEach(() => {
+      // Clear stores before each test
+      chatStateStore.reset();
+      sessionsStore.setSessions([]);
+      activeSessionStore.setSession(mockSession);
+    });
+
+    test('should not add duplicate MessageReceived events', async () => {
+      // Add the message first time
+      await chatStore.actions.handleChatEvent({
+        MessageReceived: {
+          session_id: 'session-1',
+          message: assistantMessage
+        }
+      });
+
+      let session = get(activeSessionStore);
+      expect(session?.messages.length).toBe(1);
+      expect(session?.messages[0].id).toBe('assistant-msg-1');
+
+      // Try to add the same message again (duplicate)
+      await chatStore.actions.handleChatEvent({
+        MessageReceived: {
+          session_id: 'session-1',
+          message: assistantMessage
+        }
+      });
+
+      // Should still be only 1 message (deduped)
+      session = get(activeSessionStore);
+      expect(session?.messages.length).toBe(1);
+      expect(session?.messages[0].id).toBe('assistant-msg-1');
+    });
+
+    test('should handle multiple duplicate events in sequence', async () => {
+      const duplicateEvent = {
+        MessageReceived: {
+          session_id: 'session-1',
+          message: assistantMessage
+        }
+      };
+
+      // Simulate receiving same event 3 times (mock sends duplicates)
+      await chatStore.actions.handleChatEvent(duplicateEvent);
+      await chatStore.actions.handleChatEvent(duplicateEvent);
+      await chatStore.actions.handleChatEvent(duplicateEvent);
+
+      const session = get(activeSessionStore);
+      expect(session?.messages.length).toBe(1);
+      expect(session?.messages[0].id).toBe('assistant-msg-1');
+    });
+
+    test('should add different messages with different IDs', async () => {
+      const msg1: ChatMessage = {
+        id: 'msg-1',
+        role: MessageRole.Assistant,
+        content: 'First message',
+        timestamp: new Date().toISOString()
+      };
+
+      const msg2: ChatMessage = {
+        id: 'msg-2',
+        role: MessageRole.Assistant,
+        content: 'Second message',
+        timestamp: new Date().toISOString()
+      };
+
+      await chatStore.actions.handleChatEvent({
+        MessageReceived: { session_id: 'session-1', message: msg1 }
+      });
+
+      await chatStore.actions.handleChatEvent({
+        MessageReceived: { session_id: 'session-1', message: msg2 }
+      });
+
+      const session = get(activeSessionStore);
+      expect(session?.messages.length).toBe(2);
+      expect(session?.messages[0].id).toBe('msg-1');
+      expect(session?.messages[1].id).toBe('msg-2');
+    });
+
+    test('should dedupe while allowing legitimate new messages', async () => {
+      const msg1: ChatMessage = {
+        id: 'msg-1',
+        role: MessageRole.Assistant,
+        content: 'First response',
+        timestamp: new Date().toISOString()
+      };
+
+      const msg2: ChatMessage = {
+        id: 'msg-2',
+        role: MessageRole.Assistant,
+        content: 'Second response',
+        timestamp: new Date().toISOString()
+      };
+
+      // Add first message twice (duplicate)
+      await chatStore.actions.handleChatEvent({
+        MessageReceived: { session_id: 'session-1', message: msg1 }
+      });
+      await chatStore.actions.handleChatEvent({
+        MessageReceived: { session_id: 'session-1', message: msg1 }
+      });
+
+      // Add second message
+      await chatStore.actions.handleChatEvent({
+        MessageReceived: { session_id: 'session-1', message: msg2 }
+      });
+
+      // Add second message again (duplicate)
+      await chatStore.actions.handleChatEvent({
+        MessageReceived: { session_id: 'session-1', message: msg2 }
+      });
+
+      const session = get(activeSessionStore);
+      expect(session?.messages.length).toBe(2);
+      expect(session?.messages[0].id).toBe('msg-1');
+      expect(session?.messages[1].id).toBe('msg-2');
+    });
+
+    test('should handle MessageChunk events without duplicating assistant messages', async () => {
+      // Start streaming
+      await chatStore.actions.handleChatEvent({
+        MessageChunk: {
+          session_id: 'session-1',
+          chunk: 'Hello'
+        }
+      });
+
+      let session = get(activeSessionStore);
+      expect(session?.messages.length).toBe(1);
+      expect(session?.messages[0].content).toBe('Hello');
+
+      // Append more chunks
+      await chatStore.actions.handleChatEvent({
+        MessageChunk: {
+          session_id: 'session-1',
+          chunk: ' world'
+        }
+      });
+
+      session = get(activeSessionStore);
+      expect(session?.messages.length).toBe(1);
+      expect(session?.messages[0].content).toBe('Hello world');
+
+      // Now receive the final message (should not create duplicate)
+      await chatStore.actions.handleChatEvent({
+        MessageReceived: {
+          session_id: 'session-1',
+          message: {
+            id: 'final-msg-1',
+            role: MessageRole.Assistant,
+            content: 'Hello world',
+            timestamp: new Date().toISOString()
+          }
+        }
+      });
+
+      session = get(activeSessionStore);
+      // Should have exactly 2 messages: original streaming + final received
+      expect(session?.messages.length).toBe(2);
+    });
+  });
 });

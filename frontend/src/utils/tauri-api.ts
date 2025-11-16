@@ -432,7 +432,127 @@ const mockApi = {
       '[2024-01-01 12:00:02 UTC] 👤 [USER] Getting user information...',
       '[2024-01-01 12:00:03 UTC] 🚀 [ONBOARDING] Getting onboarding state...'
     ];
+  },
+
+  // Connection Management APIs
+  connect_to_server: async (args: { serverUrl: string; apiKey?: string; method: string; name: string }): Promise<string> => {
+    console.log(`[MOCK API] connect_to_server called with:`, args);
+    await new Promise(resolve => setTimeout(resolve, 500));
+    const connectionId = `${args.method}-${Date.now()}`;
+    localStorage.setItem('mockConnectionId', connectionId);
+    localStorage.setItem('mockConnectionUrl', args.serverUrl);
+    localStorage.setItem('mockConnectionStatus', 'Connected');
+    return connectionId;
+  },
+
+  test_server_connection: async (args: { serverUrl: string; apiKey?: string }): Promise<boolean> => {
+    console.log(`[MOCK API] test_server_connection called with:`, args);
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return true;
+  },
+
+  get_connection_status: async (): Promise<string> => {
+    console.log(`[MOCK API] get_connection_status called`);
+    return localStorage.getItem('mockConnectionStatus') || 'Disconnected';
+  },
+
+  get_current_connection: async (): Promise<any> => {
+    console.log(`[MOCK API] get_current_connection called`);
+    const connectionUrl = localStorage.getItem('mockConnectionUrl');
+    if (!connectionUrl) {
+      return null;
+    }
+    return {
+      name: 'Mock Connection',
+      hostname: 'localhost',
+      port: 4096,
+      secure: false,
+      last_connected: new Date().toISOString()
+    };
+  },
+
+  disconnect_from_server: async (): Promise<void> => {
+    console.log(`[MOCK API] disconnect_from_server called`);
+    localStorage.removeItem('mockConnectionId');
+    localStorage.removeItem('mockConnectionUrl');
+    localStorage.setItem('mockConnectionStatus', 'Disconnected');
+    return;
+  },
+
+  get_saved_connections: async (): Promise<any[]> => {
+    console.log(`[MOCK API] get_saved_connections called`);
+    const connectionUrl = localStorage.getItem('mockConnectionUrl');
+    if (!connectionUrl) {
+      return [];
+    }
+    return [{
+      name: 'Mock Connection',
+      hostname: 'localhost',
+      port: 4096,
+      secure: false,
+      last_connected: new Date().toISOString()
+    }];
   }
+};
+
+/**
+ * Get the HTTP backend URL if configured
+ */
+const getHttpBackendUrl = (): string | null => {
+  try {
+    // Try to get from Vite environment variables
+    const backendUrl = (import.meta as any).env?.VITE_CHAT_BACKEND_URL;
+    if (backendUrl) {
+      return backendUrl;
+    }
+    // Also check window for runtime configuration
+    if (typeof window !== 'undefined') {
+      return (window as any).VITE_CHAT_BACKEND_URL || null;
+    }
+  } catch (error) {
+    // Silently ignore environment access errors
+  }
+  return null;
+};
+
+/**
+ * Check if a command should be routed to HTTP backend
+ */
+const isChatCommand = (command: string): boolean => {
+  return command.startsWith('get_chat') || 
+         command.startsWith('create_chat') ||
+         command.startsWith('send_chat') ||
+         command === 'start_message_stream';
+};
+
+/**
+ * Call HTTP backend endpoint for chat commands
+ */
+const invokeHttpBackend = async <T = any>(
+  command: string, 
+  backendUrl: string,
+  args?: Record<string, any>
+): Promise<T> => {
+  const endpoint = backendUrl.replace(/\/$/, '') + `/api/chat/${command}`;
+  
+  console.log(`[HTTP API] Invoking: ${endpoint}`, args);
+  
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: args ? JSON.stringify(args) : undefined
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`HTTP API Error: ${response.status} - ${error}`);
+  }
+
+  const result = await response.json();
+  console.log(`[HTTP API] ${command} result:`, result);
+  return result as T;
 };
 
 /**
@@ -453,6 +573,18 @@ export const invoke = async <T = any>(command: string, args?: Record<string, any
       throw error;
     }
   } else {
+    // Check if HTTP backend is configured for chat commands
+    const httpBackendUrl = getHttpBackendUrl();
+    if (httpBackendUrl && isChatCommand(command)) {
+      try {
+        console.log(`[HTTP API] Using HTTP backend at ${httpBackendUrl}`);
+        return await invokeHttpBackend<T>(command, httpBackendUrl, args);
+      } catch (error) {
+        console.warn(`[HTTP API] Failed to invoke ${command}, falling back to mock:`, error);
+        // Fall through to mock API
+      }
+    }
+
     // Use mock API for browser/E2E testing
     console.log(`[MOCK API] Using mock implementation for ${command}`);
 
@@ -503,7 +635,24 @@ export const listen = async (event: string, handler: EventListener): Promise<() 
     mockEventListeners.set(event, []);
   }
 
-  mockEventListeners.get(event)!.push(handler);
+  const listeners = mockEventListeners.get(event)!;
+  
+  // Deduplication: check if handler already exists
+  if (listeners.includes(handler)) {
+    console.log(`[MOCK EVENT] Handler already registered for ${event}, skipping duplicate`);
+    // Return unsubscribe function for consistency
+    return () => {
+      const listeners = mockEventListeners.get(event);
+      if (listeners) {
+        const index = listeners.indexOf(handler);
+        if (index > -1) {
+          listeners.splice(index, 1);
+        }
+      }
+    };
+  }
+
+  listeners.push(handler);
 
   // Return unsubscribe function
   return () => {
@@ -552,13 +701,31 @@ export const emit = async (event: string, payload?: any): Promise<void> => {
 export const checkEnvironment = (): {
   isTauri: boolean;
   canAuthenticate: boolean;
-  environment: 'tauri' | 'browser' | 'test'
+  environment: 'tauri' | 'browser' | 'test';
+  httpBackendUrl?: string;
 } => {
   const env = getEnvironmentInfo();
+  
+  // Check for HTTP backend URL from environment variables or window
+  let httpBackendUrl = '';
+  try {
+    // Try to get from Vite environment variables
+    const backendUrl = (import.meta as any).env?.VITE_CHAT_BACKEND_URL;
+    if (backendUrl) {
+      httpBackendUrl = backendUrl;
+    }
+    // Also check window for runtime configuration
+    if (!httpBackendUrl && typeof window !== 'undefined') {
+      httpBackendUrl = (window as any).VITE_CHAT_BACKEND_URL || '';
+    }
+  } catch (error) {
+    // Silently ignore environment access errors
+  }
 
   return {
     isTauri: env.isTauri,
     canAuthenticate: shouldEnableAuthentication(),
-    environment: env.isTauri ? 'tauri' : (env.isTest ? 'test' : 'browser')
+    environment: env.isTauri ? 'tauri' : (env.isTest ? 'test' : 'browser'),
+    httpBackendUrl: httpBackendUrl || undefined
   };
 };
