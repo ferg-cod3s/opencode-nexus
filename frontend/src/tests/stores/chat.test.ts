@@ -369,26 +369,43 @@ describe('Chat Store - Error Handling & State Management', () => {
       };
       activeSessionStore.setSession(sessionWithMessages);
 
-      const assistantMessage: ChatMessage = {
-        id: 'msg-1',
-        role: MessageRole.Assistant,
-        content: 'Hello',
+      const userMessage: ChatMessage = {
+        id: 'msg-user',
+        role: MessageRole.User,
+        content: 'Hello user',
         timestamp: new Date().toISOString()
       };
 
-      activeSessionStore.addMessage(assistantMessage);
+      // Add user message first
+      activeSessionStore.addMessage(userMessage);
 
-      const event = {
+      // Simulate streaming chunks for assistant response
+      const event1 = {
+        MessageChunk: {
+          session_id: 'session-1',
+          chunk: 'Hello'
+        }
+      };
+
+      const event2 = {
         MessageChunk: {
           session_id: 'session-1',
           chunk: ' world'
         }
       };
 
-      await chatStore.actions.handleChatEvent(event as any);
+      await chatStore.actions.handleChatEvent(event1 as any);
+      await chatStore.actions.handleChatEvent(event2 as any);
 
       const activeSession = get(activeSessionStore);
-      expect(activeSession?.messages[0].content).toBe('Hello world');
+      
+      // Should have 2 messages: 1 user + 1 assistant
+      expect(activeSession?.messages.length).toBe(2);
+      
+      // Assistant message should be the accumulated chunks
+      const assistantMessage = activeSession?.messages[1];
+      expect(assistantMessage?.role).toBe(MessageRole.Assistant);
+      expect(assistantMessage?.content).toBe('Hello world');
     });
 
     test('should handle Error event', async () => {

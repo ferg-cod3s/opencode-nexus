@@ -25,7 +25,7 @@
 import { writable, derived, get } from 'svelte/store';
 import type { ChatSession, ChatMessage, ChatEvent } from '../types/chat';
 import { MessageRole } from '../types/chat';
-import { OfflineStorage, ConnectionMonitor, MessageStatus, type OfflineMessage } from '../utils/offline-storage';
+import { OfflineStorage, ConnectionMonitor } from '../utils/offline-storage';
 import { messageSyncManager } from '../utils/message-sync-manager';
 
 // Chat sessions store
@@ -56,75 +56,93 @@ function createSessionsStore() {
   };
 }
 
-// Active session store
+// Active session store with streaming message tracking
 function createActiveSessionStore() {
   const { subscribe, set, update } = writable<ChatSession | null>(null);
+  let currentStreamingMessageId: string | null = null;
 
   return {
     subscribe,
-    setSession: (session: ChatSession | null) => set(session),
-  addMessage: (message: ChatMessage) => {
-    update(session => {
-      if (!session) return session;
-      const newSession = {
-        ...session,
-        messages: [...session.messages, message]
-      };
-      console.log('✅ Store: addMessage called, old count:', session.messages.length, 'new count:', newSession.messages.length);
-      return newSession;
-    });
-  },
-    updateLastMessage: (updates: Partial<ChatMessage>) => {
-      update(session => {
-        if (!session || session.messages.length === 0) return session;
-        const messages = [...session.messages];
-        const lastMessage = messages[messages.length - 1];
-        messages[messages.length - 1] = { ...lastMessage, ...updates };
-        return {
-          ...session,
-          messages
-        };
-      });
+    setSession: (session: ChatSession | null) => {
+      set(session);
+      // Clear streaming message ID when changing sessions
+      currentStreamingMessageId = null;
     },
-     appendToLastMessage: (content: string) => {
+   addMessage: (message: ChatMessage) => {
+     update(session => {
+       if (!session) return session;
+       const newSession = {
+         ...session,
+         messages: [...session.messages, message]
+       };
+       console.log('✅ Store: addMessage called, old count:', session.messages.length, 'new count:', newSession.messages.length);
+       return newSession;
+     });
+   },
+     updateLastMessage: (updates: Partial<ChatMessage>) => {
        update(session => {
-         if (!session) return session;
+         if (!session || session.messages.length === 0) return session;
          const messages = [...session.messages];
-         
-         // If no messages, create a new streaming message
-         if (messages.length === 0) {
-           messages.push({
-             id: `streaming-${Date.now()}`,
-             role: MessageRole.Assistant,
-             content,
-             timestamp: new Date().toISOString()
-           });
-           return { ...session, messages };
-         }
-         
          const lastMessage = messages[messages.length - 1];
-         if (lastMessage.role === MessageRole.Assistant) {
-           messages[messages.length - 1] = {
-             ...lastMessage,
-             content: lastMessage.content + content
-           };
-         } else {
-             // Create new streaming message
-             messages.push({
-               id: `streaming-${Date.now()}`,
-               role: MessageRole.Assistant,
-               content,
-               timestamp: new Date().toISOString()
-             });
-         }
+         messages[messages.length - 1] = { ...lastMessage, ...updates };
          return {
            ...session,
            messages
          };
        });
      },
-    clear: () => set(null)
-  };
+      appendToLastMessage: (content: string) => {
+        update(session => {
+          if (!session) return session;
+          const messages = [...session.messages];
+          
+          // Check if the last message is an assistant message and append to it
+          // This handles both streaming messages and pre-existing assistant messages
+          if (messages.length > 0) {
+            const lastMessage = messages[messages.length - 1];
+            if (lastMessage.role === MessageRole.Assistant && lastMessage.id === currentStreamingMessageId) {
+              // Append to current streaming message
+              messages[messages.length - 1] = {
+                ...lastMessage,
+                content: lastMessage.content + content
+              };
+              return { ...session, messages };
+            } else if (lastMessage.role === MessageRole.Assistant && !currentStreamingMessageId) {
+              // If no streaming message ID but last is assistant, assume it's the one to append to
+              // (This handles cases where assistant messages are added via addMessage)
+              currentStreamingMessageId = lastMessage.id;
+              messages[messages.length - 1] = {
+                ...lastMessage,
+                content: lastMessage.content + content
+              };
+              return { ...session, messages };
+            }
+          }
+          
+          // Create a new streaming message if no assistant message to append to
+          const newStreamingMessage: ChatMessage = {
+            id: `streaming-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+            role: MessageRole.Assistant,
+            content,
+            timestamp: new Date().toISOString()
+          };
+          currentStreamingMessageId = newStreamingMessage.id;
+          messages.push(newStreamingMessage);
+          
+          return {
+            ...session,
+            messages
+          };
+        });
+      },
+      clearStreamingMessageId: () => {
+        currentStreamingMessageId = null;
+      },
+     clear: () => {
+       set(null);
+       currentStreamingMessageId = null;
+     }
+   };
 }
 
 // Chat loading/error state store
@@ -425,35 +443,38 @@ export const chatActions = {
        sessionsStore.addSession(session);
        // Cache the new session
        await OfflineStorage.storeSession(session);
-     } else if (event.MessageReceived) {
-       const { session_id, message } = event.MessageReceived;
-       const activeSession = get(activeSessionStore);
+      } else if (event.MessageReceived) {
+        const { session_id, message } = event.MessageReceived;
+        const activeSession = get(activeSessionStore);
 
-       if (activeSession && activeSession.id === session_id) {
-         // Check if message already exists (deduplication)
-         const messageExists = activeSession.messages.some(m => m.id === message.id);
-         if (!messageExists) {
-           activeSessionStore.addMessage(message);
-           // Update cached session
-           const updatedSession = {
-             ...activeSession,
-             messages: [...activeSession.messages, message]
-           };
-           await OfflineStorage.storeSession(updatedSession);
-         }
-       }
+        // Clear the streaming message ID since we've received the complete message
+        activeSessionStore.clearStreamingMessageId();
 
-       // Update session in sessions store (also with dedup check)
-       const sessions = get(sessionsStore);
-       const sessionToUpdate = sessions.find(s => s.id === session_id);
-       if (sessionToUpdate) {
-         const messageExists = sessionToUpdate.messages.some(m => m.id === message.id);
-         if (!messageExists) {
-           sessionsStore.updateSession(session_id, {
-             messages: [...sessionToUpdate.messages, message]
-           });
-         }
-       }
+        if (activeSession && activeSession.id === session_id) {
+          // Check if message already exists (deduplication)
+          const messageExists = activeSession.messages.some(m => m.id === message.id);
+          if (!messageExists) {
+            activeSessionStore.addMessage(message);
+            // Update cached session
+            const updatedSession = {
+              ...activeSession,
+              messages: [...activeSession.messages, message]
+            };
+            await OfflineStorage.storeSession(updatedSession);
+          }
+        }
+
+        // Update session in sessions store (also with dedup check)
+        const sessions = get(sessionsStore);
+        const sessionToUpdate = sessions.find(s => s.id === session_id);
+        if (sessionToUpdate) {
+          const messageExists = sessionToUpdate.messages.some(m => m.id === message.id);
+          if (!messageExists) {
+            sessionsStore.updateSession(session_id, {
+              messages: [...sessionToUpdate.messages, message]
+            });
+          }
+        }
      } else if (event.MessageChunk) {
        const { session_id, chunk } = event.MessageChunk;
        const activeSession = get(activeSessionStore);
