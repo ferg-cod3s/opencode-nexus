@@ -89,7 +89,6 @@ jobs:
           cd src-tauri
           echo "Pre-warming Rust dependencies..."
           cargo fetch --target aarch64-apple-ios
-          cargo build --target aarch64-apple-ios --release --no-run
           echo "Dependencies pre-warmed"
 
       - name: Setup iOS build environment
