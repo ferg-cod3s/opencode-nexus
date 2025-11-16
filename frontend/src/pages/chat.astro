@@ -54,6 +54,7 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
   }
  
   import { mount } from 'svelte';
+  import { get } from 'svelte/store';
   import ChatInterface from '../components/ChatInterface.svelte';
   import SessionPanel from '../components/SessionPanel.svelte';
   import { chatStore } from '../stores/chat';
@@ -242,7 +243,7 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
       }
 
       // Auto-create first session if no sessions exist
-      const sessions = await chatApiCallbacks.sessionLoader();
+      const sessions = get(chatStore.sessions);
       if (sessions.length === 0) {
         console.log('🔍 Chat: No sessions found, creating first chat session...');
         try {
@@ -451,11 +452,13 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
 
   // Initialize when page loads
   document.addEventListener('DOMContentLoaded', () => {
+    console.log('🔍 Chat: DOMContentLoaded event fired');
     initializeChat();
   });
 
-  // Also try immediate initialization
-  if (document.readyState !== 'loading') {
+  // Also try immediate initialization only if document is already fully loaded
+  if (document.readyState === 'complete') {
+    console.log('🔍 Chat: Document already loaded, initializing immediately');
     initializeChat();
   }
 </script>

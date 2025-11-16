@@ -740,7 +740,8 @@ import Layout from '../layouts/Layout.astro';
         // Reload page to reset UI
         window.location.reload();
       } catch (error) {
-        this.showError('Failed to disconnect: ' + error);
+        console.error('Failed to disconnect:', error);
+        alert('Failed to disconnect: ' + error);
       }
     }
 

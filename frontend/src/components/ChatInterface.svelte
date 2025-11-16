@@ -49,10 +49,12 @@
   // Use external prop if provided, otherwise subscribe to store
   $: activeSession = session !== undefined ? session : $activeSessionStore;
   $: isLoading = loading || $chatStateStore.loading;
-
+  $: currentMessages = activeSession?.messages ?? [];
+ 
   let messagesContainer: HTMLElement;
   let autoScroll = true;
   let isRefreshing = false;
+
   let touchStartY = 0;
   let touchStartX = 0;
   let touchEndY = 0;
@@ -81,7 +83,7 @@
   }
 
   // Update virtual scrolling when messages change
-  $: updateVirtualScroll(session.messages);
+  $: updateVirtualScroll(currentMessages);
 
   function updateVirtualScroll(messages: ChatMessage[]) {
     if (!messagesContainer) return;
@@ -121,9 +123,10 @@
 
       // Enable auto-scroll if user is near bottom
       autoScroll = scrollTop + clientHeight >= scrollHeight - 100;
-
+ 
       // Update virtual scroll
-      updateVirtualScroll(session.messages);
+      updateVirtualScroll(currentMessages);
+
     }
   }
 
@@ -298,8 +301,8 @@
     {/if}
 
     <!-- Virtual scrolling spacer for messages below viewport -->
-    {#if endIndex < session.messages.length}
-      <div class="virtual-spacer" style="height: {(session.messages.length - endIndex) * itemHeight}px;"></div>
+    {#if endIndex < currentMessages.length}
+      <div class="virtual-spacer" style="height: {(currentMessages.length - endIndex) * itemHeight}px;"></div>
     {/if}
   </div>
 

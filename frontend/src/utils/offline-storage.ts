@@ -30,6 +30,7 @@
 
 import type { ChatSession, ChatMessage } from '../types/chat';
 import { MessageRole } from '../types/chat';
+import { captureException, addBreadcrumb } from '../sentry.init';
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -84,8 +85,8 @@ export interface ConnectionStatus {
 // Compression utilities
 class CompressionUtils {
   static async compress(data: string): Promise<string> {
-    // Simple LZ-string style compression for large messages
-    if (data.length < 1000) return data; // Don't compress small data
+    // Don't compress small data
+    if (data.length < 1000) return data;
 
     try {
       // Use browser's built-in compression if available
@@ -112,17 +113,26 @@ class CompressionUtils {
           offset += chunk.length;
         }
 
-        return btoa(String.fromCharCode(...compressed));
+        const compressedData = btoa(String.fromCharCode(...compressed));
+        addBreadcrumb(`Compressed ${data.length} bytes to ${compressedData.length} bytes`, 'compression');
+        return compressedData;
       }
     } catch (error) {
       console.warn('Compression failed, using uncompressed data:', error);
+      captureException(error as Error, { operation: 'compress', originalSize: data.length });
     }
 
     return data;
   }
 
   static async decompress(data: string): Promise<string> {
-    if (!data.startsWith('data:') && data.length < 1000) return data;
+    // Check if data is actually compressed (gzip header in base64 is 'H4s')
+    const isCompressed = data.startsWith('H4s');
+
+    // If it's not compressed or is too small, return as-is
+    if (!isCompressed || data.length < 100) {
+      return data;
+    }
 
     try {
       // Use browser's built-in decompression if available
@@ -150,12 +160,18 @@ class CompressionUtils {
           offset += chunk.length;
         }
 
-        return new TextDecoder().decode(decompressed);
+        const decompressedData = new TextDecoder().decode(decompressed);
+        addBreadcrumb(`Decompressed ${data.length} bytes to ${decompressedData.length} characters`, 'decompression');
+        return decompressedData;
       }
     } catch (error) {
-      console.warn('Decompression failed, returning original data:', error);
+      console.warn('Decompression failed:', error);
+      captureException(error as Error, { operation: 'decompress', compressedSize: data.length, startsWithH4s: data.startsWith('H4s') });
+      // Return the original data - it may not be compressed
+      return data;
     }
 
+    // Fallback if DecompressionStream not available
     return data;
   }
 }
@@ -275,6 +291,7 @@ export class OfflineStorage {
       await this.updateStorageMetadata();
     } catch (error) {
       console.error('Failed to store session:', error);
+      captureException(error as Error, { operation: 'storeSession' });
       throw new Error('Failed to store conversation data');
     }
   }
@@ -293,6 +310,7 @@ export class OfflineStorage {
       return Array.isArray(sessions) ? sessions : [];
     } catch (error) {
       console.error('Failed to retrieve stored sessions:', error);
+      captureException(error as Error, { operation: 'getStoredSessions', compressedDataLength: localStorage.getItem(STORAGE_KEYS.SESSIONS)?.length || 0 });
       return [];
     }
   }
@@ -314,6 +332,7 @@ export class OfflineStorage {
       await this.updateStorageMetadata();
     } catch (error) {
       console.error('Failed to remove session:', error);
+      captureException(error as Error, { operation: 'removeSession', sessionId });
       throw new Error('Failed to remove conversation');
     }
   }
@@ -324,6 +343,7 @@ export class OfflineStorage {
       await this.updateStorageMetadata();
     } catch (error) {
       console.error('Failed to clear sessions:', error);
+      captureException(error as Error, { operation: 'clearAllSessions' });
     }
   }
 
@@ -334,7 +354,7 @@ export class OfflineStorage {
 
       const queuedMessages = await this.getQueuedMessages();
       const message: OfflineMessage = {
-        id: `queued-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `queued-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         role: MessageRole.User,
         content,
         timestamp: new Date().toISOString(),
@@ -355,6 +375,7 @@ export class OfflineStorage {
       return message;
     } catch (error) {
       console.error('Failed to queue message:', error);
+      captureException(error as Error, { operation: 'queueMessage', sessionId, contentLength: content.length });
       throw new Error('Failed to queue message for offline sending');
     }
   }
@@ -370,6 +391,7 @@ export class OfflineStorage {
       return Array.isArray(messages) ? messages : [];
     } catch (error) {
       console.error('Failed to retrieve queued messages:', error);
+      captureException(error as Error, { operation: 'getQueuedMessages', compressedDataLength: localStorage.getItem(STORAGE_KEYS.QUEUED_MESSAGES)?.length || 0 });
       return [];
     }
   }
@@ -394,6 +416,7 @@ export class OfflineStorage {
       }
     } catch (error) {
       console.error('Failed to update queued message:', error);
+      captureException(error as Error, { operation: 'updateQueuedMessage', messageId });
     }
   }
 
@@ -409,6 +432,7 @@ export class OfflineStorage {
       await this.updateStorageMetadata();
     } catch (error) {
       console.error('Failed to remove queued message:', error);
+      captureException(error as Error, { operation: 'removeQueuedMessage', messageId });
     }
   }
 
@@ -418,6 +442,7 @@ export class OfflineStorage {
       await this.updateStorageMetadata();
     } catch (error) {
       console.error('Failed to clear queued messages:', error);
+      captureException(error as Error, { operation: 'clearQueuedMessages' });
     }
   }
 
@@ -443,6 +468,7 @@ export class OfflineStorage {
       localStorage.setItem(STORAGE_KEYS.CONNECTION_STATUS, JSON.stringify(status));
     } catch (error) {
       console.error('Failed to set connection status:', error);
+      captureException(error as Error, { operation: 'setConnectionStatus', isOnline });
     }
   }
 
@@ -455,6 +481,7 @@ export class OfflineStorage {
       return data ? JSON.parse(data) : null;
     } catch (error) {
       console.error('Failed to get connection status:', error);
+      captureException(error as Error, { operation: 'getConnectionStatus' });
       return null;
     }
   }
@@ -479,6 +506,7 @@ export class OfflineStorage {
       }
     } catch (error) {
       console.error('Failed to get storage metadata:', error);
+      captureException(error as Error, { operation: 'getStorageMetadata' });
     }
 
     // Return default metadata
@@ -511,6 +539,7 @@ export class OfflineStorage {
       localStorage.setItem(STORAGE_KEYS.STORAGE_METADATA, JSON.stringify(updated));
     } catch (error) {
       console.error('Failed to update storage metadata:', error);
+      captureException(error as Error, { operation: 'updateStorageMetadata' });
     }
   }
 
@@ -531,6 +560,7 @@ export class OfflineStorage {
           sent++;
         } catch (error) {
           console.error('Failed to send queued message:', error);
+          captureException(error as Error, { operation: 'syncQueuedMessages', messageId: message.id });
           const retryCount = (message.retryCount || 0) + 1;
 
           if (retryCount >= 3) {
@@ -580,6 +610,7 @@ export class OfflineStorage {
       });
     } catch (error) {
       console.error('Failed to clear all offline data:', error);
+      captureException(error as Error, { operation: 'clearAllData' });
     }
   }
 
@@ -648,6 +679,7 @@ export class ConnectionMonitor {
         callback(isOnline);
       } catch (error) {
         console.error('Error in connection listener:', error);
+        captureException(error as Error, { operation: 'notifyListeners' });
       }
     });
   }
@@ -658,6 +690,7 @@ export function initializeOfflineStorage(): void {
   if (typeof window !== 'undefined') {
     OfflineStorage.migrateStorage().catch(error => {
       console.error('Failed to migrate offline storage:', error);
+      captureException(error as Error, { operation: 'initializeOfflineStorage' });
     });
 
     ConnectionMonitor.init();

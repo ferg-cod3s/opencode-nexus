@@ -5,7 +5,7 @@
   "identifier": "com.agentic-codeflow.opencode-nexus",
   "build": {
     "beforeDevCommand": "cd frontend && bun run dev",
-    "devUrl": "${DEV_URL:http://localhost:1420}",
+    "devUrl": "http://localhost:1420",
     "beforeBuildCommand": "cd frontend && bun run build",
     "frontendDist": "../frontend/dist"
   },

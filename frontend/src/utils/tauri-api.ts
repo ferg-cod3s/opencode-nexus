@@ -283,6 +283,9 @@ const mockApi = {
 
     // Return stored sessions or create a default one
     const sessions = Array.from(chatStorage.values()).filter((session: any) => session.type === 'session');
+    console.log(`[MOCK API] Found ${sessions.length} sessions in storage`);
+    console.log(`[MOCK API] Session IDs:`, sessions.map((s: any) => s.id));
+    
     if (sessions.length === 0) {
       // Create a default session
       const defaultSession = {
@@ -296,6 +299,7 @@ const mockApi = {
       };
       chatStorage.set('mock-chat-1', defaultSession);
       setMockChatStorage(chatStorage);
+      console.log(`[MOCK API] Created default session: mock-chat-1`);
       return [defaultSession];
     }
 
@@ -315,8 +319,11 @@ const mockApi = {
       messages: [],
       type: 'session'
     };
+    console.log(`[MOCK API] Creating session with ID:`, sessionId);
     chatStorage.set(sessionId, session);
     setMockChatStorage(chatStorage);
+    console.log(`[MOCK API] Storage now contains ${chatStorage.size} sessions`);
+    console.log(`[MOCK API] All session IDs:`, Array.from(chatStorage.keys()));
     return session;
   },
 

@@ -33,10 +33,20 @@ export interface LogEntry {
 export class Logger {
   private static instance: Logger;
   private tauriInvoke: any = null;
+  private backendLoggingEnabled = true;
+  private originalConsole = {
+    log: console.log.bind(console),
+    info: console.info.bind(console),
+    warn: console.warn.bind(console),
+    error: console.error.bind(console),
+    debug: console.debug.bind(console),
+  };
   
   private constructor() {
     // Set up global error handlers
     this.setupGlobalErrorHandlers();
+    // Wrap console methods to intercept all console output
+    this.wrapConsoleMethods();
   }
   
   public static getInstance(): Logger {
@@ -45,41 +55,77 @@ export class Logger {
     }
     return Logger.instance;
   }
-
+ 
   private async getTauriInvoke() {
+    if (!this.backendLoggingEnabled) {
+      return null;
+    }
+ 
+    // Only attempt to use Tauri invoke when running in a Tauri environment
+    if (typeof window === 'undefined' || !('__TAURI__' in window)) {
+      this.backendLoggingEnabled = false;
+      return null;
+    }
+ 
     if (!this.tauriInvoke) {
       try {
         const { invoke } = await import('@tauri-apps/api/core');
         this.tauriInvoke = invoke;
       } catch (error) {
-        console.warn('Tauri API not available, falling back to console only');
+        this.backendLoggingEnabled = false;
+        this.originalConsole.warn('Tauri API not available, disabling backend logging');
         this.tauriInvoke = null;
       }
     }
     return this.tauriInvoke;
   }
 
-  private setupGlobalErrorHandlers() {
-    // Catch unhandled JavaScript errors
-    window.addEventListener('error', (event) => {
-      this.error('Unhandled JavaScript Error', `${event.error?.message || event.message} at ${event.filename}:${event.lineno}`);
-    });
 
-    // Catch unhandled promise rejections
-    window.addEventListener('unhandledrejection', (event) => {
-      this.error('Unhandled Promise Rejection', String(event.reason));
-    });
-
-    // Catch Tauri API errors
-    const originalConsoleError = console.error;
-    console.error = (...args) => {
-      // Log to our system if it looks like a Tauri error
-      const message = args.join(' ');
-      if (message.includes('[TAURI]') || message.includes('tauri://')) {
-        this.error('Tauri API Error', message);
-      }
-      originalConsoleError.apply(console, args);
+  private wrapConsoleMethods() {
+    const wrapMethod = (level: 'info' | 'warn' | 'error' | 'debug' | 'log', originalMethod: any) => {
+      return (...args: any[]) => {
+        originalMethod(...args);
+        const message = args.map(a => {
+          if (a instanceof Error) return `${a.name}: ${a.message}`;
+          if (typeof a === 'string') return a;
+          try {
+            return JSON.stringify(a);
+          } catch {
+            return String(a);
+          }
+        }).join(' ');
+        
+        const mappedLevel = level === 'log' ? 'info' : level;
+        void this.logToBackend(mappedLevel, message);
+      };
     };
+
+    console.log = wrapMethod('log', this.originalConsole.log);
+    console.info = wrapMethod('info', this.originalConsole.info);
+    console.warn = wrapMethod('warn', this.originalConsole.warn);
+    console.error = wrapMethod('error', this.originalConsole.error);
+    console.debug = wrapMethod('debug', this.originalConsole.debug);
+  }
+
+  private setupGlobalErrorHandlers() {
+    if (typeof window === 'undefined') return;
+
+    window.addEventListener('error', (event) => {
+      const { message, filename, lineno, colno, error } = event;
+      const ctx = error?.stack ? `Stack: ${error.stack}` : `at ${filename}:${lineno}:${colno}`;
+      void this.logToBackend('error', `Unhandled Error: ${message}`, ctx);
+    });
+
+    window.addEventListener('unhandledrejection', (event) => {
+      const reason = event.reason;
+      const msg = reason instanceof Error
+        ? `${reason.name}: ${reason.message}`
+        : typeof reason === 'string'
+        ? reason
+        : 'Unhandled rejection';
+      const ctx = reason instanceof Error ? `Stack: ${reason.stack}` : String(reason);
+      void this.logToBackend('error', `Unhandled Promise Rejection: ${msg}`, ctx);
+    });
   }
 
   public async info(message: string, details?: string): Promise<void> {
@@ -113,8 +159,8 @@ export class Logger {
         });
       }
     } catch (error) {
-      // Fallback to console if backend logging fails
-      console.warn('Failed to log to backend:', error);
+      this.backendLoggingEnabled = false;
+      this.originalConsole.warn('Failed to log to backend, disabling backend logging:', error);
     }
   }
 
@@ -143,6 +189,29 @@ export class Logger {
       throw error;
     }
   }
+
+  public installNetworkLogging() {
+    if (typeof window === 'undefined' || typeof window.fetch === 'undefined') return;
+
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const start = performance.now();
+      const url = typeof input === 'string' ? input : (input as Request).url;
+      const method = (init?.method || (input as Request)?.method || 'GET').toUpperCase();
+
+      try {
+        const response = await originalFetch(input, init);
+        const duration = Math.round(performance.now() - start);
+        void this.logToBackend('info', `HTTP ${method} ${url}`, `status=${response.status} duration=${duration}ms`);
+        return response;
+      } catch (err) {
+        const duration = Math.round(performance.now() - start);
+        const error = err instanceof Error ? err.message : String(err);
+        void this.logToBackend('error', `HTTP ${method} ${url}`, `error="${error}" duration=${duration}ms`);
+        throw err;
+      }
+    };
+  }
 }
 
 // Export singleton instance
@@ -153,3 +222,8 @@ export const logInfo = (message: string, details?: string) => logger.info(messag
 export const logWarn = (message: string, details?: string) => logger.warn(message, details);
 export const logError = (message: string, details?: string) => logger.error(message, details);
 export const logDebug = (message: string, details?: string) => logger.debug(message, details);
+
+// Install network logging by default
+if (typeof window !== 'undefined') {
+  logger.installNetworkLogging();
+}

@@ -75,17 +75,14 @@ async function initializeChat() {
       });
     }
 
-    // Mount components
-    mountComponents();
+     // Mount components
+     mountComponents();
 
-    // Listen for chat events
-    await listen('chat-event', (event: any) => {
-      console.log('📨 Chat event received:', event);
-      chatStore.actions.handleChatEvent(event.payload);
-    });
+     // Event listeners are now managed by chat.astro via chat-api.ts
+     // This avoids duplicate listeners that were causing double messages
 
-    chatStore.state.setConnected(true);
-    console.log('✅ Chat page: Initialization complete');
+     chatStore.state.setConnected(true);
+     console.log('✅ Chat page: Initialization complete');
   } catch (e) {
     console.error('❌ Failed to initialize chat:', e);
     chatStore.state.setError(`Failed to initialize: ${e}`);

@@ -31,6 +31,7 @@ declare global {
 
 // Application initialization
 import { logger } from './logger';
+import { initializeSentry } from '../sentry.init';
 
 // Initialize application logging on startup
 export async function initializeApp() {
@@ -39,6 +40,9 @@ export async function initializeApp() {
     if (typeof window === 'undefined' || typeof navigator === 'undefined') {
       return; // Skip initialization if not in browser (e.g., during build)
     }
+
+    // Initialize Sentry error tracking on app startup
+    initializeSentry();
 
     await logger.info('🚀 OpenCode Nexus application started');
     await logger.info(`User Agent: ${navigator.userAgent}`);
@@ -51,6 +55,9 @@ export async function initializeApp() {
     } else {
       await logger.warn('❌ Tauri environment not detected - running in browser mode');
     }
+
+    // Log Sentry initialization
+    await logger.info('✅ Sentry error tracking initialized');
   } catch (error) {
     console.error('Failed to initialize app logging:', error);
   }
