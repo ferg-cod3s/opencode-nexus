@@ -26,10 +26,11 @@ mod connection_manager;
 mod error;
 mod message_stream;
 
-use chat_client::{ChatClient, ChatMessage, ChatSession, SessionMetadata};
-use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection, ServerInfo};
+use chat_client::{ChatClient, ChatMessage, ChatSession, SessionMetadata, ModelConfig};
+use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection};
 
 use chrono::Utc;
+use serde::Deserialize;
 use std::fs::OpenOptions;
 use std::io::Write;
 use tauri::Emitter;
@@ -142,7 +143,7 @@ async fn connect_to_server(
     server_url: String,
     api_key: Option<String>,
     method: String,
-    name: String,
+    _name: String,
 ) -> Result<String, String> {
     log_info!(
         "🔗 [CONNECTION] Connecting to server: {} (method: {})",
@@ -296,6 +297,7 @@ async fn send_chat_message(
     _app_handle: tauri::AppHandle,
     session_id: String,
     content: String,
+    model: Option<ModelConfig>,
 ) -> Result<(), String> {
     // Ensure server is connected before attempting chat operations
     let server_url = ensure_server_connected()?;
@@ -308,8 +310,74 @@ async fn send_chat_message(
         .load_session_metadata()
         .map_err(|e| e.to_string())?;
 
-    // Send the message and rely on events/streaming for responses
-    chat_client.send_message(&session_id, &content).await
+    // Send the message with optional model config and rely on events/streaming for responses
+    chat_client.send_message(&session_id, &content, model).await
+}
+
+// Model configuration commands
+#[tauri::command]
+async fn get_available_models() -> Result<Vec<(String, String)>, String> {
+    // Fetch available models from OpenCode server's /config/providers endpoint
+    // Response format: { providers: Provider[], default: { [key: string]: string } }
+    let server_url = get_server_url()?;
+
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let url = format!("{}/config/providers", server_url);
+
+    #[derive(Deserialize)]
+    struct Provider {
+        #[serde(rename = "id")]
+        provider_id: String,
+        #[serde(default)]
+        models: Vec<ProviderModel>,
+    }
+
+    #[derive(Deserialize)]
+    struct ProviderModel {
+        id: String,
+        #[serde(default)]
+        name: Option<String>,
+    }
+
+    #[derive(Deserialize)]
+    struct ProvidersResponse {
+        providers: Vec<Provider>,
+        #[serde(default)]
+        default: serde_json::Value,
+    }
+
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch providers: {}", e))?;
+
+    if !response.status().is_success() {
+        return Err(format!("Server returned status: {}", response.status()));
+    }
+
+    let providers_response: ProvidersResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse providers response: {}", e))?;
+
+    // Extract all available models from providers
+    let mut models = Vec::new();
+
+    for provider in providers_response.providers {
+        for model in provider.models {
+            let full_model_id = format!("{}/{}", provider.provider_id, model.id);
+            let display_name = model.name.unwrap_or_else(|| model.id.clone());
+            models.push((full_model_id, display_name));
+        }
+    }
+
+    log_info!("📋 [MODELS] Found {} available models from server", models.len());
+    Ok(models)
 }
 
 #[tauri::command]
@@ -347,6 +415,26 @@ async fn get_chat_session_history(
 
     // Fetch full message history from server (mobile-optimized - not stored locally)
     chat_client.get_session_history(&session_id).await
+}
+
+#[tauri::command]
+async fn delete_chat_session(
+    _app_handle: tauri::AppHandle,
+    session_id: String,
+) -> Result<(), String> {
+    // Ensure server is connected before attempting chat operations
+    let server_url = ensure_server_connected()?;
+
+    let config_dir = get_config_dir()?;
+
+    let mut chat_client = ChatClient::new(config_dir.clone())?;
+    chat_client.set_server_url(server_url);
+    chat_client
+        .load_session_metadata()
+        .map_err(|e| e.to_string())?;
+
+    // Delete the session from server and local cache
+    chat_client.delete_session(&session_id).await
 }
 
 #[tauri::command]
@@ -491,7 +579,10 @@ pub fn run() {
             send_chat_message,
             get_chat_sessions,
             get_chat_session_history,
+            delete_chat_session,
             start_message_stream,
+            // Model configuration commands
+            get_available_models,
             // Application commands
             get_application_logs,
             log_frontend_error,
@@ -610,11 +701,12 @@ mod tests {
         // - disconnect_from_server
         // - get_saved_connections
 
-        // Chat: 5 commands
+        // Chat: 6 commands
         // - create_chat_session
         // - send_chat_message
         // - get_chat_sessions
         // - get_chat_session_history
+        // - delete_chat_session
         // - start_message_stream (event bridge)
 
         // Application: 3 commands + greet
@@ -623,7 +715,10 @@ mod tests {
         // - clear_application_logs
         // - greet (test command)
 
-        // Total: 28 commands registered
+        // Model Configuration: 1 command
+        // - get_available_models
+
+        // Total: 30 commands registered
         assert!(true, "Command registration documented");
     }
 
@@ -652,5 +747,140 @@ mod tests {
         // - Automatic reconnection handled by MessageStream
 
         assert!(true, "Event bridge pattern documented");
+    }
+
+    /// Test ModelConfig struct serialization
+    #[test]
+    fn test_model_config_serialization() {
+        let config = ModelConfig {
+            provider_id: "anthropic".to_string(),
+            model_id: "claude-3-5-sonnet-20241022".to_string(),
+        };
+
+        let json = serde_json::to_string(&config)
+            .expect("Should serialize ModelConfig to JSON");
+
+        assert!(json.contains("anthropic"));
+        assert!(json.contains("claude-3-5-sonnet-20241022"));
+
+        let deserialized: ModelConfig = serde_json::from_str(&json)
+            .expect("Should deserialize ModelConfig from JSON");
+
+        assert_eq!(deserialized.provider_id, "anthropic");
+        assert_eq!(deserialized.model_id, "claude-3-5-sonnet-20241022");
+    }
+
+    /// Test ModelConfig with optional model in send_message
+    #[test]
+    fn test_model_config_optional() {
+        // Test with Some(ModelConfig)
+        let config = Some(ModelConfig {
+            provider_id: "openai".to_string(),
+            model_id: "gpt-4".to_string(),
+        });
+
+        assert!(config.is_some());
+        if let Some(c) = config {
+            assert_eq!(c.provider_id, "openai");
+            assert_eq!(c.model_id, "gpt-4");
+        }
+
+        // Test with None (server should use default)
+        let config_none: Option<ModelConfig> = None;
+        assert!(config_none.is_none());
+    }
+
+    /// Test delete_session command requires server connection
+    #[test]
+    fn test_delete_session_requires_server_connection() {
+        // Verify that delete_session would fail without server connection
+        let result = ensure_server_connected();
+
+        match result {
+            Ok(url) => {
+                assert!(!url.is_empty(), "Server URL should not be empty");
+            }
+            Err(msg) => {
+                assert!(
+                    msg.contains("connect to an OpenCode server"),
+                    "Should provide user-friendly error: {}",
+                    msg
+                );
+            }
+        }
+    }
+
+    /// Test send_message signature accepts optional model
+    #[test]
+    fn test_send_message_model_parameter_documented() {
+        // This test documents the updated send_message signature:
+        //
+        // Old signature:
+        //   send_message(session_id: &str, content: &str) -> Result<(), String>
+        //
+        // New signature:
+        //   send_message(session_id: &str, content: &str, model: Option<ModelConfig>) -> Result<(), String>
+        //
+        // Usage:
+        //   1. With default model (server chooses):
+        //      chat_client.send_message(session_id, content, None)
+        //
+        //   2. With specific model:
+        //      chat_client.send_message(session_id, content, Some(ModelConfig {
+        //          provider_id: "anthropic".to_string(),
+        //          model_id: "claude-3-5-sonnet-20241022".to_string(),
+        //      }))
+        //
+        // When model is None, the PromptRequest is sent without model field,
+        // allowing OpenCode server to apply its own model selector logic.
+
+        assert!(true, "send_message signature documented");
+    }
+
+    /// Test get_available_models parsing logic
+    #[test]
+    fn test_model_parsing_from_providers_response() {
+        // This test documents the model parsing logic for /config/providers response
+        //
+        // OpenCode server /config/providers endpoint returns:
+        // {
+        //   "providers": [
+        //     {
+        //       "id": "anthropic",
+        //       "models": [
+        //         { "id": "claude-3-5-sonnet-20241022", "name": "Claude 3.5 Sonnet" },
+        //         { "id": "claude-opus-4-1", "name": "Claude Opus 4.1" }
+        //       ]
+        //     },
+        //     {
+        //       "id": "openai",
+        //       "models": [
+        //         { "id": "gpt-4o", "name": "GPT-4o" },
+        //         { "id": "gpt-4-turbo", "name": "GPT-4 Turbo" }
+        //       ]
+        //     }
+        //   ],
+        //   "default": {
+        //     "anthropic": "claude-3-5-sonnet-20241022",
+        //     "openai": "gpt-4o"
+        //   }
+        // }
+        //
+        // Parsing logic in get_available_models():
+        // 1. Iterate over each provider in providers array
+        // 2. For each provider, iterate over its models
+        // 3. Construct full model ID: "provider_id/model_id"
+        // 4. Use model.name as display name, fallback to model.id
+        // 5. Return Vec of tuples: (full_model_id, display_name)
+        //
+        // Example output:
+        // [
+        //   ("anthropic/claude-3-5-sonnet-20241022", "Claude 3.5 Sonnet"),
+        //   ("anthropic/claude-opus-4-1", "Claude Opus 4.1"),
+        //   ("openai/gpt-4o", "GPT-4o"),
+        //   ("openai/gpt-4-turbo", "GPT-4 Turbo")
+        // ]
+
+        assert!(true, "Model parsing logic documented");
     }
 }

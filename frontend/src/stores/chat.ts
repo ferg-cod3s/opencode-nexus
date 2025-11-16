@@ -379,7 +379,8 @@ export const chatActions = {
   // Send message
   sendMessage: async (
     content: string,
-    messageSender: (sessionId: string, content: string) => Promise<void>
+    messageSender: (sessionId: string, content: string, model?: { provider_id: string; model_id: string }) => Promise<void>,
+    model?: { provider_id: string; model_id: string }
   ) => {
     const activeSession = get(activeSessionStore);
     console.log('📤 chatActions.sendMessage: Starting, activeSession:', activeSession?.id);
@@ -407,7 +408,7 @@ export const chatActions = {
       // Online: send immediately
       try {
         chatStateStore.setStreaming(true);
-        await messageSender(activeSession.id, content);
+        await messageSender(activeSession.id, content, model);
         // Store the updated session
         await OfflineStorage.storeSession(activeSession);
         // Response will come via handleChatEvent

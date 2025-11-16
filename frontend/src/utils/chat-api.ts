@@ -28,7 +28,7 @@
  */
 
 import { invoke, listen } from './tauri-api';
-import type { ChatSession, ChatMessage, ChatEvent } from '../types/chat';
+import type { ChatSession, ChatMessage, ChatEvent, ModelConfig } from '../types/chat';
 
 /**
  * Load all chat sessions from the backend
@@ -80,15 +80,20 @@ export const loadSessionHistory = async (sessionId: string): Promise<ChatMessage
 };
 
 /**
- * Send a message to a chat session
+ * Send a message to a chat session with optional model configuration
  * The backend will emit 'chat-event' events for streaming responses
  */
-export const sendChatMessage = async (sessionId: string, content: string): Promise<void> => {
+export const sendChatMessage = async (
+  sessionId: string,
+  content: string,
+  model?: ModelConfig
+): Promise<void> => {
   console.log('📤 [CHAT API] Sending message to session:', sessionId);
   try {
     await invoke<void>('send_chat_message', {
       session_id: sessionId,
-      content
+      content,
+      model
     });
     console.log('📤 [CHAT API] Message sent successfully');
   } catch (error) {
@@ -103,7 +108,7 @@ export const sendChatMessage = async (sessionId: string, content: string): Promi
 export const deleteChatSession = async (sessionId: string): Promise<void> => {
   console.log('🗑️ [CHAT API] Deleting session:', sessionId);
   try {
-    await invoke<void>('delete_session', {
+    await invoke<void>('delete_chat_session', {
       session_id: sessionId
     });
     console.log('🗑️ [CHAT API] Session deleted successfully');
@@ -141,6 +146,21 @@ export const startChatEventListener = async (
     return unsubscribe;
   } catch (error) {
     console.error('❌ [CHAT API] Failed to start chat event listener:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get available models from the OpenCode server
+ */
+export const getAvailableModels = async (): Promise<Array<[string, string]>> => {
+  console.log('📋 [CHAT API] Fetching available models');
+  try {
+    const models = await invoke<Array<[string, string]>>('get_available_models');
+    console.log('📋 [CHAT API] Available models:', models.length);
+    return models;
+  } catch (error) {
+    console.error('❌ [CHAT API] Failed to get available models:', error);
     throw error;
   }
 };

@@ -26,10 +26,12 @@
   import { createEventDispatcher, onMount } from 'svelte';
   import MessageBubble from './MessageBubble.svelte';
   import MessageInput from './MessageInput.svelte';
+  import ModelSelector from './ModelSelector.svelte';
   import OfflineIndicator from './OfflineIndicator.svelte';
   import StreamingIndicator from './StreamingIndicator.svelte';
   import type { ChatSession, ChatMessage } from '../types/chat';
   import { activeSessionStore, chatStateStore } from '../stores/chat';
+  import { modelSelectorStore } from '../stores/modelSelector';
 
   // Accept external session prop OR use store
   export let session: ChatSession | undefined = undefined;
@@ -40,7 +42,7 @@
   export let onClose: (() => void) | undefined = undefined;
 
   const dispatch = createEventDispatcher<{
-    sendMessage: { content: string };
+    sendMessage: { content: string; model?: { provider_id: string; model_id: string } };
     close: void;
     navigateMessage: { direction: 'prev' | 'next' };
     refresh: void;
@@ -98,11 +100,14 @@
   }
 
   function handleSendMessage(content: string) {
+    // Get selected model config from store
+    const modelConfig = modelSelectorStore.getSelectedModelConfig();
+
     // Use callback if provided, otherwise dispatch event
     if (onSendMessage) {
-      onSendMessage(content);
+      onSendMessage(content, modelConfig);
     } else {
-      dispatch('sendMessage', { content });
+      dispatch('sendMessage', { content, model: modelConfig });
     }
   }
 
@@ -252,14 +257,17 @@
       <h3 class="session-title" data-testid="current-session-title">{activeSession.title || 'Untitled Session'}</h3>
       <span class="message-count">{activeSession.messages.length} messages</span>
     </div>
-    <button
-      class="close-btn"
-      on:click={handleClose}
-      aria-label="Close chat"
-      style="min-width: 44px; min-height: 44px;"
-    >
-      <span aria-hidden="true">×</span>
-    </button>
+    <div class="header-controls">
+      <ModelSelector />
+      <button
+        class="close-btn"
+        on:click={handleClose}
+        aria-label="Close chat"
+        style="min-width: 44px; min-height: 44px;"
+      >
+        <span aria-hidden="true">×</span>
+      </button>
+    </div>
   </header>
 
   <div
@@ -370,6 +378,13 @@
     background: hsl(220, 20%, 98%);
     flex-shrink: 0;
     min-height: 56px; /* Ensure touch-friendly header height */
+  }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
   }
 
   .session-info {

@@ -29,6 +29,7 @@
 /// retry logic with exponential backoff, and detailed error context.
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::future::Future;
 use std::time::Duration;
 
 /// Main error type for the application
@@ -303,16 +304,16 @@ impl RetryConfig {
 pub async fn retry_with_backoff<F, Fut, T>(operation: F, config: RetryConfig) -> Result<T, AppError>
 where
     F: Fn() -> Fut,
-    Fut: std::future::Future<Output = Result<T, AppError>>,
+    Fut: Future<Output = Result<T, AppError>>,
 {
+    let mut _last_error: Option<AppError> = None;
     let mut attempt = 0;
-    let mut last_error: Option<AppError> = None;
 
     loop {
         match operation().await {
             Ok(result) => return Ok(result),
             Err(error) => {
-                last_error = Some(error.clone());
+                _last_error = Some(error.clone());
 
                 // Check if we should retry
                 if !error.is_retryable() {
@@ -404,11 +405,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_retry_succeeds_after_failure() {
-        let mut attempts = 0;
-        let operation = || {
-            attempts += 1;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let attempts_clone = attempts.clone();
+
+        let operation = move || {
+            let attempts = attempts_clone.clone();
             async move {
-                if attempts < 3 {
+                let count = attempts.fetch_add(1, Ordering::SeqCst);
+                if count < 2 {
                     Err(AppError::NetworkError {
                         message: "Connection failed".to_string(),
                         details: "Temporary failure".to_string(),
@@ -430,16 +437,22 @@ mod tests {
         let result = retry_with_backoff(operation, config).await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), 42);
-        assert_eq!(attempts, 3);
+        assert_eq!(attempts.load(Ordering::SeqCst), 3);
     }
 
     #[tokio::test]
     async fn test_retry_stops_on_non_retryable_error() {
-        let mut attempts = 0;
-        let operation = || {
-            attempts += 1;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let attempts_clone = attempts.clone();
+
+        let operation = move || {
+            let attempts = attempts_clone.clone();
             async move {
-                Err(AppError::ValidationError {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Err::<i32, _>(AppError::ValidationError {
                     field: "test".to_string(),
                     message: "Invalid input".to_string(),
                 })
@@ -450,16 +463,22 @@ mod tests {
         let result = retry_with_backoff(operation, config).await;
 
         assert!(result.is_err());
-        assert_eq!(attempts, 1); // Should not retry
+        assert_eq!(attempts.load(Ordering::SeqCst), 1); // Should not retry
     }
 
     #[tokio::test]
     async fn test_retry_exhausts_max_retries() {
-        let mut attempts = 0;
-        let operation = || {
-            attempts += 1;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+
+        let attempts = Arc::new(AtomicUsize::new(0));
+        let attempts_clone = attempts.clone();
+
+        let operation = move || {
+            let attempts = attempts_clone.clone();
             async move {
-                Err(AppError::NetworkError {
+                attempts.fetch_add(1, Ordering::SeqCst);
+                Err::<i32, _>(AppError::NetworkError {
                     message: "Always fails".to_string(),
                     details: "Test error".to_string(),
                     retry_after: Some(1),
@@ -477,6 +496,6 @@ mod tests {
         let result = retry_with_backoff(operation, config).await;
 
         assert!(result.is_err());
-        assert_eq!(attempts, 4); // Initial attempt + 3 retries
+        assert_eq!(attempts.load(Ordering::SeqCst), 4); // Initial attempt + 3 retries
     }
 }

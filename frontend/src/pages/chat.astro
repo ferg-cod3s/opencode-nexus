@@ -332,7 +332,7 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
           mount(ChatInterface, {
             target: chatRoot,
             props: {
-              onSendMessage: async (content: string) => {
+              onSendMessage: async (content: string, model?: { provider_id: string; model_id: string }) => {
                 try {
                   // Add breadcrumb for message send
                   sentry.addBreadcrumb({
@@ -343,7 +343,8 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
  
                   await chatStore.actions.sendMessage(
                     content,
-                    chatApiCallbacks.messageSender
+                    chatApiCallbacks.messageSender,
+                    model
                   );
                 } catch (error) {
                   console.error('Failed to send message:', error);

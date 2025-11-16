@@ -27,7 +27,7 @@
 
   export let disabled = false;
   export let placeholder = "Type your message...";
-  export let onSend: ((content: string) => void) | undefined = undefined;
+  export let onSend: ((content: string, model?: { provider_id: string; model_id: string }) => void) | undefined = undefined;
 
   let inputElement: HTMLTextAreaElement;
   let content = '';

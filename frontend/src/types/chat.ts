@@ -29,6 +29,12 @@ export interface ChatSession {
   messages: ChatMessage[];
 }
 
+// Model configuration for selecting provider and model
+export interface ModelConfig {
+  provider_id: string;
+  model_id: string;
+}
+
 // Lightweight metadata for mobile-optimized session list
 // Full messages fetched from server on-demand
 export interface SessionMetadata {

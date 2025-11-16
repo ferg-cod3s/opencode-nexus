@@ -65,6 +65,13 @@ pub enum MessageRole {
     Assistant,
 }
 
+/// Model configuration for selecting provider and model
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelConfig {
+    pub provider_id: String,
+    pub model_id: String,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub enum ChatEvent {
     SessionCreated {
@@ -214,7 +221,12 @@ impl ChatClient {
         Ok(session)
     }
 
-    pub async fn send_message(&mut self, session_id: &str, content: &str) -> Result<(), String> {
+    pub async fn send_message(
+        &mut self,
+        session_id: &str,
+        content: &str,
+        model: Option<ModelConfig>,
+    ) -> Result<(), String> {
         let server_url = self
             .server_url
             .as_ref()
@@ -230,12 +242,6 @@ impl ChatClient {
 
         // Send message via OpenCode API with retry logic
         #[derive(Serialize, Clone)]
-        struct ModelConfig {
-            provider_id: String,
-            model_id: String,
-        }
-
-        #[derive(Serialize, Clone)]
         struct MessagePart {
             r#type: String,
             text: String,
@@ -243,15 +249,13 @@ impl ChatClient {
 
         #[derive(Serialize, Clone)]
         struct PromptRequest {
-            model: ModelConfig,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            model: Option<ModelConfig>,
             parts: Vec<MessagePart>,
         }
 
         let request = PromptRequest {
-            model: ModelConfig {
-                provider_id: "anthropic".to_string(), // Default provider
-                model_id: "claude-3-5-sonnet-20241022".to_string(), // Default model
-            },
+            model,
             parts: vec![MessagePart {
                 r#type: "text".to_string(),
                 text: content.to_string(),
@@ -641,7 +645,7 @@ mod tests {
         assert!(chat_client.get_server_url().is_none());
 
         // Should start with no sessions
-        assert_eq!(chat_client.get_all_sessions().len(), 0);
+        assert_eq!(chat_client.get_all_session_metadata().len(), 0);
     }
 
     #[tokio::test]
@@ -692,7 +696,7 @@ mod tests {
         );
 
         // Try to send message without a session (should fail but with different error)
-        let result = chat_client.send_message("fake_session_id", "test").await;
+        let result = chat_client.send_message("fake_session_id", "test", None).await;
 
         // Should fail, but because session doesn't exist, not because of server URL
         assert!(result.is_err());
