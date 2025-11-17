@@ -7,7 +7,8 @@
 **Timeline**: 8 weeks to MVP
 **Status**: 🎉 **PHASE 2 COMPLETE - CHAT INTEGRATION & MOBILE OPTIMIZATION** (November 12, 2025)
 **Current Phase**: Phase 3 - Error Handling & Testing (In Progress)
-**Overall Progress**: 55% (Security + Architecture + Connection + Chat + Mobile Storage)
+**Overall Progress**: 60% (Security + Architecture + Connection + Chat + Mobile Storage + Startup Routing)
+**Last Updated**: November 17, 2025
 
 ---
 
@@ -65,6 +66,27 @@
 
 **Branch**: `claude/phase1-next-steps-011CV32DaRoZ7LBZ4hiDxh3p`
 **Commits**: 6d317be → b3600da (8 commits)
+
+---
+
+### ✅ **STARTUP ROUTING IMPLEMENTATION - COMPLETED** (November 17, 2025)
+
+**✅ Environment-Aware Startup Routing**
+- **Added**: `frontend/src/utils/startup-routing.ts` - Pure routing logic based on environment + connection state
+- **Added**: `frontend/src/pages/index.astro` - New startup page with loading UI that redirects appropriately
+- **Updated**: `frontend/src/utils/tauri-api.ts` - Environment-aware invoke behavior (Tauri real, browser HTTP, test mock)
+- **Added**: Comprehensive unit tests for routing logic and API behavior
+- **Updated**: E2E tests to validate desktop routing behavior
+- **Result**: Users now get automatically routed to `/connect` or `/chat` based on saved connections
+
+**Routing Logic**:
+- **Tauri/Test**: `/connect` if no saved connections, `/chat` if connections exist
+- **Browser**: `/chat` if HTTP backend configured, `/connect` otherwise
+- **Fallback**: All environments redirect to `/connect` on errors
+
+**Files Changed (1 commit)**:
+- `feat: implement environment-aware startup routing` (commit 8d08da6)
+- 10 files: 7 new, 3 modified, 1 deleted
 
 ---
 
@@ -137,7 +159,34 @@
   - [x] ✅ Updated connection flow with 3 methods (localhost, tunnel, proxy)
   - [x] ✅ TLS/SSL validation via reqwest HTTPS support
 
-### 🔴 High Priority - Phase 3 (Current): Error Handling & Polish
+### 🔴 High Priority - Phase 3 (Current): Error Handling & Testing
+
+- [x] **✅ COMPLETED: Environment-Aware Startup Routing** (Priority: HIGH)
+  - [x] ✅ Implemented routing logic based on environment + connection state
+  - [x] ✅ Added startup page with loading UI and automatic redirects
+  - [x] ✅ Updated tauri-api for environment-aware behavior (Tauri real, browser HTTP, test mock)
+  - [x] ✅ Added comprehensive unit tests and updated E2E tests
+  - [x] ✅ Validated with Playwright on desktop
+
+---
+
+### 🎯 **REMAINING MVP TASKS SUMMARY** (November 17, 2025)
+
+**🔴 HIGH PRIORITY (Complete these first - blocking MVP):**
+1. **Comprehensive Error Handling** - User-friendly errors, retry logic, network indicators
+2. **E2E Test Completion** - Get from 39% to 80%+ pass rate (currently ~47/121 passing)
+3. **Real OpenCode Server Testing** - End-to-end validation with actual server
+
+**🟠 MEDIUM PRIORITY (Polish after core functionality):**
+4. **Mobile Chat UI Redesign** - Touch-optimized controls, responsive design
+5. **Connection Configuration UI** - Status indicators, connection history
+
+**🟢 LOW PRIORITY (Nice-to-have for v1.1):**
+6. **Offline Capabilities** - Conversation caching, offline queue
+
+**Estimated Time**: 2-3 weeks to MVP with focused effort on error handling + testing.
+
+---
 
 - [ ] **Comprehensive Error Handling** (Priority: HIGH - BUMPED FROM MEDIUM)
   - [ ] Better connection error messages (network failures, timeouts, auth failures)
@@ -148,10 +197,11 @@
   - [ ] Error recovery workflows (reconnect, clear cache, etc.)
 
 - [ ] **E2E Test Completion** (Priority: HIGH)
+  - [x] ✅ Updated startup routing E2E test (now passing)
   - [ ] Update E2E tests for metadata-only storage model
   - [ ] Test SSE streaming integration end-to-end
   - [ ] Verify connection flow with all 3 connection methods
-  - [ ] Currently 46/121 passing (38%) - need to reach 80%+ pass rate
+  - [ ] Currently ~47/121 passing (39%) - need to reach 80%+ pass rate
 
 - [ ] **End-to-End Testing with Real OpenCode Server** (Priority: HIGH)
   - [ ] Start real OpenCode server: `opencode serve --port 4096`
