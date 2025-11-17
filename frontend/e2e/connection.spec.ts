@@ -162,10 +162,27 @@ test.describe('Connection Flow', () => {
   });
 
   test('Connection Workflow - should redirect to connection page when not connected', async ({ page }) => {
+    // Listen for console messages
+    const messages: string[] = [];
+    page.on('console', msg => {
+      messages.push(msg.text());
+    });
+
     // Try to access main page without connection
     await page.goto('/');
 
-    // Should redirect to /connect
+    // Check what page actually loaded
+    const bodyText = await page.locator('body').textContent();
+    console.log('Page body text:', bodyText?.substring(0, 200));
+
+    // Should show index page briefly
+    await expect(page.locator('text=Preparing your workspace')).toBeVisible();
+
+    // Check if startup routing ran
+    console.log('Console messages:', messages);
+
+    // Wait for redirect to happen (with shorter timeout)
+    await page.waitForURL(/\/connect/, { timeout: 5000 });
     await expect(page).toHaveURL(/\/connect/);
   });
 

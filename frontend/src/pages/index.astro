@@ -1,0 +1,103 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus">
+  <main class="startup-container">
+    <section class="startup-content" aria-busy="true" aria-live="polite">
+      <h1 class="startup-title">Preparing your workspace</h1>
+      <p class="startup-description">
+        Checking your saved connections and routing you to chat.
+      </p>
+      <p class="startup-hint">
+        If this screen does not change, use the navigation to go to Connect.
+      </p>
+    </section>
+  </main>
+</Layout>
+
+<style>
+  .startup-container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: hsl(220, 20%, 98%);
+  }
+
+  .startup-content {
+    max-width: 480px;
+    text-align: center;
+  }
+
+  .startup-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+  }
+
+  .startup-description {
+    margin-bottom: 0.5rem;
+    color: hsl(220, 10%, 40%);
+  }
+
+  .startup-hint {
+    font-size: 0.9rem;
+    color: hsl(220, 10%, 55%);
+  }
+</style>
+
+<script>
+  import { checkEnvironment, invoke } from '../utils/tauri-api';
+  import { determineStartupRoute, applyStartupRoute } from '../utils/startup-routing';
+
+  async function initializeStartupRouting() {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const env = checkEnvironment();
+
+      let hasSavedConnections = false;
+
+      if (env.environment === 'tauri' || env.environment === 'test') {
+        try {
+          const connections = await invoke('get_saved_connections');
+          hasSavedConnections = Array.isArray(connections) && connections.length > 0;
+        } catch (error) {
+          console.error('Failed to load saved connections for startup routing:', error);
+          hasSavedConnections = false;
+        }
+      }
+
+      const route = determineStartupRoute({
+        environment: env.environment,
+        httpBackendUrl: env.httpBackendUrl,
+        hasSavedConnections
+      });
+
+      applyStartupRoute(route, window.location.pathname, (target) => {
+        // Small delay to allow the page to render briefly for testing
+        setTimeout(() => {
+          window.location.replace(target);
+        }, 500);
+      });
+    } catch (error) {
+      console.error('Startup routing failed:', error);
+      // Fallback: redirect to connect
+      window.location.replace('/connect');
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        initializeStartupRouting();
+      });
+    } else {
+      initializeStartupRouting();
+    }
+  }
+</script>

@@ -567,11 +567,15 @@ const invokeHttpBackend = async <T = any>(
  */
 export const invoke = async <T = any>(command: string, args?: Record<string, any>): Promise<T> => {
   console.log(`[API] Invoking command: ${command}`, args);
-  console.log(`[API] Environment check:`, checkEnvironment());
+  const env = checkEnvironment();
+  console.log('[API] Environment check:', env);
 
-  if (isTauriEnvironment() && tauriInvoke) {
+  if (env.environment === 'tauri') {
+    if (!tauriInvoke) {
+      throw new Error('Tauri environment detected but tauriInvoke is not available');
+    }
+
     try {
-      // Use real Tauri API
       const result = await tauriInvoke(command, args);
       console.log(`[TAURI API] ${command} result:`, result);
       return result as T;
@@ -579,36 +583,35 @@ export const invoke = async <T = any>(command: string, args?: Record<string, any
       console.error(`[TAURI API] Command ${command} failed:`, error);
       throw error;
     }
-  } else {
-    // Check if HTTP backend is configured for chat commands
-    const httpBackendUrl = getHttpBackendUrl();
+  }
+
+  if (env.environment === 'browser') {
+    const httpBackendUrl = env.httpBackendUrl || getHttpBackendUrl();
+
     if (httpBackendUrl && isChatCommand(command)) {
-      try {
-        console.log(`[HTTP API] Using HTTP backend at ${httpBackendUrl}`);
-        return await invokeHttpBackend<T>(command, httpBackendUrl, args);
-      } catch (error) {
-        console.warn(`[HTTP API] Failed to invoke ${command}, falling back to mock:`, error);
-        // Fall through to mock API
-      }
+      console.log(`[HTTP API] Using HTTP backend at ${httpBackendUrl}`);
+      return invokeHttpBackend<T>(command, httpBackendUrl, args);
     }
 
-    // Use mock API for browser/E2E testing
-    console.log(`[MOCK API] Using mock implementation for ${command}`);
+    throw new Error(`Command '${command}' is not available in browser environment without HTTP backend`);
+  }
 
-    if (command in mockApi) {
-      try {
-        const result = await (mockApi as any)[command](args);
-        console.log(`[MOCK API] ${command} result:`, result);
-        return result;
-      } catch (error) {
-        console.error(`[MOCK API] Command ${command} failed:`, error);
-        throw error;
-      }
-    } else {
-      console.warn(`[MOCK API] No mock implementation for command: ${command}`);
-      throw new Error(`Mock API: Command '${command}' not implemented`);
+  // Test environment: use mock API only
+  console.log(`[MOCK API] Using mock implementation for ${command} in test environment`);
+
+  if (command in mockApi) {
+    try {
+      const result = await (mockApi as any)[command](args);
+      console.log(`[MOCK API] ${command} result:`, result);
+      return result;
+    } catch (error) {
+      console.error(`[MOCK API] Command ${command} failed:`, error);
+      throw error;
     }
   }
+
+  console.warn(`[MOCK API] No mock implementation for command: ${command}`);
+  throw new Error(`Mock API: Command '${command}' not implemented`);
 };
 
 // Mock event system for browser/test environments
