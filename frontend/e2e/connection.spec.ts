@@ -152,9 +152,9 @@ test.describe('Connection Flow', () => {
     await helpToggle.click();
 
     // Check help sections are visible
-    await expect(page.locator('text=🏠 Localhost (Same Machine)')).toBeVisible();
-    await expect(page.locator('text=☁️ Cloudflare Tunnel')).toBeVisible();
-    await expect(page.locator('text=🔒 Reverse Proxy')).toBeVisible();
+    await expect(page.locator('h4').filter({ hasText: '🏠 Localhost (Same Machine)' })).toBeVisible();
+    await expect(page.locator('h4').filter({ hasText: '☁️ Cloudflare Tunnel' })).toBeVisible();
+    await expect(page.locator('h4').filter({ hasText: '🔒 Reverse Proxy' })).toBeVisible();
 
     // Check commands are shown
     await expect(page.locator('code').filter({ hasText: 'opencode serve' })).toBeVisible();

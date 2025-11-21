@@ -26,7 +26,8 @@ import { test, expect } from '@playwright/test';
 import { ServerHelper } from './helpers/server-management';
 import { ChatHelper } from './helpers/chat';
 
-test.describe('Server Management', () => {
+// Skip all server management tests - deprecated in client-only architecture
+test.describe.skip('Server Management (DEPRECATED - Client-only architecture)', () => {
   let server: ServerHelper;
 
   test.beforeEach(async ({ page }) => {

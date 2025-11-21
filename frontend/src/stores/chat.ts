@@ -69,80 +69,84 @@ function createActiveSessionStore() {
       currentStreamingMessageId = null;
     },
    addMessage: (message: ChatMessage) => {
-     update(session => {
-       if (!session) return session;
-       const newSession = {
-         ...session,
-         messages: [...session.messages, message]
-       };
-       console.log('✅ Store: addMessage called, old count:', session.messages.length, 'new count:', newSession.messages.length);
-       return newSession;
-     });
-   },
-     updateLastMessage: (updates: Partial<ChatMessage>) => {
-       update(session => {
-         if (!session || session.messages.length === 0) return session;
-         const messages = [...session.messages];
-         const lastMessage = messages[messages.length - 1];
-         messages[messages.length - 1] = { ...lastMessage, ...updates };
-         return {
-           ...session,
-           messages
-         };
-       });
-     },
-      appendToLastMessage: (content: string) => {
+      update(session => {
+        if (!session) return session;
+        const newSession = {
+          ...session,
+          messages: [...session.messages, message]
+        };
+        console.log('✅ Store: addMessage called, old count:', session.messages.length, 'new count:', newSession.messages.length);
+        return newSession;
+      });
+    },
+      updateLastMessage: (updates: Partial<ChatMessage>) => {
         update(session => {
-          if (!session) return session;
+          if (!session || session.messages.length === 0) return session;
           const messages = [...session.messages];
-          
-          // Check if the last message is an assistant message and append to it
-          // This handles both streaming messages and pre-existing assistant messages
-          if (messages.length > 0) {
-            const lastMessage = messages[messages.length - 1];
-            if (lastMessage.role === MessageRole.Assistant && lastMessage.id === currentStreamingMessageId) {
-              // Append to current streaming message
-              messages[messages.length - 1] = {
-                ...lastMessage,
-                content: lastMessage.content + content
-              };
-              return { ...session, messages };
-            } else if (lastMessage.role === MessageRole.Assistant && !currentStreamingMessageId) {
-              // If no streaming message ID but last is assistant, assume it's the one to append to
-              // (This handles cases where assistant messages are added via addMessage)
-              currentStreamingMessageId = lastMessage.id;
-              messages[messages.length - 1] = {
-                ...lastMessage,
-                content: lastMessage.content + content
-              };
-              return { ...session, messages };
-            }
-          }
-          
-          // Create a new streaming message if no assistant message to append to
-          const newStreamingMessage: ChatMessage = {
-            id: `streaming-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-            role: MessageRole.Assistant,
-            content,
-            timestamp: new Date().toISOString()
-          };
-          currentStreamingMessageId = newStreamingMessage.id;
-          messages.push(newStreamingMessage);
-          
+          const lastMessage = messages[messages.length - 1];
+          messages[messages.length - 1] = { ...lastMessage, ...updates };
           return {
             ...session,
             messages
           };
         });
       },
-      clearStreamingMessageId: () => {
+       appendToLastMessage: (content: string) => {
+         update(session => {
+           if (!session) return session;
+           const messages = [...session.messages];
+
+           // If we have a current streaming message ID, find and append to it
+           if (currentStreamingMessageId) {
+             const streamingMessageIndex = messages.findIndex(msg => msg.id === currentStreamingMessageId);
+             if (streamingMessageIndex !== -1) {
+               // Found the streaming message, append to it
+               messages[streamingMessageIndex] = {
+                 ...messages[streamingMessageIndex],
+                 content: messages[streamingMessageIndex].content + content
+               };
+               return { ...session, messages };
+             }
+           }
+
+           // If we have an assistant message at the end and no streaming ID, assume it's streaming
+           if (messages.length > 0) {
+             const lastMessage = messages[messages.length - 1];
+             if (lastMessage.role === MessageRole.Assistant && !currentStreamingMessageId) {
+               // Set this as the current streaming message and append to it
+               currentStreamingMessageId = lastMessage.id;
+               messages[messages.length - 1] = {
+                 ...lastMessage,
+                 content: lastMessage.content + content
+               };
+               return { ...session, messages };
+             }
+           }
+
+           // Create a new streaming message if no existing assistant message to append to
+           const newStreamingMessage: ChatMessage = {
+             id: `streaming-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+             role: MessageRole.Assistant,
+             content,
+             timestamp: new Date().toISOString()
+           };
+           currentStreamingMessageId = newStreamingMessage.id;
+           messages.push(newStreamingMessage);
+
+           return {
+             ...session,
+             messages
+           };
+         });
+       },
+       clearStreamingMessageId: () => {
+         currentStreamingMessageId = null;
+       },
+      clear: () => {
+        set(null);
         currentStreamingMessageId = null;
-      },
-     clear: () => {
-       set(null);
-       currentStreamingMessageId = null;
-     }
-   };
+      }
+    };
 }
 
 // Chat loading/error state store
