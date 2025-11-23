@@ -155,10 +155,19 @@ impl ChatClient {
         }
 
         #[derive(Deserialize)]
+        struct TimeInfo {
+            created: i64,
+            updated: i64,
+        }
+
+        #[derive(Deserialize)]
         struct OpenCodeSession {
             id: String,
+            version: Option<String>,
+            projectID: Option<String>,
+            directory: Option<String>,
             title: Option<String>,
-            created_at: String,
+            time: TimeInfo,
         }
 
         let request = CreateSessionRequest {
@@ -187,12 +196,20 @@ impl ChatClient {
             .await
             .map_err(|e| format!("Failed to parse session response: {}", e))?;
 
+        // Convert Unix timestamps to ISO format strings
+        let created_at = chrono::DateTime::from_timestamp(open_code_session.time.created, 0)
+            .ok_or_else(|| "Invalid created timestamp".to_string())?
+            .to_rfc3339();
+        let updated_at = chrono::DateTime::from_timestamp(open_code_session.time.updated, 0)
+            .ok_or_else(|| "Invalid updated timestamp".to_string())?
+            .to_rfc3339();
+
         // Store lightweight metadata locally (mobile-optimized)
         let metadata = SessionMetadata {
             id: open_code_session.id.clone(),
             title: open_code_session.title.clone(),
-            created_at: open_code_session.created_at.clone(),
-            updated_at: None,
+            created_at: created_at.clone(),
+            updated_at: Some(updated_at),
             message_count: 0,
         };
 
@@ -209,7 +226,7 @@ impl ChatClient {
         let session = ChatSession {
             id: open_code_session.id,
             title: open_code_session.title,
-            created_at: open_code_session.created_at,
+            created_at,
             messages: Vec::new(),
         };
 
@@ -455,10 +472,19 @@ impl ChatClient {
             .ok_or_else(|| "Server URL not set".to_string())?;
 
         #[derive(Deserialize)]
+        struct TimeInfo {
+            created: i64,
+            updated: i64,
+        }
+
+        #[derive(Deserialize)]
         struct OpenCodeSession {
             id: String,
+            version: Option<String>,
+            projectID: Option<String>,
+            directory: Option<String>,
             title: Option<String>,
-            created_at: String,
+            time: TimeInfo,
         }
 
         let url = format!("{}/session", server_url);
@@ -485,13 +511,19 @@ impl ChatClient {
         // Convert to our ChatSession format
         let sessions: Vec<ChatSession> = open_code_sessions
             .into_iter()
-            .map(|ocs| ChatSession {
-                id: ocs.id,
-                title: ocs.title,
-                created_at: ocs.created_at,
-                messages: Vec::new(), // Will be loaded separately
+            .map(|ocs| {
+                let created_at = chrono::DateTime::from_timestamp(ocs.time.created, 0)
+                    .ok_or_else(|| format!("Invalid created timestamp for session {}", ocs.id))
+                    .map(|dt| dt.to_rfc3339())?;
+                Ok(ChatSession {
+                    id: ocs.id,
+                    title: ocs.title,
+                    created_at,
+                    messages: Vec::new(), // Will be loaded separately
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>, String>>()?;
+
 
         Ok(sessions)
     }
@@ -504,6 +536,22 @@ impl ChatClient {
             .server_url
             .as_ref()
             .ok_or_else(|| "Server URL not set".to_string())?;
+
+        #[derive(Deserialize)]
+        struct TimeInfo {
+            created: i64,
+            updated: i64,
+        }
+
+        #[derive(Deserialize)]
+        struct OpenCodeSession {
+            id: String,
+            version: Option<String>,
+            projectID: Option<String>,
+            directory: Option<String>,
+            title: Option<String>,
+            time: TimeInfo,
+        }
 
         #[derive(Deserialize)]
         struct MessageInfo {
