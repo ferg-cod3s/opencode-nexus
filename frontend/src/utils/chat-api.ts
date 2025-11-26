@@ -186,6 +186,74 @@ export const initializeChat = async (
 };
 
 /**
+ * Connection event types that the backend emits
+ */
+export type ConnectionEventType = 'Connected' | 'Disconnected' | 'Error' | 'HealthCheck';
+
+export interface ConnectionEventPayload {
+  event_type: ConnectionEventType;
+  message: string;
+}
+
+/**
+ * Subscribe to real-time connection events from the backend
+ * Events include: Connected, Disconnected, Error, HealthCheck
+ * 
+ * @param onConnected - Callback when successfully connected to server
+ * @param onDisconnected - Callback when disconnected from server
+ * @param onError - Callback when connection error occurs
+ * @param onHealthCheck - Optional callback for health check events
+ * @returns Unsubscribe function to stop listening to events
+ */
+export const subscribeToConnectionEvents = async (
+  onConnected: (message: string) => void,
+  onDisconnected: (message: string) => void,
+  onError: (message: string) => void,
+  onHealthCheck?: (message: string) => void
+): Promise<() => void> => {
+  console.log('🔗 [CONNECTION API] Subscribing to connection events');
+
+  try {
+    // Listen to connection_event from the backend
+    const unsubscribe = await listen('connection_event', async (event: any) => {
+      const payload = event.payload as ConnectionEventPayload;
+      console.log('📡 [CONNECTION API] Received connection event:', payload.event_type, payload.message);
+
+      switch (payload.event_type) {
+        case 'Connected':
+          console.log('✅ [CONNECTION API] Connected:', payload.message);
+          onConnected(payload.message);
+          break;
+
+        case 'Disconnected':
+          console.log('⚠️ [CONNECTION API] Disconnected:', payload.message);
+          onDisconnected(payload.message);
+          break;
+
+        case 'Error':
+          console.log('❌ [CONNECTION API] Connection error:', payload.message);
+          onError(payload.message);
+          break;
+
+        case 'HealthCheck':
+          console.log('💓 [CONNECTION API] Health check:', payload.message);
+          if (onHealthCheck) onHealthCheck(payload.message);
+          break;
+
+        default:
+          console.warn('⚠️ [CONNECTION API] Unknown connection event type:', payload.event_type);
+      }
+    });
+
+    console.log('🔗 [CONNECTION API] Successfully subscribed to connection events');
+    return unsubscribe;
+  } catch (error) {
+    console.error('❌ [CONNECTION API] Failed to subscribe to connection events:', error);
+    throw error;
+  }
+};
+
+/**
  * Chat API exports for use with chatActions
  * These functions have signatures compatible with chatActions callbacks
  */
