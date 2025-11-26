@@ -27,6 +27,10 @@ import type { ChatSession, ChatMessage, ChatEvent } from '../types/chat';
 import { MessageRole } from '../types/chat';
 import { OfflineStorage, ConnectionMonitor } from '../utils/offline-storage';
 import { messageSyncManager } from '../utils/message-sync-manager';
+import { invoke } from '../utils/tauri-api';
+
+// Type for Rust ConnectionStatus enum: Disconnected | Connecting | Connected | Error
+type ConnectionStatus = 'Disconnected' | 'Connecting' | 'Connected' | 'Error';
 
 // Chat sessions store
 function createSessionsStore() {
@@ -303,16 +307,31 @@ export const queuedMessageCount = derived(
 
 // Chat actions - higher level functions that coordinate multiple stores
 export const chatActions = {
-  // Initialize chat system
+  // Initialize chat system - verify actual server connection status instead of optimistic setting
   initialize: async () => {
     chatStateStore.setLoading(true);
     chatStateStore.setError(null);
     
     try {
-      // This will be called from components that have access to Tauri API
-      chatStateStore.setConnected(true);
+      // Verify actual connection status with the backend
+      const status = await invoke<ConnectionStatus>('get_connection_status');
+      console.log('🔍 [CHAT] Connection status check:', status);
+      
+      // Only set connected=true if status indicates connection
+      const isConnected = status === 'Connected';
+      chatStateStore.setConnected(isConnected);
+      
+      if (isConnected) {
+        console.log('✅ [CHAT] Server connection verified');
+      } else {
+        console.log('⚠️ [CHAT] Server not connected, status:', status);
+      }
+      
       chatStateStore.setLoading(false);
     } catch (error) {
+      // Connection check failed - set connected to false and report error
+      console.error('❌ [CHAT] Failed to check connection status:', error);
+      chatStateStore.setConnected(false);
       chatStateStore.setError(`Failed to initialize chat: ${error}`);
       chatStateStore.setLoading(false);
     }
