@@ -254,6 +254,100 @@ export const subscribeToConnectionEvents = async (
 };
 
 /**
+ * Reconnection configuration
+ */
+export interface ReconnectionConfig {
+  maxRetries: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+}
+
+/**
+ * Default reconnection configuration
+ * - 5 retry attempts
+ * - Start with 1 second delay
+ * - Max delay of 32 seconds (exponential backoff caps out)
+ */
+export const DEFAULT_RECONNECTION_CONFIG: ReconnectionConfig = {
+  maxRetries: 5,
+  baseDelayMs: 1000,
+  maxDelayMs: 32000
+};
+
+/**
+ * Attempt to reconnect to the server with exponential backoff
+ * 
+ * @param config - Reconnection configuration
+ * @returns Promise resolving to true if reconnection succeeded, false if max retries exhausted
+ */
+export const reconnectWithBackoff = async (
+  config: ReconnectionConfig = DEFAULT_RECONNECTION_CONFIG
+): Promise<boolean> => {
+  console.log('🔄 [RECONNECTION] Starting reconnection attempt...');
+
+  const { maxRetries, baseDelayMs, maxDelayMs } = config;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    // Calculate exponential backoff delay: 1s, 2s, 4s, 8s, 16s, etc.
+    const delayMs = Math.min(baseDelayMs * Math.pow(2, attempt - 1), maxDelayMs);
+
+    console.log(
+      `🔄 [RECONNECTION] Attempt ${attempt}/${maxRetries} in ${delayMs}ms`
+    );
+
+    // Wait before attempting reconnection
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+    try {
+      // Check if we can get saved connections
+      const connections = await invoke<any[]>('get_saved_connections');
+
+      if (Array.isArray(connections) && connections.length > 0) {
+        // Try to connect to the last used connection
+        const lastConnection = connections[0];
+        console.log(
+          `🔄 [RECONNECTION] Attempting to connect to: ${lastConnection.hostname}:${lastConnection.port}`
+        );
+
+        try {
+          // Test the connection
+          const testResult = await invoke<boolean>('test_server_connection', {
+            serverUrl: `${lastConnection.secure ? 'https' : 'http'}://${lastConnection.hostname}:${lastConnection.port}`
+          });
+
+          if (testResult) {
+            console.log('✅ [RECONNECTION] Successfully reconnected to server');
+            return true;
+          }
+        } catch (testError) {
+          console.warn(
+            `⚠️ [RECONNECTION] Connection test failed on attempt ${attempt}:`,
+            testError
+          );
+        }
+      }
+    } catch (error) {
+      console.warn(
+        `⚠️ [RECONNECTION] Reconnection attempt ${attempt} failed:`,
+        error
+      );
+    }
+
+    // Continue to next attempt if this one failed
+    if (attempt < maxRetries) {
+      console.log(
+        `ℹ️ [RECONNECTION] Retrying... (${maxRetries - attempt} attempts remaining)`
+      );
+    }
+  }
+
+  console.log(
+    `❌ [RECONNECTION] Failed to reconnect after ${maxRetries} attempts`
+  );
+  return false;
+};
+
+/**
  * Chat API exports for use with chatActions
  * These functions have signatures compatible with chatActions callbacks
  */

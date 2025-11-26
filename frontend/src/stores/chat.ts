@@ -603,6 +603,39 @@ export const chatActions = {
     chatStateStore.setError(null);
   },
 
+  // Attempt to reconnect to the server with exponential backoff
+  attemptReconnection: async () => {
+    const { reconnectWithBackoff } = await import('../utils/chat-api');
+
+    chatStateStore.setLoading(true);
+    chatStateStore.setError(null);
+    console.log('🔄 [CHAT] Attempting reconnection...');
+
+    try {
+      const success = await reconnectWithBackoff();
+
+      if (success) {
+        console.log('✅ [CHAT] Reconnection successful');
+        chatStateStore.setConnected(true);
+        chatStateStore.setLoading(false);
+        // Reload sessions after successful reconnection
+        await chatActions.loadSessions();
+      } else {
+        console.log('❌ [CHAT] Reconnection failed after all attempts');
+        chatStateStore.setConnected(false);
+        chatStateStore.setError(
+          'Unable to reconnect to server. Please check your connection and try again.'
+        );
+        chatStateStore.setLoading(false);
+      }
+    } catch (error) {
+      console.error('❌ [CHAT] Reconnection error:', error);
+      chatStateStore.setConnected(false);
+      chatStateStore.setError(`Reconnection failed: ${error}`);
+      chatStateStore.setLoading(false);
+    }
+  },
+
   // Reset all stores
   reset: () => {
     sessionsStore.clear();
