@@ -57,12 +57,12 @@ fi
 
 # Step 7: Copy to build directory
 echo "Step 7: Copying IPA to build directory..."
-cp "build/ipa_with_privacy/OpenCode Nexus.ipa" "$SCRIPT_DIR/build/OpenCodeNexus_v0.1.5_privacy.ipa"
+cp "build/ipa_with_privacy/OpenCode Nexus.ipa" "$SCRIPT_DIR/build/OpenCodeNexus_v0.1.28_privacy.ipa"
 
 echo ""
 echo "==================================="
 echo "Build complete! ✅"
-echo "IPA location: build/OpenCodeNexus_v0.1.5_privacy.ipa"
+echo "IPA location: build/OpenCodeNexus_v0.1.28_privacy.ipa"
 echo "Privacy manifest: INCLUDED ✅"
 echo "==================================="
 echo ""
@@ -70,6 +70,6 @@ echo "To upload to TestFlight:"
 echo "  source .env"
 echo "  xcrun altool --upload-app \\"
 echo "    --type ios \\"
-echo "    --file build/OpenCodeNexus_v0.1.5_privacy.ipa \\"
+echo "    --file build/OpenCodeNexus_v0.1.28_privacy.ipa \\"
 echo "    --apiKey \$APP_STORE_CONNECT_API_KEY_ID \\"
 echo "    --apiIssuer \$APP_STORE_CONNECT_ISSUER_ID"

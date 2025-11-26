@@ -48,6 +48,14 @@ export default defineConfig({
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
+    
+    /* Allow localStorage access in tests */
+    permissions: ['storage-access'],
+    
+    /* Set browser context options */
+    contextOptions: {
+      permissions: ['storage-access'],
+    },
   },
 
   /* Configure projects for major browsers */
@@ -62,7 +70,7 @@ export default defineConfig({
   webServer: {
     command: 'bun run dev',
     url: 'http://localhost:1420',
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: true, // Use existing server to avoid conflicts
     timeout: 120 * 1000,
   },
 });

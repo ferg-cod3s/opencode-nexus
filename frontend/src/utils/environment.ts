@@ -51,12 +51,48 @@ export interface EnvironmentInfo {
 }
 
 /**
- * Detects the current application mode (development/production/test)
+ * Detects the application mode based on environment variables and runtime context
  */
 export function detectAppMode(): AppMode {
-  // Check for Tauri environment - indicates production/native app
-  if (typeof window !== 'undefined' && '__TAURI__' in window) {
-    return AppMode.PRODUCTION;
+  // Check for test environment FIRST (before development detection)
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+    return AppMode.TEST;
+  }
+
+  // Check for Playwright test environment FIRST
+  if (typeof window !== 'undefined') {
+    // Check for Playwright-specific properties
+    if ('playwright' in window || 
+        '__playwright' in window ||
+        // Check for Playwright user agent
+        navigator.userAgent.includes('Playwright') ||
+        navigator.userAgent.includes('HeadlessChrome') ||
+        // Check for window features that suggest testing
+        'webdriver' in navigator ||
+        'callPhantom' in window ||
+        '_phantom' in window) {
+      return AppMode.TEST;
+    }
+    
+    // Additional check for automated testing environments
+    // Check for common test automation signatures
+    if (window.navigator && 
+        (window.navigator.webdriver === true ||
+         window.navigator.userAgent.includes('HeadlessChrome') ||
+         // Check for Chrome automation flags
+         (window as any).chrome && (window as any).chrome.runtime)) {
+      return AppMode.TEST;
+    }
+  }
+
+  // Check for explicit development environment variables
+  if (typeof process !== 'undefined') {
+    if (process.env.NODE_ENV === 'development') {
+      return AppMode.DEVELOPMENT;
+    }
+    if (process.env.NODE_ENV === 'production') {
+      return AppMode.PRODUCTION;
+    }
   }
 
   // Check for development server indicators
@@ -76,16 +112,6 @@ export function detectAppMode(): AppMode {
     if (protocol === 'http:' && isLocalhost) {
       return AppMode.DEVELOPMENT;
     }
-  }
-
-  // Check for test environment
-  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
-    return AppMode.TEST;
-  }
-
-  // Check for Playwright test environment
-  if (typeof window !== 'undefined' && 'playwright' in window) {
-    return AppMode.TEST;
   }
 
   // Default to production for safety

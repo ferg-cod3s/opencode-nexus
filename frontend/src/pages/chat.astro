@@ -52,22 +52,76 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
       setContext: () => {}
     };
   }
+
+  // Debug: Log script execution start
+  console.log('🔍 Chat: Script execution started');
  
-  import { mount } from 'svelte';
-  import { get } from 'svelte/store';
-  import ChatInterface from '../components/ChatInterface.svelte';
-  import SessionPanel from '../components/SessionPanel.svelte';
-  import { chatStore } from '../stores/chat';
-  import { invoke } from '@tauri-apps/api/core';
-  import {
-    chatApiCallbacks,
-    initializeChat as initializeChatAPI,
-  } from '../utils/chat-api';
+  let mount, get, ChatInterface, SessionPanel, chatStore, invoke, chatApiCallbacks, initializeChatAPI;
+  
+  // Handle imports with error catching
+  async function loadDependencies() {
+    try {
+      console.log('🔍 Chat: Loading dependencies...');
+      
+      const svelteModule = await import('svelte');
+      mount = svelteModule.mount;
+      get = svelteModule.get;
+      
+      console.log('🔍 Chat: Svelte loaded');
+      
+      ChatInterface = (await import('../components/ChatInterface.svelte')).default;
+      SessionPanel = (await import('../components/SessionPanel.svelte')).default;
+      
+      console.log('🔍 Chat: Components loaded');
+      
+      const storeModule = await import('../stores/chat');
+      chatStore = storeModule.chatStore;
+      
+      console.log('🔍 Chat: Store loaded');
+      
+      const tauriModule = await import('@tauri-apps/api/core');
+      invoke = tauriModule.invoke;
+      
+      console.log('🔍 Chat: Tauri loaded');
+      
+      const chatApiModule = await import('../utils/chat-api');
+      chatApiCallbacks = chatApiModule.chatApiCallbacks;
+      initializeChatAPI = chatApiModule.initializeChat;
+      
+      console.log('🔍 Chat: Chat API loaded');
+      return true;
+    } catch (error) {
+      console.error('🔍 Chat: Failed to load dependencies:', error);
+      return false;
+    }
+  }
 
   let eventListenerUnsubscribe: (() => void) | null = null;
   
   // Guard to prevent duplicate initialization
   let chatInitialized = false;
+
+  // Helper function to show connection error
+  function showConnectionError(message = "No OpenCode Server Connected") {
+    console.log('🔍 Chat: Showing connection error state');
+    const chatRoot = document.getElementById('chat-root');
+    if (chatRoot) {
+      // Remove loading state
+      const loadingState = document.getElementById('loading-state');
+      if (loadingState) {
+        loadingState.remove();
+      }
+      
+      chatRoot.innerHTML = `
+        <div class="connection-required">
+          <h2>${message}</h2>
+          <p>To use chat, you need to connect to an OpenCode server first.</p>
+          <p>Go to Settings to add a server connection.</p>
+          <a href="/settings" class="button">Go to Settings</a>
+        </div>
+      `;
+    }
+  }
 
   // Create error state element safely
   function createErrorElement(): HTMLElement {
@@ -100,11 +154,31 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
       return;
     }
     chatInitialized = true;
+    
+    console.log('🔍 Chat: Starting initializeChat function');
+    
+    // Load dependencies first
+    const dependenciesLoaded = await loadDependencies();
+    if (!dependenciesLoaded) {
+      console.error('🔍 Chat: Failed to load dependencies, showing connection error');
+      showConnectionError();
+      return;
+    }
 
     const sentry = getSentry();
+    let connectionError = false; // Track if we have connection issues
 
     try {
       console.log('🔍 Chat: Initializing chat system...');
+      
+      // Always ensure loading state is cleaned up, even if errors occur
+      const ensureLoadingStateRemoved = () => {
+        const loadingState = document.getElementById('loading-state');
+        if (loadingState) {
+          console.log('🔍 Chat: Removing loading state');
+          loadingState.remove();
+        }
+      };
 
       // Display username from sessionStorage
       const username = sessionStorage.getItem('username') || 'User';
@@ -175,17 +249,25 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
         level: 'info'
       });
 
+      console.log('🔍 Chat: About to load sessions...');
+
       // Load existing sessions using new chat API (may fail if no server connection)
       try {
         await chatStore.actions.loadSessions(chatApiCallbacks.sessionLoader);
+        console.log('🔍 Chat: Sessions loaded successfully');
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        if (errorMsg.includes('Please connect')) {
+        console.log('🔍 Chat: Session loading error caught:', errorMsg);
+        
+        if (errorMsg.includes('Please connect') || errorMsg.includes('not available in browser environment') || errorMsg.includes('without HTTP backend')) {
           console.warn('🔍 Chat: No server connection - showing connection prompt');
           sentry.captureMessage('Chat initialization: No server connected', 'warning');
 
           const chatRoot = document.getElementById('chat-root');
           if (chatRoot) {
+            // Remove loading state first
+            ensureLoadingStateRemoved();
+            
             chatRoot.innerHTML = `
               <div class="connection-required">
                 <h2>No OpenCode Server Connected</h2>
@@ -195,6 +277,7 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
               </div>
             `;
           }
+          connectionError = true;
           return; // Stop further initialization
         }
         throw error; // Re-throw if not a connection error
@@ -213,20 +296,27 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
         });
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error);
-        if (errorMsg.includes('Please connect')) {
+        console.log('🔍 Chat: Event listener error:', errorMsg);
+        
+        if (errorMsg.includes('Please connect') || errorMsg.includes('not available in browser environment') || errorMsg.includes('without HTTP backend')) {
           console.warn('🔍 Chat: Server connection lost during initialization');
           sentry.captureMessage('Chat: Event stream failed - no server connected', 'warning');
 
-          // Show connection error banner (GlobalOfflineBanner should handle this)
-          // but also add a fallback message
+          // If we already showed connection required, don't duplicate
           const chatRoot = document.getElementById('chat-root');
-          if (chatRoot && !chatRoot.querySelector('.connection-error')) {
-            const errorBanner = document.createElement('div');
-            errorBanner.className = 'connection-error';
-            errorBanner.innerHTML = `
-              <p>⚠️ Connection Lost: Check your OpenCode server settings</p>
+          if (chatRoot && !chatRoot.querySelector('.connection-required')) {
+            // Remove loading state
+            ensureLoadingStateRemoved();
+            
+            chatRoot.innerHTML = `
+              <div class="connection-required">
+                <h2>No OpenCode Server Connected</h2>
+                <p>To use chat, you need to connect to an OpenCode server first.</p>
+                <p>Go to Settings to add a server connection.</p>
+                <a href="/settings" class="button">Go to Settings</a>
+              </div>
             `;
-            chatRoot.insertBefore(errorBanner, chatRoot.firstChild);
+            connectionError = true;
           }
         } else {
           console.error('🔍 Chat: Failed to initialize event listener:', error);
@@ -272,6 +362,12 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
             }
           });
         }
+      }
+
+      // Skip component mounting if we have connection errors
+      if (connectionError) {
+        console.log('🔍 Chat: Skipping component mounting due to connection errors');
+        return;
       }
 
       // Mount SessionPanel and ChatInterface components
@@ -322,10 +418,7 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
 
       if (chatRoot) {
         // Remove loading state
-        const loadingState = document.getElementById('loading-state');
-        if (loadingState) {
-          loadingState.remove();
-        }
+        ensureLoadingStateRemoved();
  
         // Create and mount the chat interface
         try {
@@ -418,6 +511,9 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
     } catch (error) {
       console.error('🔍 Chat: Failed to initialize chat system:', error);
 
+      // Always ensure loading state is removed on any error
+      ensureLoadingStateRemoved();
+
       // Capture the initialization error with full context
       sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
         contexts: {
@@ -441,6 +537,10 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
         chatRoot.textContent = ''; // Clear existing content
         chatRoot.appendChild(createErrorElement());
       }
+    } finally {
+      // CRITICAL: Always ensure loading state is removed
+      ensureLoadingStateRemoved();
+      console.log('🔍 Chat: Initialization complete (success or failure)');
     }
   }
 
@@ -451,16 +551,31 @@ import GlobalOfflineBanner from '../components/GlobalOfflineBanner.svelte';
     }
   });
 
+  // Timeout fallback to prevent infinite loading
+  setTimeout(() => {
+    const loadingState = document.getElementById('loading-state');
+    if (loadingState && loadingState.style.display !== 'none') {
+      console.warn('🔍 Chat: Initialization timeout - forcing connection error state');
+      showConnectionError("Chat initialization timed out");
+    }
+  }, 15000); // 15 second timeout
+
   // Initialize when page loads
   document.addEventListener('DOMContentLoaded', () => {
     console.log('🔍 Chat: DOMContentLoaded event fired');
-    initializeChat();
+    initializeChat().catch(error => {
+      console.error('🔍 Chat: Initialization failed:', error);
+      showConnectionError("Chat initialization failed");
+    });
   });
 
   // Also try immediate initialization only if document is already fully loaded
   if (document.readyState === 'complete') {
     console.log('🔍 Chat: Document already loaded, initializing immediately');
-    initializeChat();
+    initializeChat().catch(error => {
+      console.error('🔍 Chat: Immediate initialization failed:', error);
+      showConnectionError("Chat initialization failed");
+    });
   }
 </script>
 

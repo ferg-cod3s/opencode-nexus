@@ -47,25 +47,46 @@ let tauriInvoke: ((cmd: string, args?: any) => Promise<any>) | null = null;
 let tauriListen: ((event: string, handler: (event: any) => void) => Promise<() => void>) | undefined = undefined;
 let tauriEmit: ((event: string, payload?: any) => Promise<void>) | undefined = undefined;
 
+// Promise that resolves when Tauri APIs are fully loaded
+let tauriReadyResolve: (() => void) | null = null;
+export const tauriReady: Promise<void> = new Promise((resolve) => {
+  tauriReadyResolve = resolve as () => void;
+});
+
+// Helper function to resolve tauriReady
+function resolveTauriReady() {
+  if (tauriReadyResolve) {
+    tauriReadyResolve();
+  }
+}
+
 // Load Tauri APIs if in Tauri environment
 if (isTauriEnvironment()) {
   try {
     // Dynamically import Tauri APIs
-    import('@tauri-apps/api/core').then((module) => {
-      tauriInvoke = module.invoke;
-    }).catch((error) => {
-      console.warn('[TAURI API] Failed to load Tauri core API:', error);
-    });
-
-    import('@tauri-apps/api/event').then((module) => {
-      tauriListen = module.listen;
-      tauriEmit = module.emit;
-    }).catch((error) => {
-      console.warn('[TAURI API] Failed to load Tauri event API:', error);
+    Promise.all([
+      import('@tauri-apps/api/core').then((module) => {
+        tauriInvoke = module.invoke;
+      }).catch((error) => {
+        console.warn('[TAURI API] Failed to load Tauri core API:', error);
+      }),
+      import('@tauri-apps/api/event').then((module) => {
+        tauriListen = module.listen;
+        tauriEmit = module.emit;
+      }).catch((error) => {
+        console.warn('[TAURI API] Failed to load Tauri event API:', error);
+      })
+    ]).then(() => {
+      console.log('[TAURI API] All Tauri APIs loaded successfully');
+      resolveTauriReady();
     });
   } catch (error) {
     console.warn('[TAURI API] Failed to load Tauri APIs:', error);
+    resolveTauriReady(); // Resolve anyway to prevent blocking
   }
+} else {
+  // Non-Tauri environment: resolve immediately
+  resolveTauriReady();
 }
 
 // Mock data for testing
@@ -571,6 +592,9 @@ export const invoke = async <T = any>(command: string, args?: Record<string, any
   console.log('[API] Environment check:', env);
 
   if (env.environment === 'tauri') {
+    // Wait for Tauri APIs to be fully loaded before attempting to use them
+    await tauriReady;
+
     if (!tauriInvoke) {
       throw new Error('Tauri environment detected but tauriInvoke is not available');
     }
@@ -628,10 +652,16 @@ type EventListener = (event: any) => void;
 export const listen = async (event: string, handler: EventListener): Promise<() => void> => {
   if (isTauriEnvironment()) {
     try {
-      // Try to load Tauri listen at runtime
-      const { listen: tauriListenFn } = await import('@tauri-apps/api/event');
+      // Wait for Tauri APIs to be fully loaded
+      await tauriReady;
+      
       // Use real Tauri event API
-      return await tauriListenFn(event, handler);
+      if (tauriListen) {
+        return await tauriListen(event, handler);
+      } else {
+        console.warn(`[TAURI EVENT] tauriListen not available for event: ${event}`);
+        // Fall through to mock system
+      }
     } catch (error) {
       console.error(`[TAURI EVENT] Failed to listen to ${event}:`, error);
       // Fall through to mock system
@@ -682,10 +712,16 @@ export const listen = async (event: string, handler: EventListener): Promise<() 
 export const emit = async (event: string, payload?: any): Promise<void> => {
   if (isTauriEnvironment()) {
     try {
-      // Try to load Tauri emit at runtime
-      const { emit: tauriEmitFn } = await import('@tauri-apps/api/event');
-      await tauriEmitFn(event, payload);
-      return;
+      // Wait for Tauri APIs to be fully loaded
+      await tauriReady;
+      
+      if (tauriEmit) {
+        await tauriEmit(event, payload);
+        return;
+      } else {
+        console.warn(`[TAURI EVENT] tauriEmit not available for event: ${event}`);
+        // Fall through to mock system
+      }
     } catch (error) {
       console.error(`[TAURI EVENT] Failed to emit ${event}:`, error);
       // Fall through to mock system
@@ -732,10 +768,23 @@ export const checkEnvironment = (): {
     // Silently ignore environment access errors
   }
 
+  // Override environment detection for testing
+  let finalEnvironment: 'tauri' | 'browser' | 'test';
+  if (env.isTauri) {
+    finalEnvironment = 'tauri';
+  } else if (env.isTest || 
+             // Additional test detection
+             (typeof window !== 'undefined' && 'webdriver' in navigator) ||
+             (typeof window !== 'undefined' && window.navigator.userAgent.includes('HeadlessChrome'))) {
+    finalEnvironment = 'test';
+  } else {
+    finalEnvironment = 'browser';
+  }
+
   return {
     isTauri: env.isTauri,
     canAuthenticate: shouldEnableAuthentication(),
-    environment: env.isTauri ? 'tauri' : (env.isTest ? 'test' : 'browser'),
+    environment: finalEnvironment,
     httpBackendUrl: httpBackendUrl || undefined
   };
 };

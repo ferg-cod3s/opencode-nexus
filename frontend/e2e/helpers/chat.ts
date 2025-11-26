@@ -31,6 +31,10 @@ export class ChatHelper {
     // Set up connection for testing - simulate saved connection and navigate to chat
     console.log(`[CHAT HELPER] Setting up connection to: ${serverUrl}`);
 
+    // Navigate to the app first to establish localStorage access
+    await this.page.goto('/');
+    await this.page.waitForLoadState('networkidle');
+
     // Simulate having a saved connection by setting localStorage
     await this.page.evaluate((config) => {
       localStorage.setItem('saved_connections', JSON.stringify([{
@@ -40,6 +44,10 @@ export class ChatHelper {
         apiKey: config.apiKey || null,
         created_at: new Date().toISOString()
       }]));
+      
+      // Also set up test user session
+      sessionStorage.setItem('username', 'test-user');
+      sessionStorage.setItem('authenticated', 'true');
     }, { serverUrl, apiKey });
 
     // Navigate to chat (startup routing will handle connection)
