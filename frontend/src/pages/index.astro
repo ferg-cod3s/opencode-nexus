@@ -51,6 +51,55 @@ import Layout from '../layouts/Layout.astro';
 <script>
   import { checkEnvironment, invoke } from '../utils/tauri-api';
   import { determineStartupRoute, applyStartupRoute } from '../utils/startup-routing';
+  import { subscribeToConnectionEvents } from '../utils/chat-api';
+  import { chatStateStore } from '../stores/chat';
+
+  // Track connection event listener unsubscribe function for cleanup
+  let unsubscribeConnectionEvents: (() => void) | null = null;
+
+  async function setupConnectionEventListener() {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const env = checkEnvironment();
+      
+      // Only setup connection listeners in Tauri or test environments
+      if (env.environment === 'tauri' || env.environment === 'test') {
+        console.log('🔗 [STARTUP] Setting up connection event listener...');
+        
+        unsubscribeConnectionEvents = await subscribeToConnectionEvents(
+          (message) => {
+            // Connected event
+            console.log('✅ [STARTUP] Connected event received:', message);
+            chatStateStore.setConnected(true);
+            chatStateStore.setError(null);
+          },
+          (message) => {
+            // Disconnected event
+            console.log('⚠️ [STARTUP] Disconnected event received:', message);
+            chatStateStore.setConnected(false);
+          },
+          (message) => {
+            // Error event
+            console.log('❌ [STARTUP] Connection error received:', message);
+            chatStateStore.setConnected(false);
+            chatStateStore.setError(message);
+          },
+          (message) => {
+            // HealthCheck event (optional)
+            console.log('💓 [STARTUP] Health check received:', message);
+          }
+        );
+        
+        console.log('🔗 [STARTUP] Connection event listener setup complete');
+      }
+    } catch (error) {
+      console.error('❌ [STARTUP] Failed to setup connection event listener:', error);
+      // Don't fail startup if we can't setup listeners - continue with routing
+    }
+  }
 
   async function initializeStartupRouting() {
     if (typeof window === 'undefined') {
@@ -91,7 +140,19 @@ import Layout from '../layouts/Layout.astro';
     }
   }
 
+  // Cleanup function for page unload
+  function cleanupConnectionListener() {
+    if (unsubscribeConnectionEvents) {
+      unsubscribeConnectionEvents();
+      unsubscribeConnectionEvents = null;
+    }
+  }
+
   if (typeof window !== 'undefined') {
+    // Setup connection listener first
+    setupConnectionEventListener();
+
+    // Then handle routing
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
         initializeStartupRouting();
@@ -99,5 +160,8 @@ import Layout from '../layouts/Layout.astro';
     } else {
       initializeStartupRouting();
     }
+
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', cleanupConnectionListener);
   }
 </script>
