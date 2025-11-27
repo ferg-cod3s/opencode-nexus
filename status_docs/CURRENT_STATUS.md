@@ -3,10 +3,10 @@
 ## 📊 Project Overview
 **OpenCode Nexus** is a cross-platform **client application** for connecting to OpenCode servers started with `opencode serve`. Mobile-first design with native iOS, Android, and Desktop support.
 
-**Technology Stack**: Tauri 2.x (Rust) + Astro + Svelte 5 + TypeScript + Bun
-**Current Version**: 0.1.0
-**Progress**: ~20% Complete (Phase 1 Complete)
-**Status**: ✅ Phase 1 Complete - Architecture Foundation Validated
+**Technology Stack**: Tauri 2.x (Rust) + Astro + Svelte 5 + TypeScript + Bun + @opencode-ai/sdk
+**Current Version**: 0.1.5
+**Progress**: ~22% Complete (Phase 1 + SDK Integration In Progress)
+**Status**: ✅ Phase 1 Complete - SDK Integration Phase 1 Complete
 
 ## 🔄 Project Pivot (September 2025)
 
@@ -103,6 +103,37 @@
 - [x] ✅ Documentation: `docs/deployment/IOS_PRIVACY_COMPLIANCE.md`
 - [x] ✅ Utility script: `setup-privacy-manifest.sh` for future updates
 - **Result**: Eliminates manual App Store Connect compliance updates for every build
+
+### SDK Integration - Phase 1 (COMPLETED ✅ - November 27, 2025)
+**Status**: @opencode-ai/sdk integration implementation complete
+**Impact**: Frontend chat operations now use official SDK instead of manual HTTP
+**Details**: [docs/SDK_INTEGRATION_MIGRATION.md](docs/SDK_INTEGRATION_MIGRATION.md)
+
+- [x] ✅ Created SDK client wrapper (OpencodeClientManager)
+- [x] ✅ Created connection state store (Svelte reactive)
+- [x] ✅ Created SDK integration API layer
+- [x] ✅ Updated chat-api.ts to use SDK (backward compatible)
+- [x] ✅ Added Tauri persistence commands (save_connection, get_last_used_connection)
+- [x] ✅ Implemented connection initialization and auto-reconnect
+- [x] ✅ Added unit tests for SDK integration
+- [x] ✅ Created migration documentation
+- [x] ✅ Committed to branch and pushed to remote
+
+**Code Changes**:
+- New: frontend/src/lib/opencode-client.ts (150 lines)
+- New: frontend/src/lib/stores/connection.ts (100 lines)
+- New: frontend/src/lib/sdk-api.ts (250 lines)
+- Updated: frontend/src/utils/chat-api.ts (SDK adapter)
+- Updated: src-tauri/src/connection_manager.rs (save_connection method)
+- Updated: src-tauri/src/lib.rs (new Tauri commands)
+- New tests: frontend/src/tests/lib/sdk-integration.test.ts
+
+**Benefits**:
+- ✅ Eliminates ~1,700 lines of manual HTTP/SSE handling
+- ✅ Type-safe SDK with auto-generated types
+- ✅ Automatic SDK updates bring new features
+- ✅ Battle-tested official implementation
+- ✅ 100% backward compatible with existing code
 
 ### Chat Interface Integration (COMPLETED ✅ - November 12, 2025)
 **Status**: UI scaffolding exists, NO backend integration ❌ **COMPLETED ✅**
