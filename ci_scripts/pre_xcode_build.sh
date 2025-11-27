@@ -8,7 +8,7 @@ set -e
 echo "🔨 Starting Xcode Cloud pre-build setup..."
 
 # Change to src-tauri directory
-cd "$CI_PRIMARY_REPOSITORY_PATH/src-tauri" || exit 1
+cd "$CI_PRIMARY_REPOSITORY_PATH/src-tauri" || { echo "❌ Error: Failed to change to src-tauri directory"; exit 1; }
 
 echo "📦 Installing Rust iOS target..."
 rustup target add aarch64-apple-ios
