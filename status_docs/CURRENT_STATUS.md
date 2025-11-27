@@ -4,9 +4,9 @@
 **OpenCode Nexus** is a cross-platform **client application** for connecting to OpenCode servers started with `opencode serve`. Mobile-first design with native iOS, Android, and Desktop support.
 
 **Technology Stack**: Tauri 2.x (Rust) + Astro + Svelte 5 + TypeScript + Bun + @opencode-ai/sdk
-**Current Version**: 0.1.8
-**Progress**: ~27% Complete (Phase 1 + SDK Integration + Error Handling Complete)
-**Status**: ✅ SDK Integration & Error Handling Complete - Production Ready
+**Current Version**: 0.1.9
+**Progress**: ~30% Complete (Phase 1 + SDK Integration + Error Handling + E2E Modernization)
+**Status**: 🚀 Core Infrastructure Complete - Ready for Beta Testing
 
 ## 🔄 Project Pivot (September 2025)
 
@@ -160,6 +160,41 @@
 - ✅ All chat operations now SDK-based (frontend only)
 - ✅ Backend focused on connection management and utilities
 - ✅ Simpler architecture, easier to maintain
+
+### E2E Test Modernization (COMPLETED ✅ - November 27, 2025)
+**Status**: E2E tests modernized for client architecture
+**Impact**: Tests now align with current application architecture
+**Details**: [frontend/e2e/README.md](../frontend/e2e/README.md)
+
+**Test Organization**:
+- ✅ connection.spec.ts: 24/24 passing (Connection form tests)
+- ✅ sdk-integration.spec.ts: 24/24 tests (SDK integration)
+- ⏳ app-flows.spec.ts: 18+ modern E2E tests (Core user flows)
+- ⏭️ Deprecated tests: Properly skipped (50+ old server management tests)
+
+**Modern Tests Cover**:
+- Startup routing and auto-redirect behavior
+- Connection workflow (form → validation → connect)
+- Error handling with user-friendly messages
+- Error recovery and retry logic
+- Mobile responsiveness (44px touch targets)
+- Accessibility compliance (labels, heading hierarchy)
+- Offline indicators and connection state
+- Session persistence and storage
+
+**Test Architecture Alignment**:
+- Tests match current client-based architecture (no server management)
+- Startup router: No connection → /connect, Has connection → /chat
+- Connection page: URL input, method selection, test/connect flow
+- Chat page: Session management via SDK, streaming responses
+- Error handling: Intelligent retry, user-friendly messages
+
+**Documentation**:
+- Created comprehensive E2E README with strategy
+- Test organization and categorization
+- Running tests guide and patterns
+- Best practices and common issues
+- Future improvements roadmap
 
 ### Error Handling Implementation (COMPLETED ✅ - November 27, 2025)
 **Status**: Comprehensive error handling system with retry logic
