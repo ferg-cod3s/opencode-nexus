@@ -40,6 +40,9 @@ if ! command -v pod &> /dev/null; then
     echo "❌ Error: CocoaPods not found. Installing..."
     sudo gem install cocoapods
 fi
-pod install --repo-update || pod install
+if ! pod install --repo-update; then
+  echo "⚠️  Retrying pod install without --repo-update..."
+  pod install
+fi
 
 echo "✅ Xcode Cloud pre-build setup completed successfully"
