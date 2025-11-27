@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Export method for App Store distribution -->
+    <key>method</key>
+    <string>app-store</string>
+
+    <!-- Development team ID -->
+    <key>teamID</key>
+    <string>PCJU8QD9FN</string>
+
+    <!-- Upload symbols for crash reports -->
+    <key>uploadSymbols</key>
+    <true/>
+
+    <!-- Upload bitcode (deprecated but included for compatibility) -->
+    <key>uploadBitcode</key>
+    <false/>
+
+    <!-- Automatically manage signing -->
+    <key>signingStyle</key>
+    <string>manual</string>
+
+    <!-- Code signing identity -->
+    <key>signingCertificate</key>
+    <string>Apple Distribution</string>
+
+    <!-- Provisioning profiles per bundle identifier -->
+    <key>provisioningProfiles</key>
+    <dict>
+        <key>com.agentic-codeflow.opencode-nexus</key>
+        <string>OpenCodeNexus_AppStore</string>
+    </dict>
+
+    <!-- Compile for all architectures -->
+    <key>compileBitcode</key>
+    <false/>
+
+    <!-- Ensure symbols are stripped for release -->
+    <key>stripSwiftSymbols</key>
+    <true/>
+
+    <!-- Thinning for App Store -->
+    <key>thinning</key>
+    <string>&lt;none&gt;</string>
+</dict>
+</plist>
