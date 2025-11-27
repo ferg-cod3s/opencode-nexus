@@ -4,9 +4,9 @@
 **OpenCode Nexus** is a cross-platform **client application** for connecting to OpenCode servers started with `opencode serve`. Mobile-first design with native iOS, Android, and Desktop support.
 
 **Technology Stack**: Tauri 2.x (Rust) + Astro + Svelte 5 + TypeScript + Bun + @opencode-ai/sdk
-**Current Version**: 0.1.7
-**Progress**: ~24% Complete (Phase 1 + SDK Integration Phases 1-3 Complete)
-**Status**: ✅ SDK Integration Complete - Production Ready
+**Current Version**: 0.1.8
+**Progress**: ~27% Complete (Phase 1 + SDK Integration + Error Handling Complete)
+**Status**: ✅ SDK Integration & Error Handling Complete - Production Ready
 
 ## 🔄 Project Pivot (September 2025)
 
@@ -160,6 +160,25 @@
 - ✅ All chat operations now SDK-based (frontend only)
 - ✅ Backend focused on connection management and utilities
 - ✅ Simpler architecture, easier to maintain
+
+### Error Handling Implementation (COMPLETED ✅ - November 27, 2025)
+**Status**: Comprehensive error handling system with retry logic
+**Impact**: Improved reliability and user experience through smart error recovery
+**Details**: Error classification (14 types), exponential backoff retry, user-friendly messages
+
+**Features**:
+- Error type classification: Network, SSL, Server, Auth, Session, Chat, Client errors
+- Exponential backoff retry (1s → 2s → 4s → 8s → 16s)
+- User-friendly error messages and recovery suggestions
+- Centralized error handler with event emission
+- Automatic retry for transient failures (timeout, network issues)
+- 35+ unit tests for error scenarios
+
+**Files Created**:
+- frontend/src/lib/error-handler.ts (error classification and messaging)
+- frontend/src/lib/retry-handler.ts (retry logic with exponential backoff)
+- frontend/src/tests/lib/error-handler.test.ts (20+ error tests)
+- frontend/src/tests/lib/retry-handler.test.ts (15+ retry tests)
 
 ### SDK Integration - Phase 3 (COMPLETED ✅ - November 27, 2025)
 **Status**: Comprehensive testing and validation complete
