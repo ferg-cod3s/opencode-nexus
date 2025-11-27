@@ -29,7 +29,7 @@ cd gen/apple || exit 1
 
 # Remove macOS target from Podfile since we're only building for iOS
 if [ -f "Podfile" ]; then
-  sed -i.bak '/target.*macOS/,/^end$/d' Podfile
+  sed -i.bak '/^target.*macOS.*do$/,/^end$/d' Podfile
   sed -i.bak '/MACOSX_DEPLOYMENT_TARGET/d' Podfile
   rm -f Podfile.bak
 fi
