@@ -7,6 +7,16 @@ set -e
 
 echo "🔨 Starting Xcode Cloud pre-build setup..."
 
+# Verify Rust toolchain is available
+if ! command -v rustup &> /dev/null; then
+    echo "❌ Error: rustup not found. Please ensure Rust is installed in the Xcode Cloud environment."
+    exit 1
+fi
+if ! command -v cargo &> /dev/null; then
+    echo "❌ Error: cargo not found. Please ensure Rust is installed in the Xcode Cloud environment."
+    exit 1
+fi
+
 # Change to src-tauri directory
 cd "$CI_PRIMARY_REPOSITORY_PATH/src-tauri" || { echo "❌ Error: Failed to change to src-tauri directory"; exit 1; }
 
