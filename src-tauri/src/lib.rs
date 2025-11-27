@@ -20,13 +20,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-mod api_client;
-mod chat_client;
 mod connection_manager;
 mod error;
-mod message_stream;
 
-use chat_client::{ChatClient, ChatMessage, ChatSession, SessionMetadata, ModelConfig};
 use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection};
 
 use chrono::Utc;
@@ -273,193 +269,38 @@ async fn get_saved_connections(
     Ok(connection_manager.get_saved_connections())
 }
 
-// Chat commands
 #[tauri::command]
-async fn create_chat_session(
-    _app_handle: tauri::AppHandle,
-    title: Option<String>,
-) -> Result<ChatSession, String> {
-    // Ensure server is connected before attempting chat operations
-    let server_url = ensure_server_connected()?;
-
-    let config_dir = get_config_dir()?;
-
-    let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client.set_server_url(server_url);
-    chat_client
-        .load_session_metadata()
-        .map_err(|e| e.to_string())?;
-    chat_client.create_session(title.as_deref()).await
-}
-
-#[tauri::command]
-async fn send_chat_message(
-    _app_handle: tauri::AppHandle,
-    session_id: String,
-    content: String,
-    model: Option<ModelConfig>,
+async fn save_connection(
+    app_handle: tauri::AppHandle,
+    connection: ServerConnection,
 ) -> Result<(), String> {
-    // Ensure server is connected before attempting chat operations
-    let server_url = ensure_server_connected()?;
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("opencode-nexus");
 
-    let config_dir = get_config_dir()?;
-
-    let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client.set_server_url(server_url);
-    chat_client
-        .load_session_metadata()
+    let mut connection_manager =
+        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    connection_manager
+        .load_connections()
         .map_err(|e| e.to_string())?;
-
-    // Send the message with optional model config and rely on events/streaming for responses
-    chat_client.send_message(&session_id, &content, model).await
-}
-
-// Model configuration commands
-#[tauri::command]
-async fn get_available_models() -> Result<Vec<(String, String)>, String> {
-    // Fetch available models from OpenCode server's /config/providers endpoint
-    // Response format: { providers: Provider[], default: { [key: string]: string } }
-    let server_url = get_server_url()?;
-
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
-
-    let url = format!("{}/config/providers", server_url);
-
-    #[derive(Deserialize)]
-    struct Provider {
-        #[serde(rename = "id")]
-        provider_id: String,
-        #[serde(default)]
-        models: Vec<ProviderModel>,
-    }
-
-    #[derive(Deserialize)]
-    struct ProviderModel {
-        id: String,
-        #[serde(default)]
-        name: Option<String>,
-    }
-
-    #[derive(Deserialize)]
-    struct ProvidersResponse {
-        providers: Vec<Provider>,
-        #[serde(default)]
-        default: serde_json::Value,
-    }
-
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch providers: {}", e))?;
-
-    if !response.status().is_success() {
-        return Err(format!("Server returned status: {}", response.status()));
-    }
-
-    let providers_response: ProvidersResponse = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse providers response: {}", e))?;
-
-    // Extract all available models from providers
-    let mut models = Vec::new();
-
-    for provider in providers_response.providers {
-        for model in provider.models {
-            let full_model_id = format!("{}/{}", provider.provider_id, model.id);
-            let display_name = model.name.unwrap_or_else(|| model.id.clone());
-            models.push((full_model_id, display_name));
-        }
-    }
-
-    log_info!("📋 [MODELS] Found {} available models from server", models.len());
-    Ok(models)
+    connection_manager.save_connection(connection)
 }
 
 #[tauri::command]
-async fn get_chat_sessions(_app_handle: tauri::AppHandle) -> Result<Vec<SessionMetadata>, String> {
-    let config_dir = get_config_dir()?;
+async fn get_last_used_connection(
+    app_handle: tauri::AppHandle,
+) -> Result<Option<ServerConnection>, String> {
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("opencode-nexus");
 
-    let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client
-        .load_session_metadata()
+    let mut connection_manager =
+        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    connection_manager
+        .load_connections()
         .map_err(|e| e.to_string())?;
-
-    if let Ok(server_url) = get_server_url() {
-        chat_client.set_server_url(server_url);
-        let _ = chat_client.sync_session_metadata_with_server().await;
-    }
-
-    let metadata: Vec<SessionMetadata> = chat_client
-        .get_session_metadata_map()
-        .values()
-        .cloned()
-        .collect();
-    Ok(metadata)
+    Ok(connection_manager.get_last_used_connection())
 }
-
-#[tauri::command]
-async fn get_chat_session_history(
-    _app_handle: tauri::AppHandle,
-    session_id: String,
-) -> Result<Vec<ChatMessage>, String> {
-    let server_url = ensure_server_connected()?;
-    let config_dir = get_config_dir()?;
-
-    let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client.set_server_url(server_url);
-
-    // Fetch full message history from server (mobile-optimized - not stored locally)
-    chat_client.get_session_history(&session_id).await
-}
-
-#[tauri::command]
-async fn delete_chat_session(
-    _app_handle: tauri::AppHandle,
-    session_id: String,
-) -> Result<(), String> {
-    // Ensure server is connected before attempting chat operations
-    let server_url = ensure_server_connected()?;
-
-    let config_dir = get_config_dir()?;
-
-    let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client.set_server_url(server_url);
-    chat_client
-        .load_session_metadata()
-        .map_err(|e| e.to_string())?;
-
-    // Delete the session from server and local cache
-    chat_client.delete_session(&session_id).await
-}
-
-#[tauri::command]
-async fn start_message_stream(app_handle: tauri::AppHandle) -> Result<(), String> {
-    // Ensure server is connected before attempting chat operations
-    let server_url = ensure_server_connected()?;
-
-    let config_dir = get_config_dir()?;
-
-    let mut chat_client = ChatClient::new(config_dir.clone())?;
-    chat_client.set_server_url(server_url);
-
-    // Start SSE streaming via ChatClient's integrated MessageStream
-    let mut event_receiver = chat_client.start_event_stream().await?;
-
-    // Listen for chat events and emit them to the frontend
-    tokio::spawn(async move {
-        while let Ok(chat_event) = event_receiver.recv().await {
-            let _ = app_handle.emit("chat-event", &chat_event);
-        }
-    });
-
-    Ok(())
-}
-
 #[tauri::command]
 async fn get_application_logs() -> Result<Vec<String>, String> {
     log_info!("📋 [LOGS] Getting application logs...");
@@ -574,15 +415,8 @@ pub fn run() {
             get_current_connection,
             disconnect_from_server,
             get_saved_connections,
-            // Chat commands
-            create_chat_session,
-            send_chat_message,
-            get_chat_sessions,
-            get_chat_session_history,
-            delete_chat_session,
-            start_message_stream,
-            // Model configuration commands
-            get_available_models,
+            save_connection,
+            get_last_used_connection,
             // Application commands
             get_application_logs,
             log_frontend_error,

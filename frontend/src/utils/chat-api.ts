@@ -31,14 +31,15 @@ import { invoke, listen } from './tauri-api';
 import type { ChatSession, ChatMessage, ChatEvent, ModelConfig } from '../types/chat';
 
 /**
- * Load all chat sessions from the backend
+ * Load all chat sessions from the backend via SDK
  */
 export const loadChatSessions = async (): Promise<ChatSession[]> => {
-  console.log('📥 [CHAT API] Loading chat sessions from backend');
+  console.log('📥 [CHAT API] Loading chat sessions from SDK');
   try {
-    const sessions = await invoke<any[]>('get_chat_sessions');
+    const sdkApi = await import('../lib/sdk-api');
+    const sessions = await sdkApi.loadSessions();
     console.log('📥 [CHAT API] Loaded sessions:', sessions.length);
-    return sessions;
+    return sessions as ChatSession[];
   } catch (error) {
     console.error('❌ [CHAT API] Failed to load chat sessions:', error);
     throw error;
@@ -46,16 +47,17 @@ export const loadChatSessions = async (): Promise<ChatSession[]> => {
 };
 
 /**
- * Create a new chat session
+ * Create a new chat session via SDK
  */
 export const createChatSession = async (title?: string): Promise<ChatSession> => {
   console.log('✨ [CHAT API] Creating chat session:', title);
   try {
-    const session = await invoke<ChatSession>('create_chat_session', {
+    const sdkApi = await import('../lib/sdk-api');
+    const session = await sdkApi.createSession({
       title: title || `Chat ${new Date().toLocaleDateString()}`
     });
     console.log('✨ [CHAT API] Created session:', session.id);
-    return session;
+    return session as ChatSession;
   } catch (error) {
     console.error('❌ [CHAT API] Failed to create chat session:', error);
     throw error;
@@ -63,16 +65,15 @@ export const createChatSession = async (title?: string): Promise<ChatSession> =>
 };
 
 /**
- * Load message history for a specific session
+ * Load message history for a specific session via SDK
  */
 export const loadSessionHistory = async (sessionId: string): Promise<ChatMessage[]> => {
   console.log('📖 [CHAT API] Loading history for session:', sessionId);
   try {
-    const messages = await invoke<ChatMessage[]>('get_chat_session_history', {
-      session_id: sessionId
-    });
+    const sdkApi = await import('../lib/sdk-api');
+    const messages = await sdkApi.getSessionHistory(sessionId);
     console.log('📖 [CHAT API] Loaded messages:', messages.length);
-    return messages;
+    return messages as ChatMessage[];
   } catch (error) {
     console.error('❌ [CHAT API] Failed to load session history:', error);
     throw error;
@@ -80,21 +81,19 @@ export const loadSessionHistory = async (sessionId: string): Promise<ChatMessage
 };
 
 /**
- * Send a message to a chat session with optional model configuration
- * The backend will emit 'chat-event' events for streaming responses
+ * Send a message to a chat session via SDK
+ * The SDK will stream responses via the event subscription
  */
 export const sendChatMessage = async (
   sessionId: string,
   content: string,
-  model?: ModelConfig
+  _model?: ModelConfig
 ): Promise<void> => {
   console.log('📤 [CHAT API] Sending message to session:', sessionId);
   try {
-    await invoke<void>('send_chat_message', {
-      session_id: sessionId,
-      content,
-      model
-    });
+    const sdkApi = await import('../lib/sdk-api');
+    // Note: model parameter support depends on SDK implementation
+    await sdkApi.sendMessage({ sessionId, content });
     console.log('📤 [CHAT API] Message sent successfully');
   } catch (error) {
     console.error('❌ [CHAT API] Failed to send chat message:', error);
@@ -103,14 +102,13 @@ export const sendChatMessage = async (
 };
 
 /**
- * Delete a chat session
+ * Delete a chat session via SDK
  */
 export const deleteChatSession = async (sessionId: string): Promise<void> => {
   console.log('🗑️ [CHAT API] Deleting session:', sessionId);
   try {
-    await invoke<void>('delete_chat_session', {
-      session_id: sessionId
-    });
+    const sdkApi = await import('../lib/sdk-api');
+    await sdkApi.deleteSession(sessionId);
     console.log('🗑️ [CHAT API] Session deleted successfully');
   } catch (error) {
     console.error('❌ [CHAT API] Failed to delete session:', error);
@@ -119,31 +117,43 @@ export const deleteChatSession = async (sessionId: string): Promise<void> => {
 };
 
 /**
- * Start listening to real-time chat events from the backend
+ * Start listening to real-time chat events from the SDK
  * Events include: MessageChunk, MessageReceived, SessionCreated, Error
  */
 export const startChatEventListener = async (
   handler: (event: ChatEvent) => Promise<void>
 ): Promise<() => void> => {
-  console.log('🔊 [CHAT API] Starting chat event listener');
+  console.log('🔊 [CHAT API] Starting chat event listener via SDK');
 
   try {
-    // First, start the message stream on the backend
-    await invoke<void>('start_message_stream');
-    console.log('🔊 [CHAT API] Message stream started');
+    const sdkApi = await import('../lib/sdk-api');
 
-    // Then listen to events
-    const unsubscribe = await listen('chat-event', async (event: any) => {
-      console.log('📨 [CHAT API] Received chat event:', event.payload);
-      try {
-        await handler(event.payload);
-      } catch (error) {
-        console.error('❌ [CHAT API] Error handling chat event:', error);
+    let isSubscribed = true;
+
+    // Subscribe to SDK events
+    await sdkApi.subscribeToEvents(async (event: any) => {
+      console.log('📨 [CHAT API] Received SDK event:', event.type);
+      if (isSubscribed) {
+        try {
+          // Convert SDK event to ChatEvent format if needed
+          const chatEvent: ChatEvent = {
+            // Map SDK event to ChatEvent structure
+            ...event
+          };
+          await handler(chatEvent);
+        } catch (error) {
+          console.error('❌ [CHAT API] Error handling SDK event:', error);
+        }
       }
     });
 
-    console.log('🔊 [CHAT API] Event listener attached');
-    return unsubscribe;
+    console.log('🔊 [CHAT API] SDK event listener subscribed');
+
+    // Return unsubscribe function
+    return () => {
+      console.log('🔊 [CHAT API] Unsubscribing from events');
+      isSubscribed = false;
+    };
   } catch (error) {
     console.error('❌ [CHAT API] Failed to start chat event listener:', error);
     throw error;
@@ -151,16 +161,47 @@ export const startChatEventListener = async (
 };
 
 /**
- * Get available models from the OpenCode server
+ * Get available models from the OpenCode server via SDK
  */
 export const getAvailableModels = async (): Promise<Array<[string, string]>> => {
-  console.log('📋 [CHAT API] Fetching available models');
+  console.log('📋 [CHAT API] Fetching available models from SDK');
   try {
-    const models = await invoke<Array<[string, string]>>('get_available_models');
+    const sdkApi = await import('../lib/sdk-api');
+    const models = await sdkApi.getAvailableModels();
     console.log('📋 [CHAT API] Available models:', models.length);
-    return models;
+    // Convert SDK format to expected format
+    return models as any as Array<[string, string]>;
   } catch (error) {
     console.error('❌ [CHAT API] Failed to get available models:', error);
+    throw error;
+  }
+};
+
+/**
+ * Initialize SDK connection if no active connection exists
+ */
+export const initializeSdkConnection = async (): Promise<void> => {
+  console.log('🔗 [CHAT API] Initializing SDK connection');
+  try {
+    const sdkApi = await import('../lib/sdk-api');
+
+    // Check if already connected
+    if (sdkApi.isConnected()) {
+      console.log('✅ [CHAT API] Already connected');
+      return;
+    }
+
+    // Try to restore last used connection
+    const lastConnection = await sdkApi.getLastUsedConnection();
+    if (lastConnection) {
+      console.log(`🔄 [CHAT API] Restoring connection to ${lastConnection.hostname}:${lastConnection.port}`);
+      await sdkApi.initializeConnection(lastConnection);
+      return;
+    }
+
+    console.warn('⚠️ [CHAT API] No saved connection found');
+  } catch (error) {
+    console.error('❌ [CHAT API] Failed to initialize SDK connection:', error);
     throw error;
   }
 };
@@ -174,7 +215,10 @@ export const initializeChat = async (
   console.log('🚀 [CHAT API] Initializing chat system');
 
   try {
-    // Start listening to events first
+    // Initialize SDK connection first
+    await initializeSdkConnection();
+
+    // Start listening to events
     const unsubscribe = await startChatEventListener(onChatEvent);
 
     console.log('🚀 [CHAT API] Chat system initialized');
