@@ -4,9 +4,9 @@
 **OpenCode Nexus** is a cross-platform **client application** for connecting to OpenCode servers started with `opencode serve`. Mobile-first design with native iOS, Android, and Desktop support.
 
 **Technology Stack**: Tauri 2.x (Rust) + Astro + Svelte 5 + TypeScript + Bun + @opencode-ai/sdk
-**Current Version**: 0.1.5
-**Progress**: ~22% Complete (Phase 1 + SDK Integration In Progress)
-**Status**: ✅ Phase 1 Complete - SDK Integration Phase 1 Complete
+**Current Version**: 0.1.6
+**Progress**: ~23% Complete (Phase 1 + SDK Integration Phases 1-2 Complete)
+**Status**: ✅ SDK Integration Phase 2 Complete - Backend Cleanup Done
 
 ## 🔄 Project Pivot (September 2025)
 
@@ -134,6 +134,32 @@
 - ✅ Automatic SDK updates bring new features
 - ✅ Battle-tested official implementation
 - ✅ 100% backward compatible with existing code
+
+### SDK Integration - Phase 2 (COMPLETED ✅ - November 27, 2025)
+**Status**: Backend cleanup complete - removed all manual HTTP code
+**Impact**: Reduced backend complexity by ~1,500 lines, eliminated 2 dependencies
+**Details**: Manual HTTP/SSE handling completely removed from backend
+
+- [x] ✅ Deleted api_client.rs (~400 lines) - Manual HTTP client
+- [x] ✅ Deleted message_stream.rs (~200 lines) - Manual SSE parser
+- [x] ✅ Deleted chat_client.rs (~700 lines) - Chat session logic
+- [x] ✅ Removed 7 chat-related Tauri commands (no longer used)
+- [x] ✅ Removed reqwest dependency (HTTP client)
+- [x] ✅ Removed eventsource-client dependency (SSE parsing)
+- [x] ✅ Cleaned up lib.rs imports and module declarations
+- [x] ✅ Updated Cargo.toml with migration notes
+
+**Code Changes**:
+- Deleted: src-tauri/src/api_client.rs, src-tauri/src/message_stream.rs, src-tauri/src/chat_client.rs
+- Modified: src-tauri/src/lib.rs (-200 lines), src-tauri/Cargo.toml
+- Removed dependencies: reqwest, eventsource-client
+
+**Results**:
+- ✅ Backend code reduced by ~1,500 lines
+- ✅ Cargo dependencies: 2 removed
+- ✅ All chat operations now SDK-based (frontend only)
+- ✅ Backend focused on connection management and utilities
+- ✅ Simpler architecture, easier to maintain
 
 ### Chat Interface Integration (COMPLETED ✅ - November 12, 2025)
 **Status**: UI scaffolding exists, NO backend integration ❌ **COMPLETED ✅**
