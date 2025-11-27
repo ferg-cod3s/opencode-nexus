@@ -7,6 +7,16 @@ set -e
 
 echo "🔨 Starting Xcode Cloud pre-build setup..."
 
+# Verify Rust toolchain is available
+if ! command -v rustup &> /dev/null; then
+    echo "❌ Error: rustup not found. Please ensure Rust is installed in the Xcode Cloud environment."
+    exit 1
+fi
+if ! command -v cargo &> /dev/null; then
+    echo "❌ Error: cargo not found. Please ensure Rust is installed in the Xcode Cloud environment."
+    exit 1
+fi
+
 # Change to src-tauri directory
 cd "$CI_PRIMARY_REPOSITORY_PATH/src-tauri" || { echo "❌ Error: Failed to change to src-tauri directory"; exit 1; }
 
@@ -25,7 +35,7 @@ else
 fi
 
 echo "📦 Installing CocoaPods dependencies..."
-cd gen/apple || exit 1
+cd gen/apple || { echo "❌ Error: Failed to change to gen/apple directory (workspace may not have been generated)"; exit 1; }
 
 # Remove macOS target from Podfile since we're only building for iOS
 if [ -f "Podfile" ]; then
@@ -40,6 +50,9 @@ if ! command -v pod &> /dev/null; then
     echo "❌ Error: CocoaPods not found. Installing..."
     sudo gem install cocoapods
 fi
-pod install --repo-update || pod install
+if ! pod install --repo-update; then
+  echo "⚠️  Retrying pod install without --repo-update..."
+  pod install
+fi
 
 echo "✅ Xcode Cloud pre-build setup completed successfully"
