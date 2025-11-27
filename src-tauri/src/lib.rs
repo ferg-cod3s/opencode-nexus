@@ -273,6 +273,39 @@ async fn get_saved_connections(
     Ok(connection_manager.get_saved_connections())
 }
 
+#[tauri::command]
+async fn save_connection(
+    app_handle: tauri::AppHandle,
+    connection: ServerConnection,
+) -> Result<(), String> {
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("opencode-nexus");
+
+    let mut connection_manager =
+        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    connection_manager
+        .load_connections()
+        .map_err(|e| e.to_string())?;
+    connection_manager.save_connection(connection)
+}
+
+#[tauri::command]
+async fn get_last_used_connection(
+    app_handle: tauri::AppHandle,
+) -> Result<Option<ServerConnection>, String> {
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("opencode-nexus");
+
+    let mut connection_manager =
+        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    connection_manager
+        .load_connections()
+        .map_err(|e| e.to_string())?;
+    Ok(connection_manager.get_last_used_connection())
+}
+
 // Chat commands
 #[tauri::command]
 async fn create_chat_session(
@@ -574,6 +607,8 @@ pub fn run() {
             get_current_connection,
             disconnect_from_server,
             get_saved_connections,
+            save_connection,
+            get_last_used_connection,
             // Chat commands
             create_chat_session,
             send_chat_message,

@@ -316,6 +316,13 @@ impl ConnectionManager {
         self.get_last_used_connection().map(|c| c.to_url())
     }
 
+    pub fn save_connection(&mut self, connection: ServerConnection) -> Result<(), String> {
+        let mut connections_guard = self.connections.lock().unwrap();
+        connections_guard.insert(connection.name.clone(), connection);
+        drop(connections_guard); // Release lock before calling save_connections
+        self.save_connections()
+    }
+
     pub async fn disconnect_from_server(&mut self) -> Result<(), String> {
         let current_status = *self.connection_status.lock().unwrap();
         if matches!(current_status, ConnectionStatus::Disconnected) {
