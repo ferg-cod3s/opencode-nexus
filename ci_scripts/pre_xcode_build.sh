@@ -35,6 +35,11 @@ if [ -f "Podfile" ]; then
 fi
 
 # Install CocoaPods dependencies for iOS target
+# Check if CocoaPods is installed, and install if missing
+if ! command -v pod &> /dev/null; then
+    echo "❌ Error: CocoaPods not found. Installing..."
+    sudo gem install cocoapods
+fi
 pod install --repo-update || pod install
 
 echo "✅ Xcode Cloud pre-build setup completed successfully"
