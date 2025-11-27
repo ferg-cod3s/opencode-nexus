@@ -35,7 +35,7 @@ else
 fi
 
 echo "📦 Installing CocoaPods dependencies..."
-cd gen/apple || exit 1
+cd gen/apple || { echo "❌ Error: Failed to change to gen/apple directory (workspace may not have been generated)"; exit 1; }
 
 # Remove macOS target from Podfile since we're only building for iOS
 if [ -f "Podfile" ]; then
