@@ -140,6 +140,13 @@ env/
 *test-debug*
 *test-output*
 
+# iOS temporary build artifacts
+temp_ipa/
+temp_ipa_*/
+temp_entitlements.plist
+*.ipa
+!src-tauri/ios-config/
+
 # IDE backup files
 _*.ts
 _*.tsx
