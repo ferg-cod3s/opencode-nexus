@@ -1,529 +1,386 @@
 # Contributing to OpenCode Nexus
 
-Thank you for your interest in contributing to OpenCode Nexus! This document provides guidelines and information for contributors.
-
-## Table of Contents
-
-- [Code of Conduct](#code-of-conduct)
-- [Getting Started](#getting-started)
-- [Development Workflow](#development-workflow)
-- [Coding Standards](#coding-standards)
-- [Testing Guidelines](#testing-guidelines)
-- [CI/CD Pipeline](#cicd-pipeline)
-- [Pull Request Process](#pull-request-process)
-- [Security Guidelines](#security-guidelines)
-- [Documentation](#documentation)
-- [Community](#community)
+Thank you for your interest in contributing to OpenCode Nexus! This document provides guidelines for contributing code, documentation, and improvements to the project.
 
 ## Code of Conduct
 
-We are committed to providing a welcoming and inclusive environment for all contributors. Please be respectful, professional, and constructive in all interactions.
+- Be respectful and inclusive
+- Focus on code quality and project goals
+- Provide constructive feedback
+- Ask questions if something is unclear
 
-### Our Standards
+## Before You Start
 
-- **Be Respectful:** Treat all community members with respect
-- **Be Collaborative:** Work together toward common goals
-- **Be Professional:** Maintain professional conduct
-- **Be Constructive:** Provide helpful, actionable feedback
+1. **Read [AGENTS.md](AGENTS.md)** - Quick reference for code standards and commands
+2. **Read [CLAUDE.md](CLAUDE.md)** - Comprehensive development guide (essential)
+3. **Check [status_docs/TODO.md](status_docs/TODO.md)** - Current tasks and progress
+4. **Review [docs/client/ARCHITECTURE.md](docs/client/ARCHITECTURE.md)** - System design
 
-## Getting Started
+## Development Setup
 
 ### Prerequisites
+- Rust 1.70+ (see [rustup.rs](https://rustup.rs))
+- Bun 1.0+ (see [bun.sh](https://bun.sh))
+- Node.js 18+ (for some build tools)
+- macOS/Linux/Windows (for development; iOS/Android for testing)
 
-- **Rust:** Latest stable (1.70+)
-- **Bun:** Latest stable version
-- **Git:** Version control
-- **System Dependencies:** See [README.md](README.md) for platform-specific requirements
+### Initial Setup
+```bash
+# Clone repository
+git clone https://github.com/ferg-cod3s/opencode-nexus.git
+cd opencode-nexus
 
-### Setting Up Development Environment
+# Install dependencies
+cd frontend && bun install && cd ..
+cargo build  # Rust dependencies
 
-1. **Fork the Repository**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/opencode-nexus.git
-   cd opencode-nexus
-   ```
+# Start development
+cargo tauri dev
+```
 
-2. **Install Dependencies**
-   ```bash
-   cd frontend
-   bun install
-   cd ../src-tauri
-   cargo build
-   ```
+## Making Changes
 
-3. **Run Development Server**
-   ```bash
-   cargo tauri dev
-   ```
+### 1. Plan Your Work
+- Check [status_docs/TODO.md](status_docs/TODO.md) for task list
+- Discuss major changes in issues before coding
+- Reference [docs/client/](docs/client/) for architectural decisions
 
-4. **Verify Setup**
-   ```bash
-   cd frontend
-   bun test
-   cd ../src-tauri
-   cargo test
-   ```
+### 2. Follow Test-Driven Development (TDD)
 
-## Development Workflow
-
-### Branching Strategy
-
-- **main:** Stable production-ready code
-- **develop:** Integration branch for features
-- **feature/*:** New features and enhancements
-- **fix/*:** Bug fixes
-- **docs/*:** Documentation updates
-
-### Creating a Branch
+**This is MANDATORY** - see [docs/client/TESTING.md](docs/client/TESTING.md)
 
 ```bash
-git checkout -b feature/your-feature-name develop
+# 1. Write a failing test first
+# (Add test to test file)
+
+# 2. Run tests to confirm failure
+cargo test                  # Rust backend
+cd frontend && bun test     # TypeScript frontend
+
+# 3. Implement minimal code to pass test
+# (Write implementation)
+
+# 4. Run tests again to confirm pass
+cargo test && cd frontend && bun test
+
+# 5. Refactor while keeping tests green
+# (Improve code quality)
 ```
 
-### Commit Message Format
+### 3. Code Style
 
-Use conventional commits format:
+Follow the standards in [AGENTS.md](AGENTS.md#code-style-guidelines):
 
+**TypeScript/Svelte:**
+- `camelCase` for variables/functions
+- `PascalCase` for types/components
+- Single quotes, 2-space indentation
+- No `any` types (strict mode)
+- Group imports: stdlib → external → local
+
+**Rust:**
+- `snake_case` for functions/variables
+- `PascalCase` for types/structs
+- Use `Result<T, E>` + `?` operator for errors
+- Use `Arc<Mutex<T>>` for shared state
+
+**General:**
+- Keep functions 10-30 lines (max 50)
+- Self-documenting code (minimal comments)
+- WCAG 2.2 AA accessibility compliance
+- 44px touch targets for mobile UI
+
+### 4. Quality Checks Before Committing
+
+```bash
+# Format code
+cargo fmt && cd frontend && bun run format
+
+# Run linting
+cd frontend && bun run lint
+
+# Type checking
+cd frontend && bun run typecheck
+
+# Run tests
+cargo test && cd frontend && bun test
+
+# Run clippy analysis
+cargo clippy
+
+# Full quality check (recommended)
+cargo clippy && cargo test && cd frontend && bun run lint && bun run typecheck && bun test
 ```
-<type>(<scope>): <subject>
 
-<body>
+### 5. Write Clear Commit Messages
 
-<footer>
+Use conventional commit format with detailed description:
+
+```bash
+git commit -m "$(cat <<'EOFF'
+feat: implement user authentication
+
+TDD implementation complete:
+- ✅ Added auth command handlers
+- ✅ Implemented Argon2 password hashing
+- ✅ Added unit tests (95% coverage)
+
+Files modified:
+- src-tauri/src/auth.rs (150 lines) - Authentication logic
+- src-tauri/src/lib.rs (25 lines) - Command registration
+- frontend/src/tests/auth.test.ts (200 lines) - Test coverage
+
+Security: All user inputs validated, no plaintext passwords stored.
+Tests passing. Ready for code review.
+
+Co-Authored-By: Your Name <your.email@example.com>
+EOFF
+)"
 ```
 
-**Types:**
-- `feat`: New feature
-- `fix`: Bug fix
-- `docs`: Documentation changes
-- `style`: Code style changes (formatting, etc.)
-- `refactor`: Code refactoring
-- `test`: Adding or updating tests
-- `chore`: Build process or tooling changes
-- `perf`: Performance improvements
-- `security`: Security fixes
+**Commit types:**
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `refactor:` - Code restructuring (no behavior change)
+- `test:` - Test additions/modifications
+- `docs:` - Documentation updates
+- `chore:` - Build, dependencies, configuration
+- `perf:` - Performance improvements
+- `sec:` - Security fixes
 
-**Example:**
+### 6. Update Documentation
+
+After completing features:
+
+1. **Update [status_docs/TODO.md](status_docs/TODO.md)**
+   - Mark completed tasks ✅
+   - Add new discovered tasks
+   - Update progress percentage
+
+2. **Update relevant architecture docs**
+   - [docs/client/ARCHITECTURE.md](docs/client/ARCHITECTURE.md) - System design changes
+   - [docs/client/TESTING.md](docs/client/TESTING.md) - Testing approach updates
+   - [docs/client/SECURITY.md](docs/client/SECURITY.md) - Security changes
+
+3. **Update [AGENTS.md](AGENTS.md)** if standards change
+
+## Security Considerations
+
+### Security Standards
+- **Password Storage:** Use Argon2 with salt (never plaintext)
+- **API Security:** TLS 1.3 for all connections
+- **Input Validation:** Sanitize ALL user inputs
+- **Secrets Management:** Use environment variables, never commit secrets
+- **Data Encryption:** AES-256 for sensitive local data
+- **Lockout:** Account lockout after 5 failed auth attempts
+
+See [docs/client/SECURITY.md](docs/client/SECURITY.md) for detailed security implementation.
+
+### Security Checklist
+- [ ] No hardcoded secrets or API keys
+- [ ] All user inputs validated
+- [ ] Error messages don't leak sensitive information
+- [ ] Dependencies audited (`cargo audit`, `npm audit`)
+- [ ] Security tests included with feature
+
+## Accessibility Requirements
+
+All UI changes must meet **WCAG 2.2 AA compliance**:
+
+- **Keyboard Navigation:** All interactive elements keyboard-accessible
+- **Screen Readers:** Semantic HTML, proper ARIA labels
+- **Touch Targets:** 44px minimum for mobile
+- **Color Contrast:** 4.5:1 for text (AA standard)
+- **Focus Management:** Clear focus indicators
+- **Responsive Design:** Works on all screen sizes
+
+Test with:
+```bash
+# Browser DevTools accessibility inspector
+# Lighthouse audits (Chrome DevTools)
+# Screen readers (NVDA, JAWS, VoiceOver)
 ```
-feat(auth): add multi-factor authentication support
 
-Implement TOTP-based MFA for enhanced security. Users can now
-enable MFA in their account settings.
+## Testing Requirements
 
-Closes #123
-```
+### Test Coverage
+- **Target:** 80-90% for critical paths
+- **Required:** All public APIs have tests
+- **Types:** Unit tests + E2E tests for features
 
-## Coding Standards
-
-### TypeScript/JavaScript (Frontend)
-
-- **Indentation:** 2 spaces
-- **Style Guide:** Follow ESLint configuration
-- **Type Safety:** Strict TypeScript mode (no `any` types)
-- **Imports:** Group by stdlib, external, then local
-- **Naming:**
-  - `camelCase` for variables and functions
-  - `PascalCase` for types, classes, interfaces
-  - `UPPER_SNAKE_CASE` for constants
-
-**Example:**
+### Frontend Tests (Bun)
 ```typescript
-interface UserConfig {
-  username: string;
-  enableMFA: boolean;
-}
+import { describe, test, expect } from 'bun:test';
 
-function validateUser(config: UserConfig): boolean {
-  if (!config.username || config.username.length < 3) {
-    return false;
-  }
-  return true;
-}
-```
-
-### Rust (Backend)
-
-- **Formatting:** Use `cargo fmt`
-- **Linting:** Pass `cargo clippy`
-- **Naming:**
-  - `snake_case` for variables and functions
-  - `PascalCase` for types and structs
-  - `SCREAMING_SNAKE_CASE` for constants
-- **Error Handling:** Use `Result<T, E>` and `?` operator
-
-**Example:**
-```rust
-pub struct ServerConfig {
-    pub port: u16,
-    pub host: String,
-}
-
-pub fn validate_config(config: &ServerConfig) -> Result<(), String> {
-    if config.port == 0 {
-        return Err("Port cannot be zero".to_string());
-    }
-    Ok(())
-}
-```
-
-## Testing Guidelines
-
-### Test-Driven Development (TDD)
-
-**We follow TDD principles:**
-
-1. **Write failing test first**
-2. **Implement minimal code to pass**
-3. **Refactor while keeping tests green**
-
-### Frontend Tests
-
-```bash
-cd frontend
-bun test                    # Run unit tests
-bun test --coverage         # Run with coverage
-bun run test:e2e            # Run E2E tests
-```
-
-### Backend Tests
-
-```bash
-cd src-tauri
-cargo test                  # Run all tests
-cargo test --test auth      # Run specific test
-cargo tarpaulin             # Coverage report
-```
-
-### Test Coverage Requirements
-
-- **Minimum Coverage:** 80% for new code
-- **Critical Paths:** 90% coverage required
-- **Security Features:** 100% coverage mandatory
-
-### Writing Good Tests
-
-**Frontend Example:**
-```typescript
-import { describe, it, expect } from 'vitest';
-import { validateUser } from './auth';
-
-describe('validateUser', () => {
-  it('should return true for valid user', () => {
-    const config = { username: 'testuser', enableMFA: false };
-    expect(validateUser(config)).toBe(true);
-  });
-
-  it('should return false for short username', () => {
-    const config = { username: 'ab', enableMFA: false };
-    expect(validateUser(config)).toBe(false);
+describe('FeatureName', () => {
+  test('should do something', () => {
+    // Implementation
   });
 });
 ```
 
-**Backend Example:**
+### Backend Tests (Rust)
 ```rust
 #[cfg(test)]
 mod tests {
-    use super::*;
+  use super::*;
 
-    #[test]
-    fn test_validate_config_success() {
-        let config = ServerConfig {
-            port: 8080,
-            host: "localhost".to_string(),
-        };
-        assert!(validate_config(&config).is_ok());
-    }
-
-    #[test]
-    fn test_validate_config_invalid_port() {
-        let config = ServerConfig {
-            port: 0,
-            host: "localhost".to_string(),
-        };
-        assert!(validate_config(&config).is_err());
-    }
-}
-```
-
-## CI/CD Pipeline
-
-Our CI/CD pipeline automatically runs on all pull requests and commits to main/develop branches.
-
-### Pipeline Stages
-
-#### 1. **Comprehensive Testing** (Automatic)
-- Frontend unit tests (Bun + TypeScript)
-- Backend unit tests (Rust + Cargo)
-- E2E tests (Playwright)
-- Linting (ESLint + Clippy)
-- Type checking (TypeScript + Rust)
-- Code formatting (Prettier + rustfmt)
-
-#### 2. **Security Scanning** (Automatic)
-- Trivy filesystem scan
-- Trivy configuration scan
-- NPM audit (dependency vulnerabilities)
-- Cargo audit (Rust dependency vulnerabilities)
-- CodeQL analysis (JavaScript/TypeScript)
-- Secret scanning (TruffleHog)
-
-#### 3. **Quality Gate** (Pull Requests)
-- Code quality checks (linting + formatting)
-- Test coverage analysis
-- Build verification (all platforms)
-- Quality summary report
-
-#### 4. **License Check** (Automatic)
-- License header validation
-- Dependency license scanning (Rust + NPM)
-- SBOM (Software Bill of Materials) generation
-
-#### 5. **Release** (Tags Only)
-- Cross-platform builds (Linux, macOS, Windows)
-- Asset generation (.deb, .dmg, .msi, .AppImage, .exe)
-- GitHub Release creation
-- Automated distribution
-
-### Viewing CI/CD Results
-
-- **GitHub Actions:** Check the "Actions" tab
-- **Security:** Check the "Security" tab for vulnerability reports
-- **Quality:** View summary in PR comments
-
-### Running CI Checks Locally
-
-**Frontend:**
-```bash
-cd frontend
-bun run lint                # ESLint
-bun run typecheck           # TypeScript
-bun test                    # Unit tests
-bun run test:e2e            # E2E tests
-```
-
-**Backend:**
-```bash
-cd src-tauri
-cargo fmt -- --check        # Format check
-cargo clippy                # Linting
-cargo test                  # Tests
-cargo audit                 # Security audit
-```
-
-## Pull Request Process
-
-### Before Submitting
-
-- [ ] Branch created from `develop`
-- [ ] Tests written and passing locally
-- [ ] Code follows style guidelines
-- [ ] Documentation updated (if needed)
-- [ ] Commit messages follow convention
-- [ ] No merge conflicts with target branch
-
-### Submitting a Pull Request
-
-1. **Push Your Branch**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-2. **Create Pull Request**
-   - Navigate to GitHub repository
-   - Click "New Pull Request"
-   - Select `develop` as base branch
-   - Provide clear title and description
-
-3. **PR Description Template**
-   ```markdown
-   ## Description
-   Brief description of changes
-
-   ## Type of Change
-   - [ ] Bug fix
-   - [ ] New feature
-   - [ ] Breaking change
-   - [ ] Documentation update
-
-   ## Testing
-   - [ ] Unit tests added/updated
-   - [ ] E2E tests added/updated
-   - [ ] Manual testing performed
-
-   ## Checklist
-   - [ ] Code follows style guidelines
-   - [ ] Self-review completed
-   - [ ] Documentation updated
-   - [ ] No new warnings introduced
-   - [ ] Tests pass locally
-   - [ ] Security considerations addressed
-
-   ## Related Issues
-   Closes #issue_number
-   ```
-
-### Review Process
-
-1. **Automated Checks:** CI/CD pipeline runs automatically
-2. **Code Review:** Maintainers review code and provide feedback
-3. **Revisions:** Address feedback and update PR
-4. **Approval:** At least one maintainer approval required
-5. **Merge:** Maintainer merges after all checks pass
-
-### After Merge
-
-- Branch will be automatically deleted
-- Changes will be included in next release
-- Contributors will be credited in release notes
-
-## Security Guidelines
-
-### Security-First Mindset
-
-- **Validate All Inputs:** Never trust user input
-- **Use Parameterized Queries:** Prevent SQL injection
-- **Avoid Eval:** Never use `eval()` or similar functions
-- **Sanitize Output:** Prevent XSS attacks
-- **Secure Secrets:** Never commit secrets or API keys
-- **Follow Principle of Least Privilege:** Minimal permissions
-
-### Reporting Security Issues
-
-**DO NOT** create public issues for security vulnerabilities.
-
-Instead:
-- Use [GitHub Security Advisories](https://github.com/YOUR_REPO/security/advisories)
-- Email: security@opencode-nexus.example.com
-- See [SECURITY.md](docs/SECURITY.md) for details
-
-### Security Review Checklist
-
-- [ ] Input validation implemented
-- [ ] Authentication and authorization checked
-- [ ] Sensitive data encrypted
-- [ ] No secrets in code
-- [ ] Error messages don't leak information
-- [ ] Dependencies updated and audited
-- [ ] Security best practices followed
-
-## Documentation
-
-### Documentation Requirements
-
-- **Code Comments:** Explain "why" not "what"
-- **API Documentation:** Document all public APIs
-- **README Updates:** Update README for new features
-- **Architecture Docs:** Update architecture documentation for major changes
-- **Security Docs:** Update security documentation for security-related changes
-
-### Documentation Standards
-
-**TypeScript/JavaScript:**
-```typescript
-/**
- * Validates user configuration
- * 
- * @param config - User configuration object
- * @returns True if valid, false otherwise
- * @throws Error if configuration is malformed
- */
-function validateUser(config: UserConfig): boolean {
-  // Implementation
-}
-```
-
-**Rust:**
-```rust
-/// Validates server configuration
-///
-/// # Arguments
-///
-/// * `config` - Reference to server configuration
-///
-/// # Returns
-///
-/// * `Result<(), String>` - Ok if valid, Err with message if invalid
-///
-/// # Examples
-///
-/// ```
-/// let config = ServerConfig { port: 8080, host: "localhost".to_string() };
-/// assert!(validate_config(&config).is_ok());
-/// ```
-pub fn validate_config(config: &ServerConfig) -> Result<(), String> {
+  #[tokio::test]
+  async fn test_function() {
     // Implementation
+  }
 }
 ```
 
-## Community
+### E2E Tests (Playwright)
+```typescript
+import { test, expect } from '@playwright/test';
 
-### Getting Help
+test('user flow', async ({ page }) => {
+  await page.goto('/');
+  // Interaction and assertions
+});
+```
 
-- **GitHub Discussions:** Ask questions and share ideas
-- **GitHub Issues:** Report bugs and request features
-- **Documentation:** Check docs/ directory
+## Git Workflow
 
-### Contributing to Discussions
+### Branch Naming
+- Feature: `feat/description` or `feature/description`
+- Bug fix: `fix/description`
+- Documentation: `docs/description`
+- Example: `feat/user-authentication`
 
-- Search existing discussions before creating new ones
-- Provide context and details
-- Be respectful and constructive
-- Help others when possible
+### Before Pushing
+1. Create a feature branch
+2. Make changes following TDD
+3. Run full quality checks
+4. Update documentation
+5. Write clear commit messages
+6. Push to your branch
 
-### Recognition
+### Pull Requests
+1. **Title:** Clear, concise description
+2. **Description:** Include:
+   - What changed and why
+   - Related tasks from [status_docs/TODO.md](status_docs/TODO.md)
+   - Testing done
+   - Any breaking changes
+3. **Checklist:**
+   - [ ] Tests written and passing
+   - [ ] Code follows style guidelines
+   - [ ] Documentation updated
+   - [ ] No new warnings (linting)
+   - [ ] Security reviewed
+   - [ ] Accessibility verified
 
-We recognize contributors through:
-- **CHANGELOG.md:** Credits in release notes
-- **Contributors Page:** Listed on GitHub
-- **Security Hall of Fame:** For security researchers
+## Project Structure
 
-## Release Process
+Understanding the codebase organization:
 
-### Versioning
+```
+opencode-nexus/
+├── frontend/                 # Astro + Svelte frontend
+│   ├── src/pages/           # Routes (file-based)
+│   ├── src/components/      # Reusable components
+│   ├── src/stores/          # State management
+│   ├── src/lib/             # Business logic
+│   ├── src/utils/           # Helper functions
+│   └── e2e/                 # E2E tests
+│
+├── src-tauri/               # Rust backend (Tauri)
+│   ├── src/lib.rs           # Main handlers
+│   ├── src/connection_manager.rs  # Server connections
+│   └── src/auth.rs          # Authentication
+│
+├── docs/client/             # Architecture & design
+├── status_docs/             # Progress tracking
+└── AGENTS.md, CLAUDE.md     # Development guides
+```
 
-We follow [Semantic Versioning](https://semver.org/):
-- **MAJOR:** Breaking changes
-- **MINOR:** New features (backward compatible)
-- **PATCH:** Bug fixes (backward compatible)
+## Common Workflows
 
-### Release Workflow
+### Adding a New Feature
+1. Create task in [status_docs/TODO.md](status_docs/TODO.md)
+2. Create feature branch (`feat/my-feature`)
+3. Read [docs/client/TESTING.md](docs/client/TESTING.md)
+4. Write failing test
+5. Implement feature (TDD)
+6. Run quality checks
+7. Update documentation
+8. Create pull request
 
-1. **Prepare Release Branch**
-   ```bash
-   git checkout -b release/v1.2.0 develop
-   ```
+### Fixing a Bug
+1. Create minimal failing test that reproduces bug
+2. Implement fix
+3. Verify test passes
+4. Add regression test if needed
+5. Run quality checks
+6. Document in commit message
+7. Create pull request
 
-2. **Update Version Numbers**
-   - `src-tauri/Cargo.toml`
-   - `frontend/package.json`
-   - `CHANGELOG.md`
+### Updating Documentation
+1. Edit relevant file in `docs/` or `status_docs/`
+2. Run any automated checks (`bun run lint`, `cargo clippy`)
+3. Commit with `docs:` prefix
+4. Create pull request
 
-3. **Create Release Tag**
-   ```bash
-   git tag -a v1.2.0 -m "Release v1.2.0"
-   git push origin v1.2.0
-   ```
+## Need Help?
 
-4. **Automated Build:** CI/CD pipeline builds and releases automatically
+- **Development questions:** Check [CLAUDE.md](CLAUDE.md)
+- **Architecture questions:** See [docs/client/ARCHITECTURE.md](docs/client/ARCHITECTURE.md)
+- **Testing guidance:** See [docs/client/TESTING.md](docs/client/TESTING.md)
+- **Security concerns:** See [docs/client/SECURITY.md](docs/client/SECURITY.md)
+- **Current tasks:** Check [status_docs/TODO.md](status_docs/TODO.md)
 
-5. **Merge to Main**
-   ```bash
-   git checkout main
-   git merge release/v1.2.0
-   git push origin main
-   ```
+## Reporting Issues
 
-## Questions?
+When reporting issues, include:
+- Clear description of the problem
+- Steps to reproduce
+- Expected vs actual behavior
+- Environment (OS, Rust version, Bun version)
+- Error messages/logs (if applicable)
+- Screenshots for UI issues
 
-If you have questions not covered here:
-- Check [README.md](README.md)
-- Check [docs/](docs/) directory
-- Open a GitHub Discussion
-- Contact maintainers
+## Code Review Process
+
+All PRs require:
+1. **Functionality Review** - Does it work as intended?
+2. **Code Quality Review** - Style, patterns, best practices?
+3. **Security Review** - No vulnerabilities or data leaks?
+4. **Testing Review** - Adequate coverage and test quality?
+5. **Documentation Review** - Is it clear and complete?
+6. **Accessibility Review** - WCAG 2.2 AA compliance?
+
+Reviewers will provide constructive feedback. Be responsive to comments and iterate until approval.
+
+## Continuous Integration
+
+The project uses GitHub Actions for:
+- Running tests (`cargo test`, `bun test`)
+- Linting and type checking
+- Building frontend and backend
+- Security scanning
+- Accessibility checks
+
+All checks must pass before merging.
+
+## Recognition
+
+Contributors will be:
+- Added to [CHANGELOG.md](CHANGELOG.md)
+- Listed in project documentation
+- Credited in release notes
+
+## Questions or Suggestions?
+
+- Open a GitHub issue for discussion
+- Reference relevant documentation
+- Be specific and provide context
+- Check existing issues first
 
 ---
 
-**Thank you for contributing to OpenCode Nexus!**
+**Thank you for contributing to OpenCode Nexus!** Your efforts help make this project better for everyone.
 
-We appreciate your time and effort in making this project better. Every contribution, no matter how small, helps make OpenCode Nexus more secure, reliable, and useful for everyone.
+For questions about these guidelines, please open an issue on GitHub.
