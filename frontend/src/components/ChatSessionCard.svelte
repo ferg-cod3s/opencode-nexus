@@ -132,7 +132,7 @@
 
   .session-card.active {
     border-color: var(--accent-primary);
-    background: rgba(3, 76, 255, 0.05);
+    background: var(--active-highlight);
   }
 
   .session-header {

@@ -199,7 +199,7 @@
   .selector-trigger:focus-visible {
     outline: none;
     border-color: var(--input-border-focus);
-    box-shadow: 0 0 0 3px rgba(3, 76, 255, 0.1);
+    box-shadow: var(--focus-ring);
   }
 
   .selector-trigger:disabled {
@@ -301,7 +301,7 @@
   }
 
   .dropdown-item.selected {
-    background: rgba(3, 76, 255, 0.1);
+    background: var(--active-highlight);
     color: var(--accent-primary);
   }
 

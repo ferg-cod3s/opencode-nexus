@@ -170,7 +170,7 @@
 
   textarea:focus {
     border-color: var(--input-border-focus);
-    box-shadow: 0 0 0 3px rgba(3, 76, 255, 0.1);
+    box-shadow: var(--focus-ring);
   }
 
   textarea:disabled {
