@@ -23,22 +23,27 @@
  */
 
 import type { FullConfig } from '@playwright/test';
+import { spawn, type ChildProcess } from 'child_process';
 
 /**
  * Global setup for E2E tests
  * 
- * This setup can optionally start an OpenCode server for integration testing.
- * To use a real OpenCode server instead of mocks:
+ * This setup starts an OpenCode server using `opencode serve` for integration testing.
+ * Based on: https://opencode.ai/docs/server/
  * 
+ * Usage:
  * 1. Install opencode-ai globally: npm i -g opencode-ai
- * 2. Set USE_OPENCODE_SERVER=true in environment
- * 3. Run tests with: USE_OPENCODE_SERVER=true npm run test:e2e
+ * 2. Run tests with: USE_OPENCODE_SERVER=true npm run test:e2e
  * 
- * The server will be started automatically using @opencode-ai/sdk's createOpencodeServer
+ * The server runs on http://127.0.0.1:4096 by default.
  */
 
-// Store server reference for cleanup
-let opencodeServer: { url: string; close: () => void } | null = null;
+// Store server process for cleanup
+let opencodeProcess: ChildProcess | null = null;
+
+const OPENCODE_PORT = 4096;
+const OPENCODE_HOSTNAME = '127.0.0.1';
+const SERVER_TIMEOUT = 30000; // 30 seconds to start
 
 async function globalSetup(_config: FullConfig) {
   console.log('🔧 Setting up E2E test environment...');
@@ -47,22 +52,14 @@ async function globalSetup(_config: FullConfig) {
   const useOpencodeServer = process.env.USE_OPENCODE_SERVER === 'true';
   
   if (useOpencodeServer) {
-    console.log('🚀 Starting OpenCode server for integration testing...');
+    console.log('🚀 Starting OpenCode server with `opencode serve`...');
     
     try {
-      // Dynamic import to avoid build issues when SDK is not available
-      const { createOpencodeServer } = await import('@opencode-ai/sdk/server');
-      
-      opencodeServer = await createOpencodeServer({
-        hostname: '127.0.0.1',
-        port: 4096,
-        timeout: 30000, // 30 seconds to start
-      });
-      
-      console.log(`✅ OpenCode server started at ${opencodeServer.url}`);
+      const serverUrl = await startOpencodeServer();
+      console.log(`✅ OpenCode server started at ${serverUrl}`);
       
       // Store the URL in environment for tests to use
-      process.env.OPENCODE_SERVER_URL = opencodeServer.url;
+      process.env.OPENCODE_SERVER_URL = serverUrl;
       
     } catch (error) {
       console.error('⚠️ Failed to start OpenCode server:', error);
@@ -76,12 +73,72 @@ async function globalSetup(_config: FullConfig) {
   console.log('✅ E2E test environment setup completed');
 }
 
+/**
+ * Start the OpenCode server using `opencode serve`
+ * Docs: https://opencode.ai/docs/server/
+ */
+async function startOpencodeServer(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      if (opencodeProcess) {
+        opencodeProcess.kill();
+        opencodeProcess = null;
+      }
+      reject(new Error(`Timeout waiting for server to start after ${SERVER_TIMEOUT}ms`));
+    }, SERVER_TIMEOUT);
+
+    // Run `opencode serve --port 4096 --hostname 127.0.0.1`
+    opencodeProcess = spawn('opencode', [
+      'serve',
+      '--port', String(OPENCODE_PORT),
+      '--hostname', OPENCODE_HOSTNAME
+    ], {
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+
+    let output = '';
+
+    opencodeProcess.stdout?.on('data', (chunk) => {
+      output += chunk.toString();
+      const lines = output.split('\n');
+      for (const line of lines) {
+        // Look for the server listening message
+        if (line.includes('opencode server listening') || line.includes('listening on')) {
+          clearTimeout(timeout);
+          resolve(`http://${OPENCODE_HOSTNAME}:${OPENCODE_PORT}`);
+          return;
+        }
+      }
+    });
+
+    opencodeProcess.stderr?.on('data', (chunk) => {
+      output += chunk.toString();
+    });
+
+    opencodeProcess.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(error);
+    });
+
+    opencodeProcess.on('exit', (code) => {
+      clearTimeout(timeout);
+      if (code !== 0) {
+        let msg = `Server exited with code ${code}`;
+        if (output.trim()) {
+          msg += `\nServer output: ${output}`;
+        }
+        reject(new Error(msg));
+      }
+    });
+  });
+}
+
 // Export cleanup function for global teardown
 export async function globalTeardown() {
-  if (opencodeServer) {
+  if (opencodeProcess) {
     console.log('🛑 Stopping OpenCode server...');
-    opencodeServer.close();
-    opencodeServer = null;
+    opencodeProcess.kill();
+    opencodeProcess = null;
     console.log('✅ OpenCode server stopped');
   }
 }

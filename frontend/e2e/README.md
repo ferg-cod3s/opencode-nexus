@@ -8,7 +8,9 @@ This directory contains end-to-end tests for the OpenCode Nexus client applicati
 
 ### Running Tests with a Real OpenCode Server
 
-For integration testing with a real OpenCode server (instead of mocks), you can use the built-in server integration:
+For integration testing with a real OpenCode server (instead of mocks), we use `opencode serve` to start a headless HTTP server.
+
+**Docs:** https://opencode.ai/docs/server/
 
 1. **Install opencode-ai globally:**
    ```bash
@@ -21,9 +23,21 @@ For integration testing with a real OpenCode server (instead of mocks), you can 
    ```
 
 This will:
-- Start an OpenCode server on `http://127.0.0.1:4096` using `@opencode-ai/sdk`'s `createOpencodeServer`
-- Run all E2E tests against the real server
+- Run `opencode serve --port 4096 --hostname 127.0.0.1` to start the server
+- Run all E2E tests against the real server at `http://127.0.0.1:4096`
 - Automatically shut down the server when tests complete
+
+### Manual Server Start
+
+You can also start the server manually:
+
+```bash
+# Start server in one terminal
+opencode serve --port 4096 --hostname 127.0.0.1
+
+# Run tests in another terminal
+USE_OPENCODE_SERVER=true OPENCODE_SERVER_URL=http://127.0.0.1:4096 npm run test:e2e
+```
 
 ### Using OpenCode Server in Tests
 
@@ -46,8 +60,9 @@ test('chat with real server', async ({ page }) => {
 
 - `isOpencodeServerAvailable()` - Check if an OpenCode server is running
 - `getOpencodeServerUrl()` - Get the server URL
-- `waitForOpencodeServer(timeout)` - Wait for server to be ready
+- `waitForOpencodeServer(timeout)` - Wait for server to be ready (checks /app endpoint)
 - `getOpencodeClientConfig()` - Get client configuration for SDK
+- `getOpencodeDocUrl()` - Get OpenAPI spec URL (http://host:port/doc)
 
 ## Test Organization
 

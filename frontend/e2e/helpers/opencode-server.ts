@@ -25,9 +25,10 @@
 /**
  * OpenCode Server Integration Helper for E2E Tests
  * 
- * This helper provides utilities for tests that need to interact with a real
- * OpenCode server instance. To use:
+ * Uses `opencode serve` to start a headless HTTP server for testing.
+ * Docs: https://opencode.ai/docs/server/
  * 
+ * To use:
  * 1. Install opencode-ai: npm i -g opencode-ai
  * 2. Run tests with: USE_OPENCODE_SERVER=true npm run test:e2e
  * 
@@ -48,6 +49,16 @@
  */
 
 /**
+ * Default OpenCode server port (as per docs: https://opencode.ai/docs/server/)
+ */
+export const OPENCODE_DEFAULT_PORT = 4096;
+
+/**
+ * Default OpenCode server hostname
+ */
+export const OPENCODE_DEFAULT_HOSTNAME = '127.0.0.1';
+
+/**
  * Check if an OpenCode server is available for testing
  */
 export function isOpencodeServerAvailable(): boolean {
@@ -64,18 +75,8 @@ export function getOpencodeServerUrl(): string {
       'OpenCode server is not available. Run tests with USE_OPENCODE_SERVER=true and ensure opencode-ai is installed.'
     );
   }
-  return process.env.OPENCODE_SERVER_URL || 'http://127.0.0.1:4096';
+  return process.env.OPENCODE_SERVER_URL || `http://${OPENCODE_DEFAULT_HOSTNAME}:${OPENCODE_DEFAULT_PORT}`;
 }
-
-/**
- * Default OpenCode server port
- */
-export const OPENCODE_DEFAULT_PORT = 4096;
-
-/**
- * Default OpenCode server hostname
- */
-export const OPENCODE_DEFAULT_HOSTNAME = '127.0.0.1';
 
 /**
  * Create a client configuration for connecting to the OpenCode server
@@ -90,7 +91,7 @@ export function getOpencodeClientConfig() {
 }
 
 /**
- * Wait for the OpenCode server to be ready
+ * Wait for the OpenCode server to be ready by checking the /app endpoint
  * @param timeout Maximum time to wait in milliseconds
  */
 export async function waitForOpencodeServer(timeout = 10000): Promise<boolean> {
@@ -103,7 +104,8 @@ export async function waitForOpencodeServer(timeout = 10000): Promise<boolean> {
 
   while (Date.now() - startTime < timeout) {
     try {
-      const response = await fetch(`${serverUrl}/health`);
+      // Use /app endpoint as per OpenCode server docs
+      const response = await fetch(`${serverUrl}/app`);
       if (response.ok) {
         return true;
       }
@@ -114,4 +116,13 @@ export async function waitForOpencodeServer(timeout = 10000): Promise<boolean> {
   }
 
   return false;
+}
+
+/**
+ * Get OpenAPI spec URL for the server
+ * Available at http://<hostname>:<port>/doc
+ */
+export function getOpencodeDocUrl(): string {
+  const serverUrl = getOpencodeServerUrl();
+  return `${serverUrl}/doc`;
 }
