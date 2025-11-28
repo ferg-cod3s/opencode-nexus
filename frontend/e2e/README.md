@@ -4,6 +4,51 @@
 
 This directory contains end-to-end tests for the OpenCode Nexus client application using Playwright. The tests are organized around the actual client-based architecture after the pivot from server management.
 
+## OpenCode Server Integration
+
+### Running Tests with a Real OpenCode Server
+
+For integration testing with a real OpenCode server (instead of mocks), you can use the built-in server integration:
+
+1. **Install opencode-ai globally:**
+   ```bash
+   npm i -g opencode-ai
+   ```
+
+2. **Run tests with OpenCode server:**
+   ```bash
+   USE_OPENCODE_SERVER=true npm run test:e2e
+   ```
+
+This will:
+- Start an OpenCode server on `http://127.0.0.1:4096` using `@opencode-ai/sdk`'s `createOpencodeServer`
+- Run all E2E tests against the real server
+- Automatically shut down the server when tests complete
+
+### Using OpenCode Server in Tests
+
+```typescript
+import { isOpencodeServerAvailable, getOpencodeServerUrl } from './helpers/opencode-server';
+
+test('chat with real server', async ({ page }) => {
+  // Skip test if no real server is available
+  if (!isOpencodeServerAvailable()) {
+    test.skip();
+    return;
+  }
+  
+  const serverUrl = getOpencodeServerUrl();
+  // ... test with real server
+});
+```
+
+### Available Helper Functions
+
+- `isOpencodeServerAvailable()` - Check if an OpenCode server is running
+- `getOpencodeServerUrl()` - Get the server URL
+- `waitForOpencodeServer(timeout)` - Wait for server to be ready
+- `getOpencodeClientConfig()` - Get client configuration for SDK
+
 ## Test Organization
 
 ### ✅ Active Tests (Modern Architecture)

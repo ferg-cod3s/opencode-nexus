@@ -25,12 +25,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
+ * Playwright E2E Test Configuration
+ * 
+ * To run tests with a real OpenCode server:
+ * 1. Install opencode-ai: npm i -g opencode-ai
+ * 2. Run: USE_OPENCODE_SERVER=true npm run test:e2e
+ * 
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
   testDir: './e2e',
-  /* Global setup disabled to avoid configuration issues */
-  // globalSetup: './e2e/global-setup.ts',
+  
+  /* Global setup/teardown for OpenCode server integration */
+  globalSetup: process.env.USE_OPENCODE_SERVER === 'true' ? './e2e/global-setup.ts' : undefined,
+  globalTeardown: process.env.USE_OPENCODE_SERVER === 'true' ? './e2e/global-teardown.ts' : undefined,
+  
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -68,7 +77,7 @@ export default defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: 'bun run dev',
+    command: 'npm run dev',
     url: 'http://localhost:1420',
     reuseExistingServer: true, // Use existing server to avoid conflicts
     timeout: 120 * 1000,
