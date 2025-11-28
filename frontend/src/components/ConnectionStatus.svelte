@@ -57,103 +57,69 @@
 </div>
 
 <style>
+  /* OpenCode-inspired Connection Status Styling */
   .connection-status {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    border-radius: 0.5rem;
-    background: hsl(0, 0%, 98%);
-    border: 1px solid hsl(220, 14%, 90%);
+    gap: var(--spacing-2);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-lg);
+    background: var(--background-weak);
+    border: 1px solid var(--border-weak);
   }
 
   .connection-status.connected {
-    background: hsl(120, 80%, 98%);
-    border-color: hsl(120, 70%, 85%);
+    background: rgba(18, 201, 5, 0.1);
+    border-color: var(--accent-success);
   }
 
   .connection-status.error {
-    background: hsl(0, 84%, 98%);
-    border-color: hsl(0, 84%, 85%);
+    background: rgba(252, 83, 58, 0.1);
+    border-color: var(--accent-error);
   }
 
   .status-indicator {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-weight: 500;
-    font-size: 0.95rem;
+    gap: var(--spacing-2);
+    font-weight: var(--font-weight-medium);
+    font-size: var(--font-size-small);
   }
 
   .icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.1rem;
+    font-size: 1rem;
     line-height: 1;
   }
 
   .label {
-    color: hsl(220, 10%, 30%);
+    color: var(--text-base);
   }
 
   .connection-status.connected .label {
-    color: hsl(120, 40%, 25%);
+    color: var(--accent-success);
   }
 
   .connection-status.error .label {
-    color: hsl(0, 84%, 25%);
+    color: var(--accent-error);
   }
 
   .error-message {
-    margin-left: 1.6rem;
-    padding: 0.5rem 0;
-    font-size: 0.85rem;
-    color: hsl(0, 84%, 35%);
-    border-left: 2px solid hsl(0, 84%, 60%);
-    padding-left: 0.75rem;
-    line-height: 1.4;
+    margin-left: 1.5rem;
+    padding: var(--spacing-2) 0;
+    font-size: var(--font-size-small);
+    color: var(--accent-error);
+    border-left: 2px solid var(--accent-error);
+    padding-left: var(--spacing-3);
+    line-height: var(--line-height-base);
   }
 
   /* Accessibility: ensure visibility at all times */
   @media (prefers-reduced-motion: reduce) {
     .connection-status {
       transition: none;
-    }
-  }
-
-  /* Dark mode support */
-  @media (prefers-color-scheme: dark) {
-    .connection-status {
-      background: hsl(220, 20%, 15%);
-      border-color: hsl(220, 20%, 25%);
-    }
-
-    .connection-status.connected {
-      background: hsl(120, 30%, 20%);
-      border-color: hsl(120, 30%, 30%);
-    }
-
-    .connection-status.error {
-      background: hsl(0, 40%, 20%);
-      border-color: hsl(0, 40%, 30%);
-    }
-
-    .label {
-      color: hsl(220, 10%, 80%);
-    }
-
-    .connection-status.connected .label {
-      color: hsl(120, 40%, 75%);
-    }
-
-    .connection-status.error .label {
-      color: hsl(0, 70%, 75%);
-    }
-
-    .error-message {
-      color: hsl(0, 70%, 70%);
-      border-left-color: hsl(0, 70%, 50%);
     }
   }
 </style>

@@ -17,13 +17,14 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <style>
+  /* OpenCode-inspired Startup Page Styling */
   .startup-container {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1.5rem;
-    background: hsl(220, 20%, 98%);
+    padding: var(--spacing-6);
+    background: var(--background-base);
   }
 
   .startup-content {
@@ -33,18 +34,21 @@ import Layout from '../layouts/Layout.astro';
 
   .startup-title {
     font-size: 1.75rem;
-    font-weight: 600;
-    margin-bottom: 0.75rem;
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-strong);
+    margin-bottom: var(--spacing-3);
   }
 
   .startup-description {
-    margin-bottom: 0.5rem;
-    color: hsl(220, 10%, 40%);
+    margin-bottom: var(--spacing-2);
+    color: var(--text-base);
+    line-height: var(--line-height-relaxed);
   }
 
   .startup-hint {
-    font-size: 0.9rem;
-    color: hsl(220, 10%, 55%);
+    font-size: var(--font-size-small);
+    color: var(--text-muted);
+    line-height: var(--line-height-relaxed);
   }
 </style>
 

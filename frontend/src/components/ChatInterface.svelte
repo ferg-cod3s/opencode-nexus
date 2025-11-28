@@ -322,15 +322,13 @@
 </div>
 
 <style>
-  /* Mobile-first responsive design */
+  /* OpenCode-inspired Chat Interface Styling */
   .chat-interface {
     display: flex;
     flex-direction: column;
-    height: 100vh; /* Full viewport height on mobile */
-    height: 100%; /* Fallback for desktop */
-    background: hsl(0, 0%, 100%);
-    border-radius: 0; /* Mobile-first: no border radius */
-    box-shadow: none; /* Mobile-first: no shadow */
+    height: 100vh;
+    height: 100%;
+    background: var(--background-base);
     overflow: hidden;
     position: relative;
   }
@@ -345,9 +343,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
-    background: hsl(220, 20%, 95%);
-    border-bottom: 1px solid hsl(220, 20%, 90%);
+    gap: var(--spacing-2);
+    background: var(--background-weak);
+    border-bottom: 1px solid var(--border-weak);
     z-index: 10;
     transform: translateY(-100%);
     transition: transform 0.3s ease;
@@ -359,46 +357,46 @@
 
   .refresh-icon {
     font-size: 1.25rem;
-    color: hsl(220, 10%, 60%);
+    color: var(--text-muted);
     transition: transform 0.3s ease;
   }
 
   .refresh-text {
-    font-size: 0.875rem;
-    color: hsl(220, 10%, 60%);
+    font-size: var(--font-size-small);
+    color: var(--text-muted);
   }
 
-  /* Header - touch-friendly sizing */
+  /* Header - OpenCode style */
   .chat-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0.75rem 1rem; /* Mobile-first padding */
-    border-bottom: 1px solid hsl(220, 20%, 90%);
-    background: hsl(220, 20%, 98%);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--border-weak);
+    background: var(--background-surface);
     flex-shrink: 0;
-    min-height: 56px; /* Ensure touch-friendly header height */
+    min-height: 56px;
   }
 
   .header-controls {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--spacing-3);
     flex-shrink: 0;
   }
 
   .session-info {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
-    min-width: 0; /* Allow text truncation */
+    gap: var(--spacing-1);
+    min-width: 0;
     flex: 1;
   }
 
   .session-title {
-    font-size: 1rem; /* Mobile-first font size */
-    font-weight: 600;
-    color: hsl(220, 20%, 20%);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-strong);
     margin: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -406,54 +404,52 @@
   }
 
   .message-count {
-    font-size: 0.75rem;
-    color: hsl(220, 10%, 60%);
+    font-size: var(--font-size-small);
+    color: var(--text-muted);
   }
 
-  /* Touch-friendly close button - 44px minimum */
+  /* Close button - OpenCode style icon button */
   .close-btn {
-    background: none;
+    background: transparent;
     border: none;
-    color: hsl(220, 10%, 60%);
+    color: var(--text-muted);
     font-size: 1.25rem;
     cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 6px;
-    transition: all 0.2s ease;
+    padding: var(--spacing-2);
+    border-radius: var(--radius-md);
+    transition: all 0.15s ease;
     min-width: 44px;
     min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: -0.25rem; /* Compensate for padding to maintain layout */
   }
 
   .close-btn:hover {
-    background: hsl(220, 20%, 90%);
-    color: hsl(220, 20%, 20%);
+    background: var(--button-ghost-hover);
+    color: var(--text-strong);
   }
 
-  .close-btn:focus {
-    outline: 2px solid hsl(220, 90%, 60%);
+  .close-btn:focus-visible {
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
   }
 
   .close-btn:active {
-    background: hsl(220, 20%, 85%);
     transform: scale(0.95);
   }
 
-  /* Messages container with touch optimizations */
+  /* Messages container */
   .messages-container {
     flex: 1;
     overflow-y: auto;
-    padding: 0.75rem 1rem; /* Mobile-first padding */
+    padding: var(--spacing-4);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--spacing-3);
     scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch; /* iOS smooth scrolling */
-    overscroll-behavior: contain; /* Prevent scroll chaining */
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     transition: transform 0.3s ease;
   }
 
@@ -468,32 +464,33 @@
   }
 
   .message-wrapper:active {
-    background: hsla(220, 20%, 95%, 0.5);
-    border-radius: 8px;
+    background: var(--button-ghost-hover);
+    border-radius: var(--radius-lg);
   }
 
+  /* Loading indicator - OpenCode style */
   .loading-indicator {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
-    background: hsl(220, 20%, 95%);
-    border-radius: 18px;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3) var(--spacing-4);
+    background: var(--chat-assistant-bubble);
+    border-radius: var(--radius-xl);
     align-self: flex-start;
-    margin-bottom: 1rem;
-    min-height: 44px; /* Touch-friendly */
+    margin-bottom: var(--spacing-4);
+    min-height: 44px;
   }
 
   .typing-dots {
     display: flex;
-    gap: 0.25rem;
+    gap: 4px;
   }
 
   .typing-dots span {
     width: 6px;
     height: 6px;
     border-radius: 50%;
-    background: hsl(220, 10%, 60%);
+    background: var(--text-muted);
     animation: typing 1.4s infinite ease-in-out;
   }
 
@@ -530,27 +527,27 @@
 
   /* Keyboard visible adjustments */
   .chat-interface.keyboard-visible .messages-container {
-    padding-bottom: 1rem; /* Extra space when keyboard is visible */
+    padding-bottom: var(--spacing-4);
   }
 
   /* Tablet breakpoint (768px+) */
   @media (min-width: 768px) {
     .chat-interface {
-      border-radius: 12px;
-      box-shadow: 0 4px 20px hsla(220, 20%, 20%, 0.1);
-      height: 100%; /* Use container height instead of viewport */
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow-lg);
+      height: 100%;
     }
 
     .chat-header {
-      padding: 1rem 1.5rem;
+      padding: var(--spacing-4) var(--spacing-6);
     }
 
     .session-title {
-      font-size: 1.125rem;
+      font-size: var(--font-size-large);
     }
 
     .messages-container {
-      padding: 1rem 1.5rem;
+      padding: var(--spacing-4) var(--spacing-6);
     }
 
     .close-btn {
@@ -563,43 +560,32 @@
   /* Desktop breakpoint (1024px+) */
   @media (min-width: 1024px) {
     .chat-interface {
-      max-width: 800px;
+      max-width: 900px;
       margin: 0 auto;
     }
 
     .messages-container {
-      padding: 1.5rem 2rem;
+      padding: var(--spacing-6) var(--spacing-8);
     }
   }
 
   /* High contrast mode support */
   @media (prefers-contrast: high) {
     .chat-header {
-      border-bottom: 2px solid hsl(0, 0%, 0%);
-      background: hsl(0, 0%, 100%);
+      border-bottom: 2px solid currentColor;
     }
 
     .close-btn:hover {
-      background: hsl(0, 0%, 0%);
-      color: hsl(0, 0%, 100%);
-    }
-
-    .close-btn:focus {
-      outline: 3px solid hsl(0, 0%, 0%);
+      background: currentColor;
+      color: var(--background-base);
     }
 
     .loading-indicator {
-      background: hsl(0, 0%, 100%);
-      border: 2px solid hsl(0, 0%, 0%);
+      border: 2px solid currentColor;
     }
 
     .typing-dots span {
-      background: hsl(0, 0%, 0%);
-    }
-
-    .pull-refresh-indicator {
-      background: hsl(0, 0%, 100%);
-      border-bottom: 2px solid hsl(0, 0%, 0%);
+      background: currentColor;
     }
   }
 
@@ -617,14 +603,8 @@
       animation: none;
     }
 
-    .pull-refresh-indicator {
-      transition: none;
-    }
-
-    .refresh-icon {
-      transition: none;
-    }
-
+    .pull-refresh-indicator,
+    .refresh-icon,
     .messages-container {
       transition: none;
     }
@@ -633,11 +613,11 @@
   /* Touch device optimizations */
   @media (hover: none) and (pointer: coarse) {
     .close-btn:hover {
-      background: none; /* Remove hover effects on touch devices */
+      background: transparent;
     }
 
     .message-wrapper:active {
-      background: hsla(220, 20%, 95%, 0.3);
+      background: var(--button-ghost-hover);
     }
   }
 
