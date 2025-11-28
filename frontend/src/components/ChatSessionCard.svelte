@@ -109,123 +109,133 @@
 </div>
 
 <style>
+  /* OpenCode-inspired Chat Session Card Styling */
   .session-card {
-    background: hsl(220, 20%, 98%);
-    border: 2px solid hsl(220, 20%, 90%);
-    border-radius: 8px;
-    padding: 1rem;
+    background: var(--background-surface);
+    border: 1px solid var(--border-weak);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all 0.15s ease;
     position: relative;
   }
 
   .session-card:hover {
-    border-color: hsl(220, 60%, 60%);
-    box-shadow: 0 2px 8px hsla(220, 60%, 60%, 0.2);
+    border-color: var(--border-base);
+    background: var(--button-ghost-hover);
   }
 
-  .session-card:focus {
-    outline: 2px solid hsl(220, 90%, 60%);
+  .session-card:focus-visible {
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
   }
 
   .session-card.active {
-    border-color: hsl(220, 90%, 60%);
-    background: hsl(220, 30%, 96%);
+    border-color: var(--accent-primary);
+    background: var(--active-highlight);
   }
 
   .session-header {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--spacing-2);
   }
 
   .session-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: hsl(220, 20%, 20%);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-strong);
     margin: 0;
     flex: 1;
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .delete-btn {
     background: none;
     border: none;
-    color: hsl(0, 60%, 50%);
+    color: var(--accent-error);
     font-size: 1.25rem;
     cursor: pointer;
-    padding: 0.5rem; /* Mobile-friendly padding for 44px touch target */
-    border-radius: 4px;
-    transition: background-color 0.2s ease;
+    padding: var(--spacing-2);
+    border-radius: var(--radius-md);
+    transition: background-color 0.15s ease;
     flex-shrink: 0;
     min-width: 44px;
     min-height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
+    margin: calc(var(--spacing-2) * -1);
   }
 
   .delete-btn:hover {
-    background: hsl(0, 60%, 95%);
+    background: rgba(252, 83, 58, 0.1);
   }
 
-  .delete-btn:focus {
-    outline: 2px solid hsl(0, 60%, 50%);
+  .delete-btn:focus-visible {
+    outline: 2px solid var(--accent-error);
     outline-offset: 2px;
   }
 
   .session-preview {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--spacing-3);
   }
 
   .preview-text {
-    font-size: 0.875rem;
-    color: hsl(220, 10%, 50%);
+    font-size: var(--font-size-small);
+    color: var(--text-base);
     margin: 0;
-    line-height: 1.4;
+    line-height: var(--line-height-base);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .session-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 0.75rem;
-    color: hsl(220, 10%, 60%);
+    font-size: var(--font-size-small);
+    color: var(--text-muted);
   }
 
   .message-count {
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
+  }
+
+  .session-time {
+    font-family: var(--font-family-mono);
+    font-size: 11px;
   }
 
   /* High contrast mode support */
   @media (prefers-contrast: high) {
     .session-card {
-      border: 2px solid hsl(0, 0%, 0%);
+      border: 2px solid currentColor;
     }
 
     .session-card:hover {
-      border-color: hsl(0, 0%, 0%);
-      box-shadow: 0 2px 8px hsla(0, 0%, 0%, 0.3);
+      border-color: currentColor;
     }
 
-    .session-card:focus {
-      outline: 3px solid hsl(0, 0%, 0%);
+    .session-card:focus-visible {
+      outline: 3px solid currentColor;
     }
 
     .session-card.active {
-      border-color: hsl(0, 0%, 0%);
-      background: hsl(0, 0%, 95%);
+      border-color: currentColor;
+      background: var(--button-ghost-hover);
     }
   }
 
   /* Reduced motion support */
   @media (prefers-reduced-motion: reduce) {
-    .session-card {
-      transition: none;
-    }
-
+    .session-card,
     .delete-btn {
       transition: none;
     }

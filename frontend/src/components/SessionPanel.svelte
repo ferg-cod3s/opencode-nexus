@@ -179,12 +179,13 @@
 </div>
 
 <style>
+  /* OpenCode-inspired Session Panel Styling */
   .session-panel {
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: hsl(220, 20%, 96%);
-    border-right: 1px solid hsl(220, 20%, 90%);
+    background: var(--background-weak);
+    border-right: 1px solid var(--border-weak);
     overflow: hidden;
   }
 
@@ -192,16 +193,16 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1rem;
-    border-bottom: 1px solid hsl(220, 20%, 90%);
+    padding: var(--spacing-4);
+    border-bottom: 1px solid var(--border-weak);
     flex-shrink: 0;
-    gap: 0.75rem;
+    gap: var(--spacing-3);
   }
 
   .header-content {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--spacing-3);
     flex: 1;
     min-width: 0;
   }
@@ -209,12 +210,12 @@
   .toggle-btn {
     background: none;
     border: none;
-    color: hsl(220, 20%, 40%);
+    color: var(--text-muted);
     font-size: 1.25rem;
     cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 4px;
-    transition: background-color 0.2s ease, transform 0.2s ease;
+    padding: var(--spacing-2);
+    border-radius: var(--radius-md);
+    transition: background-color 0.15s ease, transform 0.15s ease;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -224,47 +225,48 @@
   }
 
   .toggle-btn:hover {
-    background: hsl(220, 20%, 88%);
+    background: var(--button-ghost-hover);
+    color: var(--text-strong);
   }
 
-  .toggle-btn:focus {
-    outline: 2px solid hsl(220, 90%, 60%);
+  .toggle-btn:focus-visible {
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
   }
 
   .toggle-icon {
     display: inline-block;
-    transition: transform 0.2s ease;
+    transition: transform 0.15s ease;
   }
 
   .panel-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    color: hsl(220, 20%, 20%);
+    font-size: var(--font-size-large);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-strong);
     margin: 0;
     flex: 1;
     min-width: 0;
   }
 
   .session-count {
-    font-size: 0.875rem;
-    color: hsl(220, 10%, 60%);
-    background: hsl(220, 20%, 88%);
-    padding: 0.25rem 0.5rem;
-    border-radius: 12px;
-    font-weight: 500;
+    font-size: var(--font-size-small);
+    color: var(--text-muted);
+    background: var(--button-ghost-hover);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--radius-full);
+    font-weight: var(--font-weight-medium);
     flex-shrink: 0;
   }
 
   .create-btn {
-    background: hsl(220, 90%, 60%);
-    color: white;
+    background: var(--button-primary-bg);
+    color: var(--button-primary-text);
     border: none;
-    border-radius: 8px;
+    border-radius: var(--radius-md);
     font-size: 1.25rem;
     cursor: pointer;
-    padding: 0.5rem;
-    transition: background-color 0.2s ease;
+    padding: var(--spacing-2);
+    transition: filter 0.15s ease;
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -272,11 +274,11 @@
   }
 
   .create-btn:hover:not(:disabled) {
-    background: hsl(220, 90%, 50%);
+    filter: brightness(1.1);
   }
 
-  .create-btn:focus {
-    outline: 2px solid hsl(220, 90%, 60%);
+  .create-btn:focus-visible {
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
   }
 
@@ -289,58 +291,43 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: hsl(0, 80%, 95%);
-    border-bottom: 1px solid hsl(0, 60%, 50%);
-    color: hsl(0, 60%, 30%);
-    padding: 0.75rem 1rem;
-    font-size: 0.875rem;
-    gap: 0.75rem;
+    background: rgba(252, 83, 58, 0.1);
+    border-bottom: 1px solid var(--accent-error);
+    color: var(--accent-error);
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--font-size-small);
+    gap: var(--spacing-3);
     flex-shrink: 0;
   }
 
   .error-close {
     background: none;
     border: none;
-    color: hsl(0, 60%, 50%);
+    color: var(--accent-error);
     font-size: 1.25rem;
     cursor: pointer;
-    padding: 0.5rem;
+    padding: var(--spacing-2);
     flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
     min-width: 44px;
     min-height: 44px;
+    border-radius: var(--radius-md);
+    transition: background-color 0.15s ease;
   }
 
   .error-close:hover {
-    color: hsl(0, 60%, 30%);
+    background: rgba(252, 83, 58, 0.2);
   }
 
   .sessions-list {
     flex: 1;
     overflow-y: auto;
-    padding: 0.75rem;
+    padding: var(--spacing-3);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .sessions-list::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .sessions-list::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .sessions-list::-webkit-scrollbar-thumb {
-    background: hsl(220, 20%, 80%);
-    border-radius: 3px;
-  }
-
-  .sessions-list::-webkit-scrollbar-thumb:hover {
-    background: hsl(220, 20%, 70%);
+    gap: var(--spacing-3);
   }
 
   .empty-state {
@@ -349,22 +336,22 @@
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: hsl(220, 10%, 60%);
+    color: var(--text-muted);
     text-align: center;
-    padding: 2rem 1rem;
+    padding: var(--spacing-8) var(--spacing-4);
   }
 
   .empty-state p {
-    margin: 0.5rem 0;
+    margin: var(--spacing-2) 0;
   }
 
   .empty-state p:first-child {
-    font-weight: 500;
-    color: hsl(220, 20%, 40%);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-base);
   }
 
   .empty-hint {
-    font-size: 0.875rem;
+    font-size: var(--font-size-small);
   }
 
   .sr-only {
@@ -382,22 +369,20 @@
   /* High contrast mode support */
   @media (prefers-contrast: high) {
     .session-panel {
-      border-right: 2px solid hsl(0, 0%, 0%);
+      border-right: 2px solid currentColor;
     }
 
     .panel-header {
-      border-bottom: 2px solid hsl(0, 0%, 0%);
+      border-bottom: 2px solid currentColor;
     }
 
     .create-btn {
-      background: hsl(0, 0%, 0%);
-      color: hsl(0, 0%, 100%);
-      border: 2px solid hsl(0, 0%, 0%);
+      background: currentColor;
+      border: 2px solid currentColor;
     }
 
     .error-banner {
-      border-bottom: 2px solid hsl(0, 100%, 30%);
-      background: hsl(0, 100%, 95%);
+      border-bottom: 2px solid currentColor;
     }
   }
 
@@ -405,7 +390,8 @@
   @media (prefers-reduced-motion: reduce) {
     .toggle-btn,
     .toggle-icon,
-    .create-btn {
+    .create-btn,
+    .error-close {
       transition: none;
     }
   }
@@ -417,36 +403,36 @@
     }
 
     .panel-title {
-      font-size: 1rem;
+      font-size: var(--font-size-base);
     }
 
     .session-count {
-      font-size: 0.75rem;
-      padding: 0.125rem 0.375rem;
+      font-size: var(--font-size-small);
+      padding: 2px var(--spacing-2);
     }
   }
 
   /* Tablet breakpoint (768px+) */
   @media (min-width: 768px) {
     .session-panel {
-      width: 280px;
+      width: 260px;
       max-height: none;
     }
 
     .panel-header {
-      padding: 1.25rem;
+      padding: var(--spacing-5);
     }
 
     .sessions-list {
-      padding: 1rem;
-      gap: 1rem;
+      padding: var(--spacing-4);
+      gap: var(--spacing-4);
     }
   }
 
   /* Desktop breakpoint (1024px+) */
   @media (min-width: 1024px) {
     .session-panel {
-      width: 320px;
+      width: 280px;
     }
   }
 </style>

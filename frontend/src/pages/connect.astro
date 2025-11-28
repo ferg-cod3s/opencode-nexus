@@ -235,38 +235,40 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <style>
+  /* OpenCode-inspired Connect Page Styling */
   .connect-container {
     min-height: 100vh;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, hsl(220, 90%, 25%) 0%, hsl(220, 90%, 35%) 100%);
-    padding: 1rem;
+    background: var(--background-base);
+    padding: var(--spacing-4);
   }
 
   .connect-content {
-    background: white;
-    border-radius: 1rem;
-    box-shadow: 0 20px 25px -5px hsla(0, 0%, 0%, 0.1), 0 10px 10px -5px hsla(0, 0%, 0%, 0.04);
+    background: var(--background-surface);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
     max-width: 560px;
     width: 100%;
-    padding: 2rem;
+    padding: var(--spacing-8);
+    border: 1px solid var(--border-weak);
   }
 
   .connect-header {
     text-align: center;
-    margin-bottom: 2rem;
+    margin-bottom: var(--spacing-8);
   }
 
   .connect-title {
     font-size: 1.75rem;
-    color: hsl(220, 90%, 25%);
-    margin-bottom: 0.5rem;
-    font-weight: 600;
+    color: var(--text-strong);
+    margin-bottom: var(--spacing-2);
+    font-weight: var(--font-weight-semibold);
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.75rem;
+    gap: var(--spacing-3);
   }
 
   .logo-icon {
@@ -274,16 +276,16 @@ import Layout from '../layouts/Layout.astro';
   }
 
   .connect-subtitle {
-    color: hsl(220, 20%, 60%);
-    font-size: 1rem;
+    color: var(--text-base);
+    font-size: var(--font-size-base);
     margin: 0;
-    line-height: 1.5;
+    line-height: var(--line-height-relaxed);
   }
 
   .connect-form {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: var(--spacing-6);
   }
 
   .form-group {
@@ -292,33 +294,34 @@ import Layout from '../layouts/Layout.astro';
   }
 
   .form-label {
-    font-weight: 500;
-    color: hsl(220, 90%, 25%);
-    margin-bottom: 0.5rem;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-strong);
+    margin-bottom: var(--spacing-2);
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: var(--spacing-1);
+    font-size: var(--font-size-small);
   }
 
   .required-indicator {
-    color: hsl(0, 70%, 50%);
+    color: var(--accent-error);
     font-weight: bold;
   }
 
   .optional-indicator {
-    color: hsl(220, 20%, 60%);
+    color: var(--text-muted);
     font-weight: normal;
-    font-size: 0.875rem;
+    font-size: var(--font-size-small);
   }
 
   .form-input, .form-select {
-    padding: 0.875rem 1rem;
-    border: 2px solid hsl(0, 0%, 90%);
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    transition: all 0.3s ease;
-    background: white;
-    color: hsl(220, 15%, 20%);
+    padding: var(--spacing-3) var(--spacing-4);
+    border: 1px solid var(--input-border);
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    transition: all 0.15s ease;
+    background: var(--input-background);
+    color: var(--text-strong);
   }
 
   .form-select {
@@ -327,8 +330,12 @@ import Layout from '../layouts/Layout.astro';
 
   .form-input:focus, .form-select:focus {
     outline: none;
-    border-color: hsl(220, 90%, 60%);
-    box-shadow: 0 0 0 3px hsla(220, 90%, 60%, 0.1);
+    border-color: var(--input-border-focus);
+    box-shadow: var(--focus-ring);
+  }
+
+  .form-input.error {
+    border-color: var(--accent-error);
   }
 
   .password-input-container {
@@ -337,49 +344,53 @@ import Layout from '../layouts/Layout.astro';
     align-items: center;
   }
 
+  .password-input-container .form-input {
+    padding-right: var(--spacing-10);
+  }
+
   .password-toggle {
     position: absolute;
-    right: 0.75rem;
+    right: var(--spacing-3);
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0.25rem;
-    border-radius: 0.25rem;
-    color: hsl(220, 20%, 60%);
-    transition: color 0.3s ease;
+    padding: var(--spacing-1);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    transition: color 0.15s ease;
   }
 
   .password-toggle:hover {
-    color: hsl(220, 90%, 60%);
+    color: var(--text-strong);
   }
 
-  .password-toggle:focus {
-    outline: 2px solid hsl(220, 90%, 60%);
+  .password-toggle:focus-visible {
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
   }
 
   .help-text {
-    font-size: 0.875rem;
-    color: hsl(220, 20%, 60%);
-    margin-top: 0.5rem;
+    font-size: var(--font-size-small);
+    color: var(--text-muted);
+    margin-top: var(--spacing-2);
     margin-bottom: 0;
-    line-height: 1.4;
+    line-height: var(--line-height-base);
   }
 
   .help-text code {
-    background: hsl(0, 0%, 95%);
-    padding: 0.125rem 0.375rem;
-    border-radius: 0.25rem;
-    font-family: 'Courier New', monospace;
+    background: var(--background-weak);
+    padding: 2px var(--spacing-2);
+    border-radius: var(--radius-sm);
+    font-family: var(--font-family-mono);
     font-size: 0.85em;
   }
 
   .error-message {
-    font-size: 0.875rem;
-    color: hsl(0, 70%, 50%);
-    margin-top: 0.5rem;
+    font-size: var(--font-size-small);
+    color: var(--accent-error);
+    margin-top: var(--spacing-2);
     min-height: 1.2em;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
   }
 
   .error-message:empty {
@@ -387,53 +398,55 @@ import Layout from '../layouts/Layout.astro';
   }
 
   .form-actions {
-    margin-top: 1rem;
+    margin-top: var(--spacing-4);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--spacing-3);
   }
 
   .btn-connect, .btn-test-connection {
     width: 100%;
-    padding: 1rem 1.5rem;
+    padding: var(--spacing-4) var(--spacing-6);
     border: none;
-    border-radius: 0.5rem;
-    font-size: 1rem;
-    font-weight: 500;
+    border-radius: var(--radius-lg);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: var(--spacing-2);
+    min-height: 48px;
   }
 
   .btn-connect {
-    background: hsl(220, 90%, 60%);
-    color: white;
+    background: var(--button-primary-bg);
+    color: var(--button-primary-text);
   }
 
   .btn-connect:hover:not(:disabled) {
-    background: hsl(220, 90%, 50%);
-    transform: translateY(-1px);
-    box-shadow: 0 10px 15px -3px hsla(0, 0%, 0%, 0.1);
+    filter: brightness(1.1);
   }
 
   .btn-test-connection {
-    background: white;
-    color: hsl(220, 90%, 60%);
-    border: 2px solid hsl(220, 90%, 60%);
+    background: var(--button-secondary-bg);
+    color: var(--text-strong);
+    border: 1px solid var(--border-base);
   }
 
   .btn-test-connection:hover:not(:disabled) {
-    background: hsl(220, 90%, 95%);
+    background: var(--button-ghost-hover);
   }
 
   .btn-connect:disabled, .btn-test-connection:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
+  }
+
+  .btn-connect:focus-visible, .btn-test-connection:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
   }
 
   .loading-spinner {
@@ -462,31 +475,31 @@ import Layout from '../layouts/Layout.astro';
   }
 
   .form-footer {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid hsl(0, 0%, 95%);
+    margin-top: var(--spacing-8);
+    padding-top: var(--spacing-6);
+    border-top: 1px solid var(--border-weak);
   }
 
   .help-section {
-    background: hsl(0, 0%, 98%);
-    border-radius: 0.5rem;
+    background: var(--background-weak);
+    border-radius: var(--radius-lg);
     overflow: hidden;
   }
 
   .help-toggle {
-    padding: 1rem;
+    padding: var(--spacing-4);
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    color: hsl(220, 90%, 25%);
-    font-weight: 500;
-    transition: background-color 0.3s ease;
+    gap: var(--spacing-3);
+    color: var(--text-strong);
+    font-weight: var(--font-weight-medium);
+    transition: background-color 0.15s ease;
     list-style: none;
   }
 
   .help-toggle:hover {
-    background: hsl(0, 0%, 95%);
+    background: var(--button-ghost-hover);
   }
 
   .help-toggle::marker {
@@ -494,24 +507,24 @@ import Layout from '../layouts/Layout.astro';
   }
 
   .help-content {
-    padding: 0 1rem 1rem 1rem;
-    color: hsl(220, 20%, 40%);
+    padding: 0 var(--spacing-4) var(--spacing-4) var(--spacing-4);
+    color: var(--text-base);
   }
 
   .help-content h3 {
-    color: hsl(220, 90%, 25%);
-    margin-bottom: 1rem;
-    font-size: 1rem;
+    color: var(--text-strong);
+    margin-bottom: var(--spacing-4);
+    font-size: var(--font-size-base);
   }
 
   .guide-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--spacing-6);
   }
 
   .guide-section h4 {
-    color: hsl(220, 90%, 25%);
-    margin-bottom: 0.5rem;
-    font-size: 0.95rem;
+    color: var(--text-strong);
+    margin-bottom: var(--spacing-2);
+    font-size: var(--font-size-small);
   }
 
   .guide-section ul {
@@ -521,15 +534,15 @@ import Layout from '../layouts/Layout.astro';
   }
 
   .guide-section li {
-    padding: 0.375rem 0;
-    line-height: 1.5;
-    font-size: 0.875rem;
+    padding: var(--spacing-1) 0;
+    line-height: var(--line-height-relaxed);
+    font-size: var(--font-size-small);
   }
 
   .help-content a {
-    color: hsl(220, 90%, 60%);
+    color: var(--accent-primary);
     text-decoration: none;
-    font-weight: 500;
+    font-weight: var(--font-weight-medium);
   }
 
   .help-content a:hover {
@@ -537,64 +550,65 @@ import Layout from '../layouts/Layout.astro';
   }
 
   .connection-status {
-    margin-top: 2rem;
-    padding: 1rem;
-    background: hsl(0, 0%, 98%);
-    border-radius: 0.5rem;
-    border: 1px solid hsl(0, 0%, 90%);
+    margin-top: var(--spacing-8);
+    padding: var(--spacing-4);
+    background: var(--background-weak);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-weak);
   }
 
   .status-item {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    font-size: 0.875rem;
-    color: hsl(220, 20%, 60%);
+    gap: var(--spacing-3);
+    font-size: var(--font-size-small);
+    color: var(--text-base);
   }
 
   .status-icon {
-    font-size: 1rem;
+    font-size: var(--font-size-base);
   }
 
   .global-alert {
     position: fixed;
-    top: 1rem;
-    right: 1rem;
+    top: var(--spacing-4);
+    right: var(--spacing-4);
     max-width: 400px;
     z-index: 1000;
     animation: slideIn 0.3s ease;
   }
 
   .alert-content {
-    background: white;
-    border-radius: 0.5rem;
-    padding: 1rem;
-    box-shadow: 0 10px 15px -3px hsla(0, 0%, 0%, 0.1);
-    border-left: 4px solid hsl(220, 90%, 60%);
+    background: var(--background-surface);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+    box-shadow: var(--shadow-lg);
+    border-left: 4px solid var(--accent-primary);
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: var(--spacing-3);
   }
 
   .global-alert.error .alert-content {
-    border-left-color: hsl(0, 70%, 50%);
+    border-left-color: var(--accent-error);
   }
 
   .global-alert.success .alert-content {
-    border-left-color: hsl(120, 50%, 50%);
+    border-left-color: var(--accent-success);
   }
 
   .alert-dismiss {
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0.25rem;
-    color: hsl(220, 20%, 60%);
-    border-radius: 0.25rem;
+    padding: var(--spacing-1);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    transition: background-color 0.15s ease;
   }
 
   .alert-dismiss:hover {
-    background: hsl(0, 0%, 95%);
+    background: var(--button-ghost-hover);
   }
 
   @keyframes slideIn {
@@ -611,7 +625,7 @@ import Layout from '../layouts/Layout.astro';
   /* Responsive design */
   @media (max-width: 568px) {
     .connect-content {
-      padding: 1.5rem;
+      padding: var(--spacing-6);
     }
 
     .connect-title {
@@ -619,7 +633,7 @@ import Layout from '../layouts/Layout.astro';
     }
 
     .form-actions {
-      gap: 0.5rem;
+      gap: var(--spacing-2);
     }
   }
 
@@ -644,10 +658,20 @@ import Layout from '../layouts/Layout.astro';
       animation: none;
       transition: none;
     }
+  }
 
-    .btn-connect:hover,
-    .btn-test-connection:hover {
-      transform: none;
+  /* High contrast mode */
+  @media (prefers-contrast: high) {
+    .connect-content {
+      border: 2px solid currentColor;
+    }
+
+    .form-input, .form-select {
+      border: 2px solid currentColor;
+    }
+
+    .btn-connect {
+      background: currentColor;
     }
   }
 </style>

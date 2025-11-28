@@ -59,9 +59,10 @@
 </div>
 
 <style>
+  /* OpenCode-inspired Message Bubble Styling */
   .message-bubble {
-    max-width: 85%; /* Mobile-first: wider on small screens */
-    margin-bottom: 0.75rem; /* Reduced margin for mobile */
+    max-width: 85%;
+    margin-bottom: var(--spacing-3);
     display: flex;
     flex-direction: column;
     position: relative;
@@ -78,29 +79,34 @@
   }
 
   .message-content {
-    padding: 0.75rem 1rem;
-    border-radius: 18px;
+    padding: var(--spacing-3) var(--spacing-4);
+    border-radius: var(--radius-xl);
     word-wrap: break-word;
     white-space: pre-wrap;
-    line-height: 1.4;
+    line-height: var(--line-height-base);
+    font-size: var(--font-size-base);
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 
   .message-bubble.user .message-content {
-    background: hsl(220, 90%, 60%);
-    color: white;
-    border-bottom-right-radius: 4px;
+    background: var(--chat-user-bubble);
+    color: var(--chat-user-text);
+    border-bottom-right-radius: var(--radius-sm);
   }
 
   .message-bubble.assistant .message-content {
-    background: hsl(220, 20%, 95%);
-    color: hsl(220, 20%, 20%);
-    border-bottom-left-radius: 4px;
+    background: var(--chat-assistant-bubble);
+    color: var(--chat-assistant-text);
+    border-bottom-left-radius: var(--radius-sm);
   }
 
   .message-footer {
-    margin-top: 0.25rem;
-    font-size: 0.75rem;
-    opacity: 0.7;
+    margin-top: var(--spacing-1);
+    font-size: var(--font-size-small);
+    color: var(--text-muted);
+    padding: 0 var(--spacing-1);
   }
 
   .message-bubble.user .message-footer {
@@ -110,7 +116,6 @@
   .message-bubble.assistant .message-footer {
     text-align: left;
   }
-
 
   .sr-only {
     position: absolute;
@@ -127,16 +132,16 @@
   /* High contrast mode support */
   @media (prefers-contrast: high) {
     .message-bubble.user .message-content {
-      background: hsl(0, 0%, 0%);
-      border: 2px solid hsl(0, 0%, 100%);
+      background: currentColor;
+      color: var(--background-base);
+      border: 2px solid currentColor;
     }
 
     .message-bubble.assistant .message-content {
-      background: hsl(0, 0%, 100%);
-      border: 2px solid hsl(0, 0%, 0%);
-      color: hsl(0, 0%, 0%);
+      background: var(--background-base);
+      border: 2px solid currentColor;
+      color: currentColor;
     }
-
   }
 
   /* Reduced motion support */
@@ -146,43 +151,26 @@
     }
   }
 
-  /* Mobile-first responsive design */
-  .message-content {
-    padding: 0.625rem 0.875rem; /* Mobile-first padding */
-    border-radius: 16px; /* Mobile-friendly border radius */
-    word-wrap: break-word;
-    white-space: pre-wrap;
-    line-height: 1.4;
-    font-size: 0.875rem; /* Mobile-first font size */
-    min-height: 44px; /* Ensure touch-friendly minimum height */
-    display: flex;
-    align-items: center;
-  }
-
-  .message-footer {
-    margin-top: 0.25rem;
-    font-size: 0.75rem;
-    opacity: 0.7;
-    padding: 0 0.25rem;
-  }
-
   /* Tablet breakpoint (768px+) */
   @media (min-width: 768px) {
     .message-bubble {
       max-width: 80%;
-      margin-bottom: 1rem;
+      margin-bottom: var(--spacing-4);
     }
 
     .message-content {
-      padding: 0.75rem 1rem;
-      border-radius: 18px;
-      font-size: 1rem;
-      min-height: auto; /* Remove min-height constraint on larger screens */
+      padding: var(--spacing-3) var(--spacing-4);
+      border-radius: var(--radius-2xl);
+      font-size: var(--font-size-base);
+      min-height: auto;
     }
 
-    .message-footer {
-      margin-top: 0.25rem;
-      font-size: 0.75rem;
+    .message-bubble.user .message-content {
+      border-bottom-right-radius: var(--radius-sm);
+    }
+
+    .message-bubble.assistant .message-content {
+      border-bottom-left-radius: var(--radius-sm);
     }
   }
 

@@ -31,21 +31,21 @@ const { title } = Astro.props;
     <!-- Service workers not required for iOS/Android native apps via Tauri -->
     <!-- See: frontend/public/sw.js for service worker implementation -->
     
-    <!-- Preload critical fonts -->
+    <!-- Preload critical fonts (Geist for sst/opencode style) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
     <!-- Security headers are set via HTTP headers in astro.config.mjs -->
     <!-- X-Content-Type-Options, X-Frame-Options, Cross-Origin-* headers -->
 
-    <!-- Theme colors -->
-    <meta name="theme-color" content="#1e40af" />
-    <meta name="msapplication-TileColor" content="#1e40af" />
+    <!-- Theme colors - OpenCode dark theme inspired -->
+    <meta name="theme-color" content="#131010" />
+    <meta name="msapplication-TileColor" content="#131010" />
 
     <!-- PWA and Mobile Optimization -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="OpenCode Nexus" />
     <meta name="msapplication-config" content="/browserconfig.xml" />
     <meta name="application-name" content="OpenCode Nexus" />
@@ -66,15 +66,199 @@ const { title } = Astro.props;
 </html>
 
 <style is:global>
+  /* ===================================================
+     OpenCode-Inspired Design System
+     Based on sst/opencode UI styling
+     =================================================== */
+
+  /* Color Palette - Smoke (warm gray with slight brown tones) */
+  :root {
+    /* Smoke Dark Colors */
+    --smoke-dark-1: #131010;
+    --smoke-dark-2: #1b1818;
+    --smoke-dark-3: #252121;
+    --smoke-dark-4: #2d2828;
+    --smoke-dark-5: #343030;
+    --smoke-dark-6: #3e3939;
+    --smoke-dark-7: #4b4646;
+    --smoke-dark-8: #645f5f;
+    --smoke-dark-9: #716c6b;
+    --smoke-dark-10: #7f7979;
+    --smoke-dark-11: #b7b1b1;
+    --smoke-dark-12: #f1ecec;
+
+    /* Smoke Light Colors */
+    --smoke-light-1: #fdfcfc;
+    --smoke-light-2: #f9f8f8;
+    --smoke-light-3: #f1f0f0;
+    --smoke-light-4: #e9e8e8;
+    --smoke-light-5: #e2e0e0;
+    --smoke-light-6: #dad9d9;
+    --smoke-light-7: #cfcecd;
+    --smoke-light-8: #bcbbbb;
+    --smoke-light-9: #8e8b8b;
+    --smoke-light-10: #848181;
+    --smoke-light-11: #656363;
+    --smoke-light-12: #211e1e;
+
+    /* Cobalt (Blue accents) */
+    --cobalt-dark-9: #034cff;
+    --cobalt-dark-11: #89b5ff;
+    --cobalt-light-3: #eaf2ff;
+    --cobalt-light-9: #034cff;
+
+    /* Apple (Green - success) */
+    --apple-dark-9: #12c905;
+    --apple-dark-11: #37db2e;
+    --apple-light-9: #12c905;
+
+    /* Ember (Red - error/critical) */
+    --ember-dark-9: #fc533a;
+    --ember-dark-11: #ff917b;
+    --ember-light-9: #fc533a;
+
+    /* Solaris (Yellow - warning) */
+    --solaris-dark-9: #fcd53a;
+    --solaris-light-9: #ffdc17;
+
+    /* Typography */
+    --font-family-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-family-mono: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Fira Mono', 'Droid Sans Mono', monospace;
+    
+    --font-size-small: 12px;
+    --font-size-base: 14px;
+    --font-size-large: 16px;
+    --font-size-x-large: 20px;
+    
+    --font-weight-regular: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    
+    --line-height-tight: 1.25;
+    --line-height-base: 1.5;
+    --line-height-relaxed: 1.625;
+
+    /* Spacing */
+    --spacing-1: 0.25rem;
+    --spacing-2: 0.5rem;
+    --spacing-3: 0.75rem;
+    --spacing-4: 1rem;
+    --spacing-5: 1.25rem;
+    --spacing-6: 1.5rem;
+    --spacing-8: 2rem;
+    --spacing-10: 2.5rem;
+    --spacing-12: 3rem;
+
+    /* Border Radius */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
+    --radius-full: 9999px;
+
+    /* Shadows */
+    --shadow-xs: 0 1px 2px -1px rgba(19, 16, 16, 0.04), 0 1px 2px 0 rgba(19, 16, 16, 0.06);
+    --shadow-sm: 0 1px 3px 0 rgba(19, 16, 16, 0.1), 0 1px 2px -1px rgba(19, 16, 16, 0.1);
+    --shadow-md: 0 4px 6px -1px rgba(19, 16, 16, 0.1), 0 2px 4px -2px rgba(19, 16, 16, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(19, 16, 16, 0.1), 0 4px 6px -4px rgba(19, 16, 16, 0.1);
+
+    /* Semantic Colors - Light Mode */
+    --background-base: var(--smoke-light-2);
+    --background-weak: var(--smoke-light-3);
+    --background-strong: var(--smoke-light-1);
+    --background-surface: #ffffff;
+    
+    --text-base: var(--smoke-light-11);
+    --text-weak: var(--smoke-light-9);
+    --text-strong: var(--smoke-light-12);
+    --text-muted: var(--smoke-light-8);
+    
+    --border-base: var(--smoke-light-6);
+    --border-weak: var(--smoke-light-5);
+    --border-strong: var(--smoke-light-7);
+    
+    --accent-primary: var(--cobalt-light-9);
+    --accent-success: var(--apple-light-9);
+    --accent-warning: var(--solaris-light-9);
+    --accent-error: var(--ember-light-9);
+
+    /* Input Colors */
+    --input-background: var(--smoke-light-1);
+    --input-border: var(--smoke-light-6);
+    --input-border-focus: var(--cobalt-light-9);
+    --input-placeholder: var(--smoke-light-8);
+
+    /* Button Colors */
+    --button-primary-bg: var(--cobalt-light-9);
+    --button-primary-text: #ffffff;
+    --button-secondary-bg: var(--smoke-light-3);
+    --button-secondary-text: var(--smoke-light-12);
+    --button-ghost-hover: rgba(0, 0, 0, 0.05);
+
+    /* Focus & Active States */
+    --focus-ring: 0 0 0 3px rgba(3, 76, 255, 0.1);
+    --active-highlight: rgba(3, 76, 255, 0.1);
+    --active-highlight-strong: rgba(3, 76, 255, 0.15);
+
+    /* Chat Specific */
+    --chat-user-bubble: var(--cobalt-light-9);
+    --chat-user-text: #ffffff;
+    --chat-assistant-bubble: var(--smoke-light-3);
+    --chat-assistant-text: var(--smoke-light-12);
+  }
+
+  /* Dark Mode - OpenCode's default theme */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background-base: var(--smoke-dark-1);
+      --background-weak: var(--smoke-dark-2);
+      --background-strong: var(--smoke-dark-3);
+      --background-surface: var(--smoke-dark-2);
+      
+      --text-base: var(--smoke-dark-11);
+      --text-weak: var(--smoke-dark-9);
+      --text-strong: var(--smoke-dark-12);
+      --text-muted: var(--smoke-dark-8);
+      
+      --border-base: var(--smoke-dark-6);
+      --border-weak: var(--smoke-dark-5);
+      --border-strong: var(--smoke-dark-7);
+      
+      --accent-primary: var(--cobalt-dark-9);
+      --accent-success: var(--apple-dark-9);
+      --accent-warning: var(--solaris-dark-9);
+      --accent-error: var(--ember-dark-9);
+
+      --input-background: var(--smoke-dark-3);
+      --input-border: var(--smoke-dark-6);
+      --input-border-focus: var(--cobalt-dark-9);
+      --input-placeholder: var(--smoke-dark-8);
+
+      --button-primary-bg: var(--cobalt-dark-9);
+      --button-primary-text: #ffffff;
+      --button-secondary-bg: var(--smoke-dark-4);
+      --button-secondary-text: var(--smoke-dark-12);
+      --button-ghost-hover: rgba(255, 255, 255, 0.05);
+
+      /* Focus & Active States - Dark Mode */
+      --focus-ring: 0 0 0 3px rgba(3, 76, 255, 0.2);
+      --active-highlight: rgba(3, 76, 255, 0.15);
+      --active-highlight-strong: rgba(3, 76, 255, 0.25);
+
+      --chat-user-bubble: var(--cobalt-dark-9);
+      --chat-user-text: #ffffff;
+      --chat-assistant-bubble: var(--smoke-dark-3);
+      --chat-assistant-text: var(--smoke-dark-12);
+    }
+  }
   /* CSS Reset and Base Styles */
   *,
   *::before,
   *::after {
     box-sizing: border-box;
-  }
-
-  * {
     margin: 0;
+    padding: 0;
   }
 
   html,
@@ -83,11 +267,13 @@ const { title } = Astro.props;
   }
 
   body {
-    line-height: 1.5;
+    line-height: var(--line-height-base);
     -webkit-font-smoothing: antialiased;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: hsl(220, 15%, 97%);
-    color: hsl(220, 15%, 20%);
+    -moz-osx-font-smoothing: grayscale;
+    font-family: var(--font-family-sans);
+    font-size: var(--font-size-base);
+    background: var(--background-base);
+    color: var(--text-base);
   }
 
   img,
@@ -116,6 +302,31 @@ const { title } = Astro.props;
     overflow-wrap: break-word;
   }
 
+  /* Typography */
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-strong);
+  }
+
+  h1 { font-size: 1.875rem; line-height: var(--line-height-tight); }
+  h2 { font-size: 1.5rem; line-height: var(--line-height-tight); }
+  h3 { font-size: 1.25rem; line-height: var(--line-height-tight); }
+  h4 { font-size: 1.125rem; line-height: var(--line-height-tight); }
+
+  a {
+    color: var(--accent-primary);
+    text-decoration: none;
+    transition: color 0.15s ease;
+  }
+
+  a:hover {
+    color: var(--text-strong);
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--font-family-mono);
+  }
+
   /* Accessibility Helpers */
   .sr-only {
     position: absolute;
@@ -134,11 +345,11 @@ const { title } = Astro.props;
     position: absolute;
     top: -40px;
     left: 6px;
-    background: hsl(220, 90%, 25%);
+    background: var(--accent-primary);
     color: white;
-    padding: 8px;
+    padding: var(--spacing-2) var(--spacing-3);
     text-decoration: none;
-    border-radius: 4px;
+    border-radius: var(--radius-md);
     z-index: 1000;
     transition: top 0.3s ease;
   }
@@ -147,9 +358,9 @@ const { title } = Astro.props;
     top: 6px;
   }
 
-  /* Focus indicators */
+  /* Focus indicators - OpenCode style */
   :focus {
-    outline: 2px solid hsl(220, 90%, 60%);
+    outline: 2px solid var(--accent-primary);
     outline-offset: 2px;
   }
 
@@ -158,15 +369,36 @@ const { title } = Astro.props;
     outline: none;
   }
 
+  :focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
+  }
+
+  /* Button Base Styles */
+  button {
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    font-size: inherit;
+    transition: all 0.15s ease;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
   /* High contrast mode adjustments */
   @media (prefers-contrast: high) {
-    body {
-      background: white;
-      color: black;
+    :root {
+      --border-base: currentColor;
+      --border-weak: currentColor;
+      --border-strong: currentColor;
     }
-    
+
     :focus {
-      outline: 3px solid black;
+      outline: 3px solid currentColor;
     }
   }
 
@@ -182,14 +414,6 @@ const { title } = Astro.props;
     }
   }
 
-  /* Dark mode support */
-  @media (prefers-color-scheme: dark) {
-    body {
-      background: hsl(220, 15%, 10%);
-      color: hsl(220, 15%, 85%);
-    }
-  }
-
   /* Print styles */
   @media print {
     body {
@@ -202,17 +426,38 @@ const { title } = Astro.props;
     }
   }
 
-  /* Text scaling support */
-  @media (max-width: 768px) {
+  /* Safe area insets for notched devices */
+  @supports (padding: max(0px)) {
     body {
-      font-size: 16px;
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-left: env(safe-area-inset-left);
+      padding-right: env(safe-area-inset-right);
     }
   }
 
-  /* Large text support */
-  @media (min-width: 1200px) {
-    body {
-      font-size: 18px;
-    }
+  /* Scrollbar styling - OpenCode style */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-base);
+    border-radius: var(--radius-full);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong);
+  }
+
+  /* Selection styling */
+  ::selection {
+    background: var(--accent-primary);
+    color: white;
   }
 </style>
