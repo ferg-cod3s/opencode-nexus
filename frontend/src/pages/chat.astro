@@ -60,7 +60,16 @@ import ConnectionStatus from '../components/ConnectionStatus.svelte';
   // Debug: Log script execution start
   console.log('🔍 Chat: Script execution started');
  
-  let mount, get, ChatInterface, SessionPanel, chatStore, invoke, chatApiCallbacks, initializeChatAPI;
+  let mount: any, get: any, ChatInterface: any, SessionPanel: any, chatStore: any, invoke: any, chatApiCallbacks: any, initializeChatAPI: any;
+  
+  // Helper function to ensure loading state is removed
+  const ensureLoadingStateRemoved = () => {
+    const loadingState = document.getElementById('loading-state');
+    if (loadingState) {
+      console.log('🔍 Chat: Removing loading state');
+      loadingState.remove();
+    }
+  };
   
   // Handle imports with error catching
   async function loadDependencies() {
@@ -174,15 +183,6 @@ import ConnectionStatus from '../components/ConnectionStatus.svelte';
 
     try {
       console.log('🔍 Chat: Initializing chat system...');
-      
-      // Always ensure loading state is cleaned up, even if errors occur
-      const ensureLoadingStateRemoved = () => {
-        const loadingState = document.getElementById('loading-state');
-        if (loadingState) {
-          console.log('🔍 Chat: Removing loading state');
-          loadingState.remove();
-        }
-      };
 
       // Display username from sessionStorage
       const username = sessionStorage.getItem('username') || 'User';

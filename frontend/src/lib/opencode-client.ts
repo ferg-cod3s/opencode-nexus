@@ -22,8 +22,8 @@
  * SOFTWARE.
  */
 
-import { createOpencodeClient, type Client } from '@opencode-ai/sdk';
-import { invoke } from './tauri-api';
+import { createOpencodeClient, type OpencodeClient } from '@opencode-ai/sdk';
+import { invoke } from '../utils/tauri-api';
 
 export interface ServerConnection {
   name: string;
@@ -38,7 +38,7 @@ export interface ServerConnection {
  * Provides a singleton interface for connecting to OpenCode servers
  */
 export class OpencodeClientManager {
-  private client: Client | null = null;
+  private client: OpencodeClient | null = null;
   private currentConnection: ServerConnection | null = null;
   private connecting = false;
 
@@ -63,7 +63,7 @@ export class OpencodeClientManager {
 
       console.log(`🔗 [SDK] Connecting to server: ${baseUrl}`);
 
-      const { client } = await createOpencodeClient({ baseUrl });
+      const client = await createOpencodeClient({ baseUrl });
       this.client = client;
       this.currentConnection = {
         ...connection,
@@ -96,7 +96,7 @@ export class OpencodeClientManager {
   /**
    * Get the current SDK client instance
    */
-  getClient(): Client {
+  getClient(): OpencodeClient {
     if (!this.client) {
       throw new Error('Not connected to a server. Call connect() first.');
     }

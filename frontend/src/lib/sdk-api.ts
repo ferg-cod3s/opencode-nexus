@@ -23,7 +23,7 @@
  */
 
 import { opcodeClient, type ServerConnection } from './opencode-client';
-import type { Client } from '@opencode-ai/sdk';
+import type { OpencodeClient } from '@opencode-ai/sdk';
 import { handleError, ErrorType } from './error-handler';
 import { withRetry, isRetryable } from './retry-handler';
 
@@ -85,8 +85,8 @@ export async function loadSessions() {
       { maxRetries: 2, initialDelayMs: 500 },
       'Load sessions'
     );
-    console.log(`📥 [SDK API] Loaded ${sessions.length} sessions`);
-    return sessions;
+    console.log(`📥 [SDK API] Loaded ${sessions.data?.length || 0} sessions`);
+    return sessions.data || [];
   } catch (error) {
     const appError = handleError(error, 'Load Sessions Error');
     console.error('❌ [SDK API] Failed to load sessions:', appError);
@@ -105,14 +105,16 @@ export async function createSession(params?: CreateSessionParams) {
       async () => {
         const client = opcodeClient.getClient();
         return await client.session.create({
-          title: params?.title || `Chat ${new Date().toLocaleDateString()}`
+          body: {
+            title: params?.title || `Chat ${new Date().toLocaleDateString()}`
+          }
         });
       },
       { maxRetries: 2, initialDelayMs: 500 },
       'Create session'
     );
-    console.log('✨ [SDK API] Created session:', session.id);
-    return session;
+    console.log('✨ [SDK API] Created session:', session.data?.id);
+    return session.data;
   } catch (error) {
     const appError = handleError(error, 'Create Session Error');
     console.error('❌ [SDK API] Failed to create session:', appError);
@@ -127,16 +129,22 @@ export async function sendMessage(params: SendMessageParams) {
   console.log('📤 [SDK API] Sending message to session:', params.sessionId);
 
   try {
-    const response = await withRetry(
-      async () => {
-        const client = opcodeClient.getClient();
-        return await client.session.prompt(params.sessionId, {
-          parts: [{ type: 'text', text: params.content }]
-        });
-      },
-      { maxRetries: 2, initialDelayMs: 500 },
-      'Send message'
-    );
+        const response = await withRetry(
+          async () => {
+            const client = opcodeClient.getClient();
+            return await client.session.prompt({
+              path: { id: params.sessionId },
+              body: { 
+                parts: [{
+                  type: 'text',
+                  text: params.content
+                }]
+              }
+            });
+          },
+          { maxRetries: 2, initialDelayMs: 500 },
+          'Send message'
+        );
     console.log('📤 [SDK API] Message sent successfully');
     return response;
   } catch (error) {
@@ -156,13 +164,21 @@ export async function getSessionHistory(sessionId: string) {
     const session = await withRetry(
       async () => {
         const client = opcodeClient.getClient();
-        return await client.session.get(sessionId);
+        return await client.session.get({ path: { id: sessionId } });
       },
       { maxRetries: 2, initialDelayMs: 500 },
-      `Load history for session ${sessionId}`
+      'Get session'
     );
-    console.log(`📖 [SDK API] Loaded ${session.messages?.length || 0} messages`);
-    return session.messages || [];
+    console.log(`📖 [SDK API] Loaded session: ${session.data?.id || 'unknown'}`);
+    const messagesResponse = await withRetry(
+      async () => {
+        const client = opcodeClient.getClient();
+        return await client.session.messages({ path: { id: sessionId } });
+      },
+      { maxRetries: 2, initialDelayMs: 500 },
+      'Get session messages'
+    );
+    return messagesResponse.data || [];
   } catch (error) {
     const appError = handleError(error, 'Load Session History Error');
     console.error('❌ [SDK API] Failed to load session history:', appError);
@@ -178,7 +194,7 @@ export async function deleteSession(sessionId: string) {
 
   try {
     const client = opcodeClient.getClient();
-    await client.session.delete(sessionId);
+    await client.session.delete({ path: { id: sessionId } });
     console.log('🗑️ [SDK API] Session deleted successfully');
   } catch (error) {
     const appError = handleError(error, 'Delete Session Error');
@@ -196,12 +212,12 @@ export async function subscribeToEvents(onEvent: (event: any) => Promise<void>) 
 
   try {
     const client = opcodeClient.getClient();
-    const eventStream = await client.event.subscribe();
+    const eventStream = await client.event.subscribe({});
 
     // Start listening to events in the background
     (async () => {
       try {
-        for await (const event of eventStream) {
+        for await (const event of eventStream.stream || []) {
           console.log('📨 [SDK API] Received event:', event.type);
           try {
             await onEvent(event);
@@ -239,7 +255,15 @@ export async function getAvailableModels() {
       { maxRetries: 2, initialDelayMs: 500 },
       'Fetch available models'
     );
-    const models = config.providers || [];
+    const providersConfig = await withRetry(
+      async () => {
+        const client = opcodeClient.getClient();
+        return await client.config.providers();
+      },
+      { maxRetries: 2, initialDelayMs: 500 },
+      'Fetch available providers'
+    );
+    const models = providersConfig.data?.providers || [];
     console.log(`📋 [SDK API] Available models: ${models.length} providers`);
     return models;
   } catch (error) {

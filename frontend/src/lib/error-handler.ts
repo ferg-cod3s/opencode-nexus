@@ -74,8 +74,11 @@ export interface AppError {
 export function classifyError(error: unknown): AppError {
   const timestamp = Date.now();
 
-  if (error instanceof AppError) {
-    return error;
+  if (error && typeof error === 'object' && 'type' in error) {
+    const err = error as any;
+    if (err.type in ErrorType) {
+      return err as AppError;
+    }
   }
 
   const errorStr = String(error?.toString?.() || error || 'Unknown error');
