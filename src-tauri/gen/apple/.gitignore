@@ -1,3 +1,6 @@
 xcuserdata/
 build/
 Externals/
+# Keep workspace files for Xcode Cloud
+!src-tauri.xcworkspace/
+!src-tauri.xcworkspace/contents.xcworkspacedata

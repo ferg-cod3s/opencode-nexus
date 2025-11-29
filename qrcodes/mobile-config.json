@@ -1,0 +1,9 @@
+{
+  "apiKey": "a264b0d3074f80240a6d7b6babc670646243f277663d43a577c9da1025320c1c",
+  "serverUrl": "https://dev-opencode.fergify.work",
+  "connectionMethod": "tunnel",
+  "timestamp": "2025-11-29T19:16:34.076Z",
+  "version": "1.0.0",
+  "sslVerification": true,
+  "environment": "development"
+}

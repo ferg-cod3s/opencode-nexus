@@ -20,7 +20,7 @@
 
     <!-- Automatically manage signing -->
     <key>signingStyle</key>
-    <string>manual</string>
+    <string>automatic</string>
 
     <!-- Code signing identity -->
     <key>signingCertificate</key>

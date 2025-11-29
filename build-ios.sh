@@ -115,12 +115,14 @@ echo "  - Rust compilation: ${RUST_BUILD_TIME}s"
 echo "  - Tauri + Xcode: ${TAURI_BUILD_TIME}s"
 echo ""
 
-# Check if Xcode project was generated
-if [ -d "src-tauri/gen/apple/src-tauri.xcodeproj" ]; then
-    print_success "Xcode project generated successfully"
+# Check if Xcode project and workspace were generated
+if [ -d "src-tauri/gen/apple/src-tauri.xcodeproj" ] && [ -f "src-tauri/gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata" ]; then
+    print_success "Xcode project and workspace generated successfully"
     echo ""
     echo "🍎 Next Steps for TestFlight:"
-    echo "  1. Open Xcode project:"
+    echo "  1. Open Xcode workspace (recommended):"
+    echo "     open src-tauri/gen/apple/src-tauri.xcworkspace"
+    echo "     OR open project:"
     echo "     open src-tauri/gen/apple/src-tauri.xcodeproj"
     echo ""
     echo "  2. In Xcode:"
@@ -144,7 +146,13 @@ if [ -d "src-tauri/gen/apple/src-tauri.xcodeproj" ]; then
     echo "     - Build should appear within 5-10 minutes"
     echo ""
 else
-    print_error "Xcode project was not generated. Check build logs above."
+    if [ ! -d "src-tauri/gen/apple/src-tauri.xcodeproj" ]; then
+        print_error "Xcode project was not generated."
+    fi
+    if [ ! -f "src-tauri/gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata" ]; then
+        print_error "Xcode workspace was not generated."
+    fi
+    echo "Check the build logs above for errors."
     exit 1
 fi
 

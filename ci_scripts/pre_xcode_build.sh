@@ -9,22 +9,49 @@ echo "🔨 Starting Xcode Cloud pre-build setup..."
 
 # Verify Rust toolchain is available
 if ! command -v rustup &> /dev/null; then
-    echo "❌ Error: rustup not found. Please ensure Rust is installed in the Xcode Cloud environment."
+    echo "❌ Error: rustup not found. Please ensure Rust is installed in Xcode Cloud environment."
     exit 1
 fi
 if ! command -v cargo &> /dev/null; then
-    echo "❌ Error: cargo not found. Please ensure Rust is installed in the Xcode Cloud environment."
+    echo "❌ Error: cargo not found. Please ensure Rust is installed in Xcode Cloud environment."
     exit 1
 fi
 
 # Change to src-tauri directory
 cd "$CI_PRIMARY_REPOSITORY_PATH/src-tauri" || { echo "❌ Error: Failed to change to src-tauri directory"; exit 1; }
 
+# Check if workspace already exists (committed to repo)
+WORKSPACE_EXISTS=false
+if [ -f "gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata" ]; then
+    WORKSPACE_EXISTS=true
+    echo "✅ Workspace file found, backing up..."
+    cp gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata /tmp/workspace_backup.xml
+fi
+
 echo "📦 Installing Rust iOS target..."
 rustup target add aarch64-apple-ios
 
 echo "🔧 Initializing iOS Tauri workspace..."
 cargo tauri ios init
+
+# Restore workspace if it was backed up, or create it
+if [ "$WORKSPACE_EXISTS" = true ]; then
+    echo "📋 Restoring workspace file..."
+    mkdir -p gen/apple/src-tauri.xcworkspace
+    cp /tmp/workspace_backup.xml gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata
+elif [ ! -f "gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata" ]; then
+    echo "📋 Creating workspace file..."
+    mkdir -p gen/apple/src-tauri.xcworkspace
+    cat > gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:src-tauri.xcodeproj">
+   </FileRef>
+</Workspace>
+EOF
+fi
 
 echo "📋 Copying ExportOptions.plist configuration..."
 if [ -f "ios-config/ExportOptions.plist" ]; then

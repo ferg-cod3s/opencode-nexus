@@ -1,0 +1,66 @@
+# Caddyfile for OpenCode Nexus local development
+# Auto-generates SSL certificates for localhost
+
+# Local development with HTTPS
+localhost:3000 {
+    # Proxy to OpenCode server (assuming it runs on port 8080)
+    reverse_proxy localhost:8080
+    
+    # Enable automatic HTTPS with self-signed certs
+    tls internal
+    
+    # Headers for mobile app compatibility
+    header {
+        # Enable CORS for mobile development
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization, X-API-Key"
+        
+        # Security headers
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        
+        # API key header support
+        X-API-Key "{header.X-API-Key}"
+    }
+    
+    # Handle preflight requests
+    @options method OPTIONS
+    respond @options 200
+}
+
+# Alternative setup for different local port
+localhost:8080 {
+    # If OpenCode server runs directly on 8080, just add SSL
+    tls internal
+    
+    # Headers for mobile app compatibility
+    header {
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization, X-API-Key"
+        
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+    }
+    
+    # Handle preflight requests
+    @options method OPTIONS
+    respond @options 200
+}
+
+# Production-ready setup for domain (optional)
+# opencode.fergify.work {
+#     reverse_proxy localhost:8080
+#     
+#     # Cloudflare origin certificate (if using)
+#     tls /path/to/origin.pem /path/to/origin.key
+#     
+#     header {
+#         X-Forwarded-Proto "https"
+#         X-Forwarded-Host "{host}"
+#         X-Forwarded-For "{remote}"
+#     }
+# }

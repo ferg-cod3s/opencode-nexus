@@ -6,7 +6,7 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-PROJECT_PATH="/Users/johnferguson/Github/opencode-nexus"
+PROJECT_PATH="${PROJECT_PATH:-$(pwd)}"
 IPA_PATH="${1:-$PROJECT_PATH/OpenCode_Nexus.ipa}"
 
 # Load credentials

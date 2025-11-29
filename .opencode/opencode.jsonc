@@ -1,9 +1,6 @@
 {
   "$schema": "https://opencode.ai/config.json",
 
-  // Reference custom instructions file
-  "rules": "AGENTS.md",
-
   // OpenCode-specific configuration
   "mcp": {
     // Conexus MCP for advanced coding assistance
@@ -22,56 +19,5 @@
         "CONEXUS_SENTRY_RELEASE": "0.1.0-alpha"
       }
     }
-  },
-
-  // Workspace configuration for multi-package structure
-  "workspaces": {
-    // Frontend workspace (Astro + Svelte + TypeScript + Bun)
-    "frontend": {
-      "path": "frontend",
-      "package": "package.json"
-    },
-
-    // Backend workspace (Rust + Tauri)
-    "backend": {
-      "path": "src-tauri",
-      "package": "Cargo.toml"
-    }
-  },
-
-  // Development server configuration
-  "dev": {
-    "command": "cargo tauri dev",
-    "description": "Start the full Tauri application with hot reload"
-  },
-
-  // Build configuration
-  "build": {
-    "command": "cd frontend && bun run build && cd .. && cargo tauri build",
-    "description": "Build production application (frontend + backend)"
-  },
-
-  // Testing configuration
-  "test": {
-    "unit": "cargo test && cd frontend && bun test",
-    "e2e": "cd frontend && bun run test:e2e",
-    "all": "cargo test && cd frontend && bun test && bun run test:e2e"
-  },
-
-  // Quality assurance commands
-  "quality": {
-    "lint": "cd frontend && bun run lint",
-    "typecheck": "cd frontend && bun run typecheck",
-    "clippy": "cargo clippy",
-    "format-check": "cargo fmt --check && cd frontend && bun run format --check",
-    "format-fix": "cargo fmt && cd frontend && bun run format",
-    "all": "cargo clippy && cargo test && cd frontend && bun run lint && bun run typecheck && bun test"
-  },
-
-  // Git configuration for OpenCode
-  "git": {
-    "commitPrefix": "opencode/",
-    "branchPrefix": "claude/",
-    "enforce": false
   }
 }

@@ -1,0 +1,654 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="OpenCode Nexus - QR Code Setup">
+  <main class="qr-container">
+    <div class="qr-content">
+      <header class="qr-header">
+        <h1 class="qr-title">
+          <span class="logo-icon" aria-hidden="true">📱</span>
+          Quick Setup - QR Code
+        </h1>
+        <p class="qr-subtitle">
+          Scan QR code or upload configuration file to connect to your OpenCode server
+        </p>
+      </header>
+
+      <!-- QR Code Scanner Section -->
+      <section class="qr-section">
+        <div class="qr-scanner">
+          <h2 class="section-title">📷 Scan QR Code</h2>
+          <div class="scanner-container">
+            <video id="qr-video" class="qr-video" hidden></video>
+            <canvas id="qr-canvas" class="qr-canvas" hidden></canvas>
+            <div id="qr-scanner-area" class="qr-scanner-area">
+              <div class="scanner-frame">
+                <div class="scanner-corner top-left"></div>
+                <div class="scanner-corner top-right"></div>
+                <div class="scanner-corner bottom-left"></div>
+                <div class="scanner-corner bottom-right"></div>
+                <div class="scanner-line"></div>
+              </div>
+              <p class="scanner-text">Position QR code within frame</p>
+            </div>
+            <button id="start-scanner" class="btn btn-primary scanner-btn">
+              📷 Start Scanner
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- File Upload Section -->
+      <section class="upload-section">
+        <h2 class="section-title">📁 Upload Configuration</h2>
+        <div class="upload-container">
+          <input
+            type="file"
+            id="config-file"
+            name="config-file"
+            accept=".json"
+            class="file-input"
+            data-testid="config-file-input"
+          />
+          <label for="config-file" class="file-label">
+            <span class="file-icon">📄</span>
+            <span class="file-text">Choose mobile-config.json</span>
+            <span class="file-hint">or drag and drop</span>
+          </label>
+          <div id="file-preview" class="file-preview" hidden>
+            <p class="file-name"></p>
+            <button id="clear-file" class="btn btn-secondary btn-small">Clear</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Manual Entry Section -->
+      <section class="manual-section">
+        <h2 class="section-title">✏️ Manual Entry</h2>
+        <form id="manual-form" class="manual-form">
+          <div class="form-group">
+            <label for="server-url" class="form-label">Server URL</label>
+            <input
+              type="url"
+              id="server-url"
+              name="server-url"
+              class="form-input"
+              placeholder="https://dev-opencode.fergify.work"
+              data-testid="server-url-input"
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="connection-method" class="form-label">Connection Method</label>
+            <select id="connection-method" name="connection-method" class="form-select">
+              <option value="tunnel">☁️ Cloudflare Tunnel</option>
+              <option value="proxy">🔒 Reverse Proxy</option>
+              <option value="localhost">🏠 Localhost</option>
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="api-key" class="form-label">API Key</label>
+            <input
+              type="password"
+              id="api-key"
+              name="api-key"
+              class="form-input"
+              placeholder="Enter your API key"
+              data-testid="api-key-input"
+            />
+          </div>
+          
+          <button type="submit" class="btn btn-primary">
+            🔗 Connect to Server
+          </button>
+        </form>
+      </section>
+
+      <!-- Connection Status -->
+      <section id="connection-status" class="status-section" hidden>
+        <h2 class="section-title">📊 Connection Status</h2>
+        <div class="status-content">
+          <div class="status-indicator">
+            <div id="status-dot" class="status-dot"></div>
+            <span id="status-text">Ready to connect</span>
+          </div>
+          <div id="status-details" class="status-details"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- QR Code Scanner Library -->
+  <script src="https://unpkg.com/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+  
+  <script>
+    // QR Code Scanner Implementation
+    class QRCodeSetup {
+      constructor() {
+        this.scanner = null;
+        this.isScanning = false;
+        this.initializeElements();
+        this.attachEventListeners();
+      }
+
+      initializeElements() {
+        this.video = document.getElementById('qr-video');
+        this.canvas = document.getElementById('qr-canvas');
+        this.startBtn = document.getElementById('start-scanner');
+        this.fileInput = document.getElementById('config-file');
+        this.manualForm = document.getElementById('manual-form');
+        this.statusSection = document.getElementById('connection-status');
+        this.statusDot = document.getElementById('status-dot');
+        this.statusText = document.getElementById('status-text');
+        this.statusDetails = document.getElementById('status-details');
+      }
+
+      attachEventListeners() {
+        // QR Scanner
+        this.startBtn.addEventListener('click', () => this.toggleScanner());
+        
+        // File Upload
+        this.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+        
+        // Drag and Drop
+        const uploadContainer = this.fileInput.parentElement;
+        uploadContainer.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          uploadContainer.classList.add('drag-over');
+        });
+        
+        uploadContainer.addEventListener('dragleave', () => {
+          uploadContainer.classList.remove('drag-over');
+        });
+        
+        uploadContainer.addEventListener('drop', (e) => {
+          e.preventDefault();
+          uploadContainer.classList.remove('drag-over');
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            this.processConfigFile(files[0]);
+          }
+        });
+        
+        // Manual Form
+        this.manualForm.addEventListener('submit', (e) => this.handleManualSubmit(e));
+      }
+
+      async toggleScanner() {
+        if (this.isScanning) {
+          this.stopScanner();
+        } else {
+          await this.startScanner();
+        }
+      }
+
+      async startScanner() {
+        try {
+          this.scanner = new QrScanner(
+            this.video,
+            result => this.handleQRResult(result),
+            {
+              highlightScanRegion: false,
+              highlightCodeOutline: false,
+            }
+          );
+
+          await this.scanner.start();
+          this.isScanning = true;
+          this.startBtn.textContent = '🛑 Stop Scanner';
+          this.startBtn.classList.add('scanning');
+          this.video.hidden = false;
+        } catch (error) {
+          console.error('Failed to start QR scanner:', error);
+          this.updateStatus('error', 'Camera access denied or not available');
+        }
+      }
+
+      stopScanner() {
+        if (this.scanner) {
+          this.scanner.stop();
+          this.scanner = null;
+        }
+        this.isScanning = false;
+        this.startBtn.textContent = '📷 Start Scanner';
+        this.startBtn.classList.remove('scanning');
+        this.video.hidden = true;
+      }
+
+      handleQRResult(result) {
+        try {
+          const config = JSON.parse(result.data);
+          this.applyConfiguration(config);
+          this.stopScanner();
+        } catch (error) {
+          console.error('Invalid QR code format:', error);
+          this.updateStatus('error', 'Invalid QR code format');
+        }
+      }
+
+      handleFileUpload(event) {
+        const file = event.target.files[0];
+        if (file) {
+          this.processConfigFile(file);
+        }
+      }
+
+      async processConfigFile(file) {
+        try {
+          const text = await file.text();
+          const config = JSON.parse(text);
+          this.applyConfiguration(config);
+          
+          // Update file preview
+          const preview = document.getElementById('file-preview');
+          const fileName = preview.querySelector('.file-name');
+          fileName.textContent = `📄 ${file.name}`;
+          preview.hidden = false;
+        } catch (error) {
+          console.error('Invalid config file:', error);
+          this.updateStatus('error', 'Invalid configuration file format');
+        }
+      }
+
+      handleManualSubmit(event) {
+        event.preventDefault();
+        
+        const config = {
+          serverUrl: document.getElementById('server-url').value,
+          connectionMethod: document.getElementById('connection-method').value,
+          apiKey: document.getElementById('api-key').value,
+          sslVerification: true,
+          environment: 'development'
+        };
+        
+        this.applyConfiguration(config);
+      }
+
+      async applyConfiguration(config) {
+        try {
+          this.updateStatus('connecting', 'Connecting to server...');
+          
+          // Store configuration
+          localStorage.setItem('opencode-config', JSON.stringify(config));
+          
+          // Test connection
+          const response = await fetch(`${config.serverUrl}/session`, {
+            method: 'GET',
+            headers: {
+              'X-API-Key': config.apiKey,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            this.updateStatus('success', 'Successfully connected to server!');
+            
+            // Redirect to chat after a short delay
+            setTimeout(() => {
+              window.location.href = '/chat';
+            }, 2000);
+          } else {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+        } catch (error) {
+          console.error('Connection failed:', error);
+          this.updateStatus('error', `Connection failed: ${error.message}`);
+        }
+      }
+
+      updateStatus(status, message) {
+        this.statusSection.hidden = false;
+        this.statusText.textContent = message;
+        
+        // Update status dot
+        this.statusDot.className = `status-dot status-${status}`;
+        
+        // Update details
+        const timestamp = new Date().toLocaleTimeString();
+        this.statusDetails.innerHTML = `
+          <div class="status-entry">
+            <span class="status-time">${timestamp}</span>
+            <span class="status-message">${message}</span>
+          </div>
+        `;
+      }
+    }
+
+    // Initialize QR Code Setup
+    document.addEventListener('DOMContentLoaded', () => {
+      new QRCodeSetup();
+    });
+  </script>
+
+  <style>
+    .qr-container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    .qr-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .qr-header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .qr-title {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .qr-subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .section-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* QR Scanner Styles */
+    .qr-scanner {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .scanner-container {
+      text-align: center;
+    }
+
+    .qr-video {
+      width: 100%;
+      max-width: 300px;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .qr-scanner-area {
+      position: relative;
+      width: 300px;
+      height: 300px;
+      margin: 0 auto 1rem;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: var(--surface-secondary);
+    }
+
+    .scanner-frame {
+      position: relative;
+      width: 200px;
+      height: 200px;
+    }
+
+    .scanner-corner {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--primary);
+    }
+
+    .scanner-corner.top-left {
+      top: 0;
+      left: 0;
+      border-right: none;
+      border-bottom: none;
+    }
+
+    .scanner-corner.top-right {
+      top: 0;
+      right: 0;
+      border-left: none;
+      border-bottom: none;
+    }
+
+    .scanner-corner.bottom-left {
+      bottom: 0;
+      left: 0;
+      border-right: none;
+      border-top: none;
+    }
+
+    .scanner-corner.bottom-right {
+      bottom: 0;
+      right: 0;
+      border-left: none;
+      border-top: none;
+    }
+
+    .scanner-line {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      animation: scan 2s linear infinite;
+    }
+
+    @keyframes scan {
+      0% { transform: translateY(-90px); }
+      100% { transform: translateY(90px); }
+    }
+
+    .scanner-text {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    .scanner-btn {
+      margin-top: 1rem;
+    }
+
+    .scanner-btn.scanning {
+      background: var(--error);
+      border-color: var(--error);
+    }
+
+    /* Upload Section */
+    .upload-section {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .upload-container {
+      position: relative;
+    }
+
+    .file-input {
+      position: absolute;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .file-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 3rem 2rem;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--surface-secondary);
+    }
+
+    .file-label:hover {
+      border-color: var(--primary);
+      background: var(--surface-hover);
+    }
+
+    .file-label.drag-over {
+      border-color: var(--primary);
+      background: var(--primary-light);
+    }
+
+    .file-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .file-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .file-hint {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .file-preview {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: var(--surface-secondary);
+      border-radius: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .file-name {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* Manual Section */
+    .manual-section {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .manual-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Status Section */
+    .status-section {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: var(--shadow);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--text-secondary);
+    }
+
+    .status-dot.status-ready {
+      background: var(--warning);
+    }
+
+    .status-dot.status-connecting {
+      background: var(--primary);
+      animation: pulse 1s infinite;
+    }
+
+    .status-dot.status-success {
+      background: var(--success);
+    }
+
+    .status-dot.status-error {
+      background: var(--error);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .status-details {
+      border-top: 1px solid var(--border);
+      padding-top: 1rem;
+    }
+
+    .status-entry {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      font-size: 0.9rem;
+    }
+
+    .status-time {
+      color: var(--text-secondary);
+    }
+
+    .status-message {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .qr-container {
+        padding: 1rem;
+      }
+
+      .qr-scanner-area {
+        width: 250px;
+        height: 250px;
+      }
+
+      .scanner-frame {
+        width: 150px;
+        height: 150px;
+      }
+
+      .qr-title {
+        font-size: 1.5rem;
+      }
+
+      .section-title {
+        font-size: 1.1rem;
+      }
+    }
+  </style>
+</Layout>

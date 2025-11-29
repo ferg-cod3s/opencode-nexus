@@ -183,10 +183,18 @@ jobs:
         run: |
           cd src-tauri/gen/apple
 
+          # Verify workspace exists
+          if [ ! -f "src-tauri.xcworkspace/contents.xcworkspacedata" ]; then
+            echo "Error: Xcode workspace not found at src-tauri.xcworkspace/contents.xcworkspacedata"
+            echo "Available files:"
+            ls -la
+            exit 1
+          fi
+
           mkdir -p build/archives
 
           xcodebuild \
-            -project src-tauri.xcodeproj \
+            -workspace src-tauri.xcworkspace \
             -scheme src-tauri_iOS \
             -configuration Release \
             -archivePath build/archives/OpenCodeNexus.xcarchive \
@@ -255,8 +263,8 @@ jobs:
 
           # Update Info.plist version to match tag-derived VERSION_NUMBER
           INFO_PLIST="$APP_DIR/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION_NUMBER" "$INFO_PLIST"
-          /usr/libexec/PlistBuddy -c "Set CFBundleVersion $VERSION_NUMBER" "$INFO_PLIST"
+          /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION_NUMBER" "$INFO_PLIST" 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Set CFBundleVersion $BUILD_NUMBER" "$INFO_PLIST" 2>/dev/null || true
 
           # Remove forbidden static library if present
           if [ -f "$APP_DIR/libapp.a" ]; then
