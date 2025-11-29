@@ -22,8 +22,34 @@
  * SOFTWARE.
  */
 
-import { createOpencodeClient, type OpencodeClient } from '@opencode-ai/sdk';
 import { invoke } from '../utils/tauri-api';
+
+// Mock OpencodeClient type for Tauri builds
+export interface OpencodeClient {
+  session: {
+    list(): Promise<{ data: any[] }>;
+    create(params?: any): Promise<{ data: any }>;
+  };
+  message: {
+    send(sessionId: string, content: string): Promise<{ data: any }>;
+    stream(sessionId: string, content: string, onChunk?: (chunk: any) => void): Promise<{ data: any }>;
+  };
+}
+
+// Mock createOpencodeClient for Tauri builds
+export function createOpencodeClient(options: { baseUrl: string }): OpencodeClient {
+  return {
+    session: {
+      list: () => invoke('list_sessions'),
+      create: (params?: any) => invoke('create_session', { params }),
+    },
+    message: {
+      send: (sessionId: string, content: string) => invoke('send_message', { sessionId, content }),
+      stream: (sessionId: string, content: string, onChunk?: (chunk: any) => void) => 
+        invoke('stream_message', { sessionId, content, onChunk }),
+    },
+  };
+}
 
 export interface ServerConnection {
   name: string;

@@ -23,7 +23,7 @@
  */
 
 import { opcodeClient, type ServerConnection } from './opencode-client';
-import type { OpencodeClient } from '@opencode-ai/sdk';
+import type { OpencodeClient } from './opencode-client';
 import { handleError, ErrorType } from './error-handler';
 import { withRetry, isRetryable } from './retry-handler';
 
