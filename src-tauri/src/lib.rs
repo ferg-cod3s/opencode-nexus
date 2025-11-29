@@ -20,9 +20,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+mod chat_client;
 mod connection_manager;
 mod error;
 
+use chat_client::{ChatClient, ChatEvent};
 use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection};
 
 use chrono::Utc;
@@ -354,6 +356,93 @@ async fn log_frontend_error(
         }
     }
     Ok(())
+}
+
+// Chat/Session management commands
+#[tauri::command]
+async fn list_sessions(app_handle: tauri::AppHandle) -> Result<Vec<serde_json::Value>, String> {
+    log_info!("📥 [CHAT] Listing sessions");
+    
+    let config_dir = get_config_dir()?;
+    let mut client = chat_client::ChatClient::new(config_dir)
+        .map_err(|e| e.to_string())?;
+    
+    let sessions = client.list_sessions().await
+        .map_err(|e| e.to_string())?;
+    
+    let sessions_json = serde_json::to_value(&sessions);
+    Ok(sessions_json.as_array().unwrap_or(&serde_json::Value::Array).to_vec())
+}
+
+#[tauri::command]
+async fn create_session(
+    app_handle: tauri::AppHandle,
+    title: Option<String>,
+) -> Result<serde_json::Value, String> {
+    log_info!("📝 [CHAT] Creating session: {:?}", title);
+    
+    let config_dir = get_config_dir()?;
+    let mut client = chat_client::ChatClient::new(config_dir)
+        .map_err(|e| e.to_string())?;
+    
+    let session = client.create_session(title).await
+        .map_err(|e| e.to_string())?;
+    
+    let session_json = serde_json::to_value(&session);
+    Ok(session_json)
+}
+
+#[tauri::command]
+async fn send_message(
+    app_handle: tauri::AppHandle,
+    session_id: String,
+    content: String,
+    model: Option<serde_json::Value>,
+) -> Result<serde_json::Value, String> {
+    log_info!("💬 [CHAT] Sending message to session: {}", session_id);
+    
+    let config_dir = get_config_dir()?;
+    let mut client = chat_client::ChatClient::new(config_dir)
+        .map_err(|e| e.to_string())?;
+    
+    let message = client.send_message(&session_id, &content).await
+        .map_err(|e| e.to_string())?;
+    
+    let message_json = serde_json::to_value(&message);
+    Ok(message_json)
+}
+
+#[tauri::command]
+async fn get_session_messages(
+    app_handle: tauri::AppHandle,
+    session_id: String,
+) -> Result<Vec<serde_json::Value>, String> {
+    log_info!("📜 [CHAT] Getting messages for session: {}", session_id);
+    
+    let config_dir = get_config_dir()?;
+    let mut client = chat_client::ChatClient::new(config_dir)
+        .map_err(|e| e.to_string())?;
+    
+    let messages = client.get_session_messages(&session_id).await
+        .map_err(|e| e.to_string())?;
+    
+    let messages_json: Vec<serde_json::Value> = messages.into_iter()
+        .map(|m| serde_json::to_value(&m))
+        .collect();
+    Ok(messages_json)
+}
+
+#[tauri::command]
+async fn subscribe_to_chat_events(app_handle: tauri::AppHandle) -> Result<String, String> {
+    log_info!("🎧 [CHAT] Subscribing to chat events");
+    
+    let config_dir = get_config_dir()?;
+    let client = chat_client::ChatClient::new(config_dir)
+        .map_err(|e| e.to_string())?;
+    
+    // Store client in a global for event streaming
+    // In a real implementation, you'd want to manage client lifecycle better
+    Ok("chat_events".to_string())
 }
 
 #[tauri::command]

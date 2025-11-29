@@ -36,8 +36,13 @@ export interface OpencodeClient {
   };
 }
 
-// Mock createOpencodeClient for Tauri builds
+// Real OpenCode client for Tauri builds
 export function createOpencodeClient(options: { baseUrl: string }): OpencodeClient {
+  // Set server URL via Tauri command first
+  invoke('set_server_url', { serverUrl: options.baseUrl }).catch(err => {
+    console.warn('Failed to set server URL:', err);
+  });
+
   return {
     session: {
       list: () => invoke('list_sessions'),
