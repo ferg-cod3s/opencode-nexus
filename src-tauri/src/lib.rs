@@ -360,7 +360,9 @@ async fn log_frontend_error(
 
 // Chat/Session management commands
 #[tauri::command]
-async fn list_sessions(app_handle: tauri::AppHandle) -> Result<Vec<serde_json::Value>, String> {
+async fn list_sessions(
+    #[allow(unused_variables)] app_handle: tauri::AppHandle,
+) -> Result<Vec<serde_json::Value>, String> {
     log_info!("📥 [CHAT] Listing sessions");
     
     let config_dir = get_config_dir()?;
@@ -370,13 +372,14 @@ async fn list_sessions(app_handle: tauri::AppHandle) -> Result<Vec<serde_json::V
     let sessions = client.list_sessions().await
         .map_err(|e| e.to_string())?;
     
-    let sessions_json = serde_json::to_value(&sessions);
-    Ok(sessions_json.as_array().unwrap_or(&serde_json::Value::Array).to_vec())
+    let sessions_json = serde_json::to_value(&sessions)
+        .map_err(|e| format!("Failed to serialize sessions: {}", e))?;
+    Ok(sessions_json.as_array().cloned().unwrap_or_default())
 }
 
 #[tauri::command]
 async fn create_session(
-    app_handle: tauri::AppHandle,
+    #[allow(unused_variables)] app_handle: tauri::AppHandle,
     title: Option<String>,
 ) -> Result<serde_json::Value, String> {
     log_info!("📝 [CHAT] Creating session: {:?}", title);
@@ -388,16 +391,17 @@ async fn create_session(
     let session = client.create_session(title).await
         .map_err(|e| e.to_string())?;
     
-    let session_json = serde_json::to_value(&session);
+    let session_json = serde_json::to_value(&session)
+        .map_err(|e| format!("Failed to serialize session: {}", e))?;
     Ok(session_json)
 }
 
 #[tauri::command]
 async fn send_message(
-    app_handle: tauri::AppHandle,
+    #[allow(unused_variables)] app_handle: tauri::AppHandle,
     session_id: String,
     content: String,
-    model: Option<serde_json::Value>,
+    #[allow(unused_variables)] model: Option<serde_json::Value>,
 ) -> Result<serde_json::Value, String> {
     log_info!("💬 [CHAT] Sending message to session: {}", session_id);
     
@@ -415,7 +419,7 @@ async fn send_message(
 
 #[tauri::command]
 async fn get_session_messages(
-    app_handle: tauri::AppHandle,
+    #[allow(unused_variables)] app_handle: tauri::AppHandle,
     session_id: String,
 ) -> Result<Vec<serde_json::Value>, String> {
     log_info!("📜 [CHAT] Getting messages for session: {}", session_id);

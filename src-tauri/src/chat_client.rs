@@ -115,7 +115,9 @@ impl ChatClient {
             .send()
             .await
             .map_err(|e| AppError::NetworkError { 
-                message: format!("Failed to fetch sessions: {}", e) 
+                message: format!("Failed to fetch sessions: {}", e),
+                details: e.to_string(),
+                retry_after: Some(2),
             })?;
 
         if !response.status().is_success() {
@@ -128,7 +130,8 @@ impl ChatClient {
 
         let sessions: Vec<ChatSession> = response.json().await
             .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse sessions: {}", e) 
+                message: format!("Failed to parse sessions: {}", e),
+                details: e.to_string(),
             })?;
 
         Ok(sessions)
@@ -148,7 +151,9 @@ impl ChatClient {
             .send()
             .await
             .map_err(|e| AppError::NetworkError { 
-                message: format!("Failed to create session: {}", e) 
+                message: format!("Failed to create session: {}", e),
+                details: e.to_string(),
+                retry_after: Some(2),
             })?;
 
         if !response.status().is_success() {
@@ -161,7 +166,8 @@ impl ChatClient {
 
         let session: ChatSession = response.json().await
             .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse session: {}", e) 
+                message: format!("Failed to parse session: {}", e),
+                details: e.to_string(),
             })?;
 
         // Emit session created event
@@ -182,7 +188,9 @@ impl ChatClient {
             .send()
             .await
             .map_err(|e| AppError::NetworkError { 
-                message: format!("Failed to send message: {}", e) 
+                message: format!("Failed to send message: {}", e),
+                details: e.to_string(),
+                retry_after: Some(2),
             })?;
 
         if !response.status().is_success() {
@@ -195,7 +203,8 @@ impl ChatClient {
 
         let message: ChatMessage = response.json().await
             .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse message: {}", e) 
+                message: format!("Failed to parse message: {}", e),
+                details: e.to_string(),
             })?;
 
         // Emit message received event
@@ -215,7 +224,9 @@ impl ChatClient {
             .send()
             .await
             .map_err(|e| AppError::NetworkError { 
-                message: format!("Failed to fetch session messages: {}", e) 
+                message: format!("Failed to fetch session messages: {}", e),
+                details: e.to_string(),
+                retry_after: Some(2),
             })?;
 
         if !response.status().is_success() {
@@ -228,7 +239,8 @@ impl ChatClient {
 
         let messages: Vec<ChatMessage> = response.json().await
             .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse messages: {}", e) 
+                message: format!("Failed to parse messages: {}", e),
+                details: e.to_string(),
             })?;
 
         Ok(messages)
