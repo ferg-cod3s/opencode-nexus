@@ -360,76 +360,100 @@ async fn log_frontend_error(
 
 // Chat/Session management commands
 #[tauri::command]
-async fn list_sessions(app_handle: tauri::AppHandle) -> Result<Vec<serde_json::Value>, String> {
+async fn list_sessions(_app_handle: tauri::AppHandle) -> Result<Vec<serde_json::Value>, String> {
     log_info!("📥 [CHAT] Listing sessions");
     
     let config_dir = get_config_dir()?;
-    let mut client = chat_client::ChatClient::new(config_dir)
+    let client = chat_client::ChatClient::new(config_dir)
         .map_err(|e| e.to_string())?;
+    
+    // Set server URL from global state or connection manager
+    let server_url = get_global_server_url()
+        .or_else(|| get_server_url().ok())
+        .ok_or_else(|| "No server URL configured. Connect to a server first.".to_string())?;
+    client.set_server_url(server_url).map_err(|e| e.to_string())?;
     
     let sessions = client.list_sessions().await
         .map_err(|e| e.to_string())?;
     
-    let sessions_json = serde_json::to_value(&sessions);
-    Ok(sessions_json.as_array().unwrap_or(&serde_json::Value::Array).to_vec())
+    let sessions_json = serde_json::to_value(&sessions)
+        .map_err(|e| format!("Failed to serialize sessions: {}", e))?;
+    Ok(sessions_json.as_array().cloned().unwrap_or_default())
 }
 
 #[tauri::command]
 async fn create_session(
-    app_handle: tauri::AppHandle,
+    _app_handle: tauri::AppHandle,
     title: Option<String>,
 ) -> Result<serde_json::Value, String> {
     log_info!("📝 [CHAT] Creating session: {:?}", title);
     
     let config_dir = get_config_dir()?;
-    let mut client = chat_client::ChatClient::new(config_dir)
+    let client = chat_client::ChatClient::new(config_dir)
         .map_err(|e| e.to_string())?;
+    
+    // Set server URL from global state or connection manager
+    let server_url = get_global_server_url()
+        .or_else(|| get_server_url().ok())
+        .ok_or_else(|| "No server URL configured. Connect to a server first.".to_string())?;
+    client.set_server_url(server_url).map_err(|e| e.to_string())?;
     
     let session = client.create_session(title).await
         .map_err(|e| e.to_string())?;
     
-    let session_json = serde_json::to_value(&session);
-    Ok(session_json)
+    serde_json::to_value(&session)
+        .map_err(|e| format!("Failed to serialize session: {}", e))
 }
 
 #[tauri::command]
 async fn send_message(
-    app_handle: tauri::AppHandle,
+    _app_handle: tauri::AppHandle,
     session_id: String,
     content: String,
-    model: Option<serde_json::Value>,
+    _model: Option<serde_json::Value>,
 ) -> Result<serde_json::Value, String> {
     log_info!("💬 [CHAT] Sending message to session: {}", session_id);
     
     let config_dir = get_config_dir()?;
-    let mut client = chat_client::ChatClient::new(config_dir)
+    let client = chat_client::ChatClient::new(config_dir)
         .map_err(|e| e.to_string())?;
+    
+    // Set server URL from global state or connection manager
+    let server_url = get_global_server_url()
+        .or_else(|| get_server_url().ok())
+        .ok_or_else(|| "No server URL configured. Connect to a server first.".to_string())?;
+    client.set_server_url(server_url).map_err(|e| e.to_string())?;
     
     let message = client.send_message(&session_id, &content).await
         .map_err(|e| e.to_string())?;
     
-    let message_json = serde_json::to_value(&message);
-    Ok(message_json)
+    serde_json::to_value(&message)
+        .map_err(|e| format!("Failed to serialize message: {}", e))
 }
 
 #[tauri::command]
 async fn get_session_messages(
-    app_handle: tauri::AppHandle,
+    _app_handle: tauri::AppHandle,
     session_id: String,
 ) -> Result<Vec<serde_json::Value>, String> {
     log_info!("📜 [CHAT] Getting messages for session: {}", session_id);
     
     let config_dir = get_config_dir()?;
-    let mut client = chat_client::ChatClient::new(config_dir)
+    let client = chat_client::ChatClient::new(config_dir)
         .map_err(|e| e.to_string())?;
+    
+    // Set server URL from global state or connection manager
+    let server_url = get_global_server_url()
+        .or_else(|| get_server_url().ok())
+        .ok_or_else(|| "No server URL configured. Connect to a server first.".to_string())?;
+    client.set_server_url(server_url).map_err(|e| e.to_string())?;
     
     let messages = client.get_session_messages(&session_id).await
         .map_err(|e| e.to_string())?;
     
-    let messages_json: Vec<serde_json::Value> = messages.into_iter()
-        .map(|m| serde_json::to_value(&m))
-        .collect();
-    Ok(messages_json)
+    messages.into_iter()
+        .map(|m| serde_json::to_value(&m).map_err(|e| format!("Failed to serialize message: {}", e)))
+        .collect()
 }
 
 #[tauri::command]
@@ -443,6 +467,34 @@ async fn subscribe_to_chat_events(app_handle: tauri::AppHandle) -> Result<String
     // Store client in a global for event streaming
     // In a real implementation, you'd want to manage client lifecycle better
     Ok("chat_events".to_string())
+}
+
+// Global server URL storage for chat client
+static SERVER_URL: std::sync::OnceLock<std::sync::Mutex<Option<String>>> = std::sync::OnceLock::new();
+
+fn get_global_server_url() -> Option<String> {
+    SERVER_URL
+        .get_or_init(|| std::sync::Mutex::new(None))
+        .lock()
+        .ok()
+        .and_then(|guard| guard.clone())
+}
+
+fn set_global_server_url(url: String) {
+    if let Some(mutex) = SERVER_URL.get() {
+        if let Ok(mut guard) = mutex.lock() {
+            *guard = Some(url);
+        }
+    } else {
+        let _ = SERVER_URL.set(std::sync::Mutex::new(Some(url)));
+    }
+}
+
+#[tauri::command]
+async fn set_server_url(server_url: String) -> Result<(), String> {
+    log_info!("🔗 [CHAT] Setting server URL: {}", server_url);
+    set_global_server_url(server_url);
+    Ok(())
 }
 
 #[tauri::command]
@@ -506,6 +558,13 @@ pub fn run() {
             get_saved_connections,
             save_connection,
             get_last_used_connection,
+            // Chat/Session management commands
+            list_sessions,
+            create_session,
+            send_message,
+            get_session_messages,
+            subscribe_to_chat_events,
+            set_server_url,
             // Application commands
             get_application_logs,
             log_frontend_error,

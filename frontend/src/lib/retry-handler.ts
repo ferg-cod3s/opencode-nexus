@@ -63,7 +63,7 @@ export async function withRetry<T>(
 
       // Execute the function with timeout
       const timeoutPromise = new Promise<T>((_, reject) => {
-        const timer = setTimeout(() => {
+        setTimeout(() => {
           reject(new Error('Operation timeout'));
         }, finalConfig.timeoutMs);
       });

@@ -22,39 +22,10 @@
  * SOFTWARE.
  */
 
+import { createOpencodeClient, type OpencodeClient } from '@opencode-ai/sdk/client';
 import { invoke } from '../utils/tauri-api';
 
-// Mock OpencodeClient type for Tauri builds
-export interface OpencodeClient {
-  session: {
-    list(): Promise<{ data: any[] }>;
-    create(params?: any): Promise<{ data: any }>;
-  };
-  message: {
-    send(sessionId: string, content: string): Promise<{ data: any }>;
-    stream(sessionId: string, content: string, onChunk?: (chunk: any) => void): Promise<{ data: any }>;
-  };
-}
-
-// Real OpenCode client for Tauri builds
-export function createOpencodeClient(options: { baseUrl: string }): OpencodeClient {
-  // Set server URL via Tauri command first
-  invoke('set_server_url', { serverUrl: options.baseUrl }).catch(err => {
-    console.warn('Failed to set server URL:', err);
-  });
-
-  return {
-    session: {
-      list: () => invoke('list_sessions'),
-      create: (params?: any) => invoke('create_session', { params }),
-    },
-    message: {
-      send: (sessionId: string, content: string) => invoke('send_message', { sessionId, content }),
-      stream: (sessionId: string, content: string, onChunk?: (chunk: any) => void) => 
-        invoke('stream_message', { sessionId, content, onChunk }),
-    },
-  };
-}
+export type { OpencodeClient };
 
 export interface ServerConnection {
   name: string;
@@ -65,8 +36,8 @@ export interface ServerConnection {
 }
 
 /**
- * OpencodeClientManager - Manages SDK client lifecycle and connection
- * Provides a singleton interface for connecting to OpenCode servers
+ * OpencodeClientManager - Manages real SDK client lifecycle and connection
+ * Provides a singleton interface for connecting to OpenCode servers using official SDK
  */
 export class OpencodeClientManager {
   private client: OpencodeClient | null = null;
@@ -74,7 +45,7 @@ export class OpencodeClientManager {
   private connecting = false;
 
   /**
-   * Connect to an OpenCode server using the SDK
+   * Connect to an OpenCode server using real SDK
    */
   async connect(connection: ServerConnection): Promise<void> {
     if (this.connecting) {
@@ -94,14 +65,17 @@ export class OpencodeClientManager {
 
       console.log(`🔗 [SDK] Connecting to server: ${baseUrl}`);
 
-      const client = await createOpencodeClient({ baseUrl });
-      this.client = client;
+      // Use REAL SDK client
+      this.client = createOpencodeClient({ 
+        baseUrl
+        // Note: logLevel not supported in current SDK version
+      });
       this.currentConnection = {
         ...connection,
         lastConnected: new Date().toISOString()
       };
 
-      // Persist connection to Tauri backend
+      // Persist connection to Tauri backend for storage
       try {
         await invoke('save_connection', { connection: this.currentConnection });
         console.log('💾 [SDK] Connection saved to persistent storage');
@@ -116,7 +90,7 @@ export class OpencodeClientManager {
   }
 
   /**
-   * Disconnect from the current server
+   * Disconnect from current server
    */
   async disconnect(): Promise<void> {
     console.log('🔌 [SDK] Disconnecting from server');
@@ -125,7 +99,7 @@ export class OpencodeClientManager {
   }
 
   /**
-   * Get the current SDK client instance
+   * Get current SDK client instance
    */
   getClient(): OpencodeClient {
     if (!this.client) {
@@ -142,7 +116,7 @@ export class OpencodeClientManager {
   }
 
   /**
-   * Get the current connection details
+   * Get current connection details
    */
   getCurrentConnection(): ServerConnection | null {
     return this.currentConnection;
@@ -162,7 +136,7 @@ export class OpencodeClientManager {
   }
 
   /**
-   * Get the last used connection from persistent storage
+   * Get last used connection from persistent storage
    */
   async getLastUsedConnection(): Promise<ServerConnection | null> {
     try {
