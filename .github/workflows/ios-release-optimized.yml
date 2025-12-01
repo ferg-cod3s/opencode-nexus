@@ -271,6 +271,20 @@ jobs:
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || secrets.IOS_CERTIFICATE_PASSWORD }}
         run: |
+          # Validate required secrets are present
+          if [ -z "$IOS_CERTIFICATE_P12" ]; then
+            echo "❌ ERROR: IOS_CERTIFICATE_P12 secret is not configured"
+            echo "Please configure the following secrets in GitHub repository settings:"
+            echo "- IOS_CERTIFICATE_P12 (base64 encoded .p12 certificate)"
+            echo "- IOS_CERTIFICATE_PASSWORD"
+            echo "- KEYCHAIN_PASSWORD"
+            echo "- IOS_PROVISIONING_PROFILE"
+            echo "- APP_STORE_CONNECT_API_KEY_ID"
+            echo "- APP_STORE_CONNECT_ISSUER_ID"
+            echo "- APP_STORE_CONNECT_API_PRIVATE_KEY"
+            exit 1
+          fi
+
           KEYCHAIN_PATH=$(mktemp -d)/build.keychain
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -280,6 +294,13 @@ jobs:
           security set-keychain-settings -t 3600 -u "$KEYCHAIN_PATH"
 
           echo "$IOS_CERTIFICATE_P12" | base64 --decode > /tmp/cert.p12
+
+          # Validate certificate file was created and is not empty
+          if [ ! -s /tmp/cert.p12 ]; then
+            echo "❌ ERROR: Certificate file is empty or invalid"
+            echo "Check that IOS_CERTIFICATE_P12 secret contains valid base64 data"
+            exit 1
+          fi
 
           security import /tmp/cert.p12 \
             -k "$KEYCHAIN_PATH" \
