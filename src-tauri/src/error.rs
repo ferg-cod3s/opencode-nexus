@@ -61,6 +61,10 @@ pub enum AppError {
     },
     /// Data parsing or serialization errors
     DataError { message: String, details: String },
+    /// JSON parsing errors
+    ParseError { message: String, details: String },
+    /// I/O operation errors (file, network)
+    IoError { message: String, details: String },
     /// Server is not connected
     NotConnectedError { message: String },
     /// Operation timed out
@@ -107,6 +111,12 @@ impl AppError {
             AppError::DataError { message, .. } => {
                 format!("Data error: {}", message)
             }
+            AppError::ParseError { message, .. } => {
+                format!("Parse error: {}", message)
+            }
+            AppError::IoError { message, .. } => {
+                format!("I/O error: {}", message)
+            }
             AppError::NotConnectedError { message } => {
                 format!("Not connected: {}", message)
             }
@@ -139,6 +149,8 @@ impl AppError {
                 format!("Path: {}, Details: {}", path, details)
             }
             AppError::DataError { details, .. } => details.clone(),
+            AppError::ParseError { details, .. } => details.clone(),
+            AppError::IoError { details, .. } => details.clone(),
             AppError::NotConnectedError { message } => message.clone(),
             AppError::TimeoutError {
                 operation,
