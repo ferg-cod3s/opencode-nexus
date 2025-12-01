@@ -1,5 +1,5 @@
 #!/bin/bash
-# Xcode Cloud Post-Clone Script
+# Enhanced Xcode Cloud Post-Clone Script
 # Runs after repository is cloned, before Xcode builds
 #
 # CRITICAL: This script pre-builds the Rust library so Xcode's "Build Rust Code"
@@ -7,9 +7,9 @@
 # Tauri's xcode-script tries to connect to a non-existent parent process.
 
 set -e
-echo "📥 Post-clone setup for Xcode Cloud..."
+echo "📥 Enhanced post-clone setup for Xcode Cloud..."
 
-# Source cargo env if it exists (from previous runs or pre-installed)
+# Source cargo env if it exists
 if [ -f "$HOME/.cargo/env" ]; then
     source "$HOME/.cargo/env"
 fi
@@ -38,12 +38,12 @@ export IPHONEOS_DEPLOYMENT_TARGET="14.0"
 echo "🔧 SDK Root: $SDKROOT"
 echo "🔧 Deployment Target: $IPHONEOS_DEPLOYMENT_TARGET"
 
-# Navigate to src-tauri
-cd "$CI_PRIMARY_REPOSITORY_PATH/src-tauri"
+# Navigate to project root
+cd "$CI_PRIMARY_REPOSITORY_PATH"
 
 # Build frontend first (required for Tauri build)
 echo "🎨 Building frontend..."
-cd "$CI_PRIMARY_REPOSITORY_PATH/frontend"
+cd frontend
 if command -v bun &> /dev/null; then
     bun install --frozen-lockfile || bun install
     bun run build
@@ -68,33 +68,29 @@ echo "🦀 Pre-building Rust library for iOS (aarch64-apple-ios)..."
 mkdir -p gen/apple/Externals/arm64/Release
 mkdir -p gen/apple/Externals/arm64/release
 
-# Build the Rust library for iOS release
+# Build the Rust library for iOS release with correct library name
+echo "🔨 Building with library name: libsrc_tauri_lib.a"
 RUST_BACKTRACE=1 cargo build \
     --target aarch64-apple-ios \
     --release \
     --lib
 
 # Copy the built library to where Xcode expects it
-# The actual library name from Cargo.toml is "src_tauri_lib"
-RUST_LIB_PATH="target/aarch64-apple-ios/release/libsrc_tauri_lib.a"
+LIB_NAME="libsrc_tauri_lib.a"
+RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
+
 if [ -f "$RUST_LIB_PATH" ]; then
     cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/Release/libapp.a
     cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/release/libapp.a
-    echo "✅ Rust library (libsrc_tauri_lib.a) copied to Externals directory"
+    echo "✅ Rust library copied to Externals directory"
+    echo "   Source: $RUST_LIB_PATH"
+    echo "   Target: gen/apple/Externals/arm64/Release/libapp.a"
     ls -la gen/apple/Externals/arm64/Release/
 else
-    # Fallback: search for any .a file
-    FOUND_LIB=$(find target/aarch64-apple-ios/release -name "lib*.a" -type f | head -1)
-    if [ -n "$FOUND_LIB" ] && [ -f "$FOUND_LIB" ]; then
-        cp "$FOUND_LIB" gen/apple/Externals/arm64/Release/libapp.a
-        cp "$FOUND_LIB" gen/apple/Externals/arm64/release/libapp.a
-        echo "✅ Rust library ($(basename $FOUND_LIB)) copied to Externals directory"
-        ls -la gen/apple/Externals/arm64/Release/
-    else
-        echo "⚠️ Rust library not found at expected paths, listing target directory:"
-        find target/aarch64-apple-ios/release -name "*.a" -type f 2>/dev/null || echo "No .a files found"
-        exit 1
-    fi
+    echo "❌ ERROR: Expected library not found at $RUST_LIB_PATH"
+    echo "   Available files in target directory:"
+    find target/aarch64-apple-ios/release -name "*.a" -type f 2>/dev/null || echo "   No .a files found"
+    exit 1
 fi
 
 # CRITICAL: Patch the Xcode project to skip Rust build when libapp.a exists
@@ -103,31 +99,42 @@ cat > /tmp/patch_pbxproj.py << 'PYEOF'
 import re
 import sys
 
-pbxproj_path = sys.argv[1]
-
-with open(pbxproj_path, "r") as f:
-    content = f.read()
-
-# Find the shellScript line for "Build Rust Code" phase and replace it
-old_pattern = r'(shellScript = ")cargo tauri ios xcode-script[^"]*(")'
-
-# CI-compatible script that checks for pre-built library first
-new_script = r'''\1# CI-Compatible: Skip if pre-built libapp.a exists
+def patch_xcode_project(pbxproj_path):
+    with open(pbxproj_path, "r") as f:
+        content = f.read()
+    
+    # Find the shellScript line for "Build Rust Code" phase and replace it
+    old_pattern = r'(shellScript = ")[^"]*cargo tauri ios xcode-script[^"]*(")'
+    
+    # CI-compatible script that checks for pre-built library first
+    new_script = r'''\1# CI-Compatible: Skip if pre-built libapp.a exists
 OUTPUT_DIR="${SRCROOT}/Externals/arm64/${CONFIGURATION}"
 LIBAPP_PATH="${OUTPUT_DIR}/libapp.a"
 if [ -f "$LIBAPP_PATH" ]; then
-  echo "Pre-built libapp.a found at $LIBAPP_PATH - skipping Rust build"
+  echo "✅ Pre-built libapp.a found at $LIBAPP_PATH - skipping Rust build"
   exit 0
 fi
-echo "libapp.a not found, running Tauri build..."
+echo "⚠️ libapp.a not found, running Tauri build..."
 cargo tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}\2'''
+    
+    content = re.sub(old_pattern, new_script, content, flags=re.MULTILINE | re.DOTALL)
+    
+    with open(pbxproj_path, "w") as f:
+        f.write(content)
+    
+    print("✅ Xcode project patched successfully")
+    return True
 
-content = re.sub(old_pattern, new_script, content)
-
-with open(pbxproj_path, "w") as f:
-    f.write(content)
-
-print("Updated project.pbxproj with CI-compatible build script")
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python3 patch_pbxproj.py <path_to_project.pbxproj>")
+        sys.exit(1)
+    
+    pbxproj_path = sys.argv[1]
+    if patch_xcode_project(pbxproj_path):
+        sys.exit(0)
+    else:
+        sys.exit(1)
 PYEOF
 
 python3 /tmp/patch_pbxproj.py gen/apple/src-tauri.xcodeproj/project.pbxproj
@@ -156,7 +163,26 @@ if [ -f "$CI_PRIMARY_REPOSITORY_PATH/src-tauri/ios-config/ExportOptions.plist" ]
     echo "✅ ExportOptions.plist copied"
 fi
 
-echo "✅ Post-clone setup completed"
-echo "   - Rust library pre-built for iOS"
+# Validation step
+echo "🔍 Validating setup..."
+LIB_PATH="Externals/arm64/Release/libapp.a"
+if [ ! -f "$LIB_PATH" ]; then
+    echo "❌ ERROR: Library not found at $LIB_PATH"
+    exit 1
+fi
+
+if ! file "$LIB_PATH" | grep -q "ar archive"; then
+    echo "❌ ERROR: Library is not a valid ar archive"
+    exit 1
+fi
+
+if ! lipo -info "$LIB_PATH" 2>/dev/null | grep -q "arm64"; then
+    echo "❌ ERROR: Library not built for arm64"
+    exit 1
+fi
+
+echo "✅ Enhanced post-clone setup completed"
+echo "   - Rust library pre-built for iOS (libsrc_tauri_lib.a → libapp.a)"
 echo "   - Xcode project patched to skip rebuild"
 echo "   - CocoaPods installed"
+echo "   - All validations passed"
