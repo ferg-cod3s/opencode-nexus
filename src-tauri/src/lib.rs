@@ -408,7 +408,8 @@ async fn send_message(
     let message = client.send_message(&session_id, &content).await
         .map_err(|e| e.to_string())?;
     
-    let message_json = serde_json::to_value(&message);
+    let message_json = serde_json::to_value(&message)
+        .map_err(|e| format!("Failed to serialize message: {}", e))?;
     Ok(message_json)
 }
 
@@ -426,18 +427,23 @@ async fn get_session_messages(
     let messages = client.get_session_messages(&session_id).await
         .map_err(|e| e.to_string())?;
     
-    let messages_json: Vec<serde_json::Value> = messages.into_iter()
+    let messages_result: Result<Vec<serde_json::Value>, serde_json::Error> = messages.into_iter()
         .map(|m| serde_json::to_value(&m))
         .collect();
+    
+    let messages_json = messages_result
+        .map_err(|e| format!("Failed to serialize messages: {}", e))?;
     Ok(messages_json)
 }
 
 #[tauri::command]
-async fn subscribe_to_chat_events(app_handle: tauri::AppHandle) -> Result<String, String> {
+async fn subscribe_to_chat_events(
+    #[allow(unused_variables)] app_handle: tauri::AppHandle,
+) -> Result<String, String> {
     log_info!("🎧 [CHAT] Subscribing to chat events");
     
     let config_dir = get_config_dir()?;
-    let client = chat_client::ChatClient::new(config_dir)
+    let _client = chat_client::ChatClient::new(config_dir)
         .map_err(|e| e.to_string())?;
     
     // Store client in a global for event streaming
@@ -506,6 +512,12 @@ pub fn run() {
             get_saved_connections,
             save_connection,
             get_last_used_connection,
+            // Chat/Session management commands
+            list_sessions,
+            create_session,
+            send_message,
+            get_session_messages,
+            subscribe_to_chat_events,
             // Application commands
             get_application_logs,
             log_frontend_error,
