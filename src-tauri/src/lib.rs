@@ -31,7 +31,12 @@ use chrono::Utc;
 use serde::Deserialize;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::sync::Arc;
 use tauri::Emitter;
+use tokio::sync::Mutex as AsyncMutex;
+
+// Managed state for ChatClient singleton
+pub struct ChatClientState(pub Arc<AsyncMutex<Option<ChatClient>>>);
 
 // Logging utility function
 fn log_to_file(message: &str) {
@@ -359,15 +364,33 @@ async fn log_frontend_error(
 }
 
 // Chat/Session management commands
+
+// Helper to get or create the ChatClient from managed state
+async fn get_chat_client(
+    state: &tauri::State<'_, ChatClientState>,
+) -> Result<tokio::sync::MutexGuard<'_, Option<ChatClient>>, String> {
+    let mut guard = state.0.lock().await;
+    
+    // Initialize client if not already created
+    if guard.is_none() {
+        let config_dir = get_config_dir()?;
+        let client = ChatClient::new(config_dir)
+            .map_err(|e| format!("Failed to create chat client: {}", e))?;
+        *guard = Some(client);
+    }
+    
+    Ok(guard)
+}
+
 #[tauri::command]
 async fn list_sessions(
-    #[allow(unused_variables)] app_handle: tauri::AppHandle,
+    state: tauri::State<'_, ChatClientState>,
 ) -> Result<Vec<serde_json::Value>, String> {
     log_info!("📥 [CHAT] Listing sessions");
     
-    let config_dir = get_config_dir()?;
-    let mut client = chat_client::ChatClient::new(config_dir)
-        .map_err(|e| e.to_string())?;
+    let guard = get_chat_client(&state).await?;
+    let client = guard.as_ref()
+        .ok_or_else(|| "Chat client not initialized".to_string())?;
     
     let sessions = client.list_sessions().await
         .map_err(|e| e.to_string())?;
@@ -379,14 +402,14 @@ async fn list_sessions(
 
 #[tauri::command]
 async fn create_session(
-    #[allow(unused_variables)] app_handle: tauri::AppHandle,
+    state: tauri::State<'_, ChatClientState>,
     title: Option<String>,
 ) -> Result<serde_json::Value, String> {
     log_info!("📝 [CHAT] Creating session: {:?}", title);
     
-    let config_dir = get_config_dir()?;
-    let mut client = chat_client::ChatClient::new(config_dir)
-        .map_err(|e| e.to_string())?;
+    let guard = get_chat_client(&state).await?;
+    let client = guard.as_ref()
+        .ok_or_else(|| "Chat client not initialized".to_string())?;
     
     let session = client.create_session(title).await
         .map_err(|e| e.to_string())?;
@@ -398,18 +421,29 @@ async fn create_session(
 
 #[tauri::command]
 async fn send_message(
-    #[allow(unused_variables)] app_handle: tauri::AppHandle,
+    state: tauri::State<'_, ChatClientState>,
     session_id: String,
     content: String,
-    #[allow(unused_variables)] model: Option<serde_json::Value>,
 ) -> Result<serde_json::Value, String> {
     log_info!("💬 [CHAT] Sending message to session: {}", session_id);
     
-    let config_dir = get_config_dir()?;
-    let mut client = chat_client::ChatClient::new(config_dir)
-        .map_err(|e| e.to_string())?;
+    // Input validation
+    if session_id.trim().is_empty() {
+        return Err("Session ID cannot be empty".to_string());
+    }
+    let trimmed_content = content.trim();
+    if trimmed_content.is_empty() {
+        return Err("Message content cannot be empty".to_string());
+    }
+    if content.len() > 100_000 {
+        return Err("Message content exceeds maximum length (100KB)".to_string());
+    }
     
-    let message = client.send_message(&session_id, &content).await
+    let guard = get_chat_client(&state).await?;
+    let client = guard.as_ref()
+        .ok_or_else(|| "Chat client not initialized".to_string())?;
+    
+    let message = client.send_message(&session_id, trimmed_content).await
         .map_err(|e| e.to_string())?;
     
     let message_json = serde_json::to_value(&message)
@@ -419,39 +453,34 @@ async fn send_message(
 
 #[tauri::command]
 async fn get_session_messages(
-    #[allow(unused_variables)] app_handle: tauri::AppHandle,
+    state: tauri::State<'_, ChatClientState>,
     session_id: String,
 ) -> Result<Vec<serde_json::Value>, String> {
     log_info!("📜 [CHAT] Getting messages for session: {}", session_id);
     
-    let config_dir = get_config_dir()?;
-    let mut client = chat_client::ChatClient::new(config_dir)
-        .map_err(|e| e.to_string())?;
+    let guard = get_chat_client(&state).await?;
+    let client = guard.as_ref()
+        .ok_or_else(|| "Chat client not initialized".to_string())?;
     
     let messages = client.get_session_messages(&session_id).await
         .map_err(|e| e.to_string())?;
     
-    let messages_result: Result<Vec<serde_json::Value>, serde_json::Error> = messages.into_iter()
-        .map(|m| serde_json::to_value(&m))
+    let messages_json: Vec<serde_json::Value> = messages.into_iter()
+        .filter_map(|m| serde_json::to_value(&m).ok())
         .collect();
-    
-    let messages_json = messages_result
-        .map_err(|e| format!("Failed to serialize messages: {}", e))?;
     Ok(messages_json)
 }
 
 #[tauri::command]
 async fn subscribe_to_chat_events(
-    #[allow(unused_variables)] app_handle: tauri::AppHandle,
+    state: tauri::State<'_, ChatClientState>,
 ) -> Result<String, String> {
     log_info!("🎧 [CHAT] Subscribing to chat events");
     
-    let config_dir = get_config_dir()?;
-    let _client = chat_client::ChatClient::new(config_dir)
-        .map_err(|e| e.to_string())?;
+    // Ensure client is initialized
+    let _guard = get_chat_client(&state).await?;
     
-    // Store client in a global for event streaming
-    // In a real implementation, you'd want to manage client lifecycle better
+    // Return subscription channel identifier
     Ok("chat_events".to_string())
 }
 
@@ -475,8 +504,12 @@ async fn clear_application_logs() -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize ChatClient managed state (singleton)
+    let chat_client_state = ChatClientState(Arc::new(AsyncMutex::new(None)));
+    
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(chat_client_state)
         .setup(|app| {
             // Restore connection on app startup
             let app_handle = app.handle().clone();

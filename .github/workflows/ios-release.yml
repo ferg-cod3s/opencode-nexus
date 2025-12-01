@@ -156,7 +156,9 @@ jobs:
               content = f.read()
           
           # Find the shellScript line for "Build Rust Code" phase and replace it
-          old_pattern = r'(shellScript = ")cargo tauri ios xcode-script[^"]*(")'
+          # The pattern must handle escaped quotes (\") inside the pbxproj string
+          # (?:[^"\\]|\\.)* matches: non-quote/non-backslash chars OR any escaped char
+          old_pattern = r'(shellScript = ")cargo tauri ios xcode-script(?:[^"\\]|\\.)*(")'
           
           # CI-compatible script - must be properly escaped for pbxproj format
           # In pbxproj: quotes become \", newlines become \n (literal backslash-n)
