@@ -366,9 +366,9 @@ async fn log_frontend_error(
 // Chat/Session management commands
 
 // Helper to get or create the ChatClient from managed state
-async fn get_chat_client(
-    state: &tauri::State<'_, ChatClientState>,
-) -> Result<tokio::sync::MutexGuard<'_, Option<ChatClient>>, String> {
+async fn get_chat_client<'a>(
+    state: &'a tauri::State<'a, ChatClientState>,
+) -> Result<tokio::sync::MutexGuard<'a, Option<ChatClient>>, String> {
     let mut guard = state.0.lock().await;
     
     // Initialize client if not already created
