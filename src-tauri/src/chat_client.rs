@@ -241,8 +241,9 @@ impl ChatClient {
     fn get_server_url(&self) -> Result<String, Box<dyn std::error::Error>> {
         self.server_url.lock().unwrap()
             .clone()
-            .ok_or_else(|| AppError::ConnectionError { 
-                message: "No server URL configured".to_string() 
+            .ok_or_else(|| AppError::ConnectionError {
+                message: "No server URL configured".to_string(),
+                details: "Server URL has not been set".to_string()
             }.into())
     }
 
@@ -254,13 +255,15 @@ impl ChatClient {
         }
 
         let sessions_json = std::fs::read_to_string(&sessions_file)
-            .map_err(|e| AppError::IoError { 
-                message: format!("Failed to read sessions file: {}", e) 
+            .map_err(|e| AppError::IoError {
+                message: format!("Failed to read sessions file: {}", e),
+                details: e.to_string()
             })?;
 
         let _sessions: Vec<ChatSession> = serde_json::from_str(&sessions_json)
-            .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse sessions file: {}", e) 
+            .map_err(|e| AppError::ParseError {
+                message: format!("Failed to parse sessions file: {}", e),
+                details: e.to_string()
             })?;
 
         Ok(())
@@ -270,13 +273,15 @@ impl ChatClient {
         let sessions_file = self.config_dir.join("chat_sessions.json");
         
         let sessions_json = serde_json::to_string_pretty(sessions)
-            .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to serialize sessions: {}", e) 
+            .map_err(|e| AppError::ParseError {
+                message: format!("Failed to serialize sessions: {}", e),
+                details: e.to_string()
             })?;
 
         std::fs::write(sessions_file, sessions_json)
-            .map_err(|e| AppError::IoError { 
-                message: format!("Failed to write sessions file: {}", e) 
+            .map_err(|e| AppError::IoError {
+                message: format!("Failed to write sessions file: {}", e),
+                details: e.to_string()
             })?;
 
         Ok(())
