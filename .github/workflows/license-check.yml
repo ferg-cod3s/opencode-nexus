@@ -50,33 +50,12 @@ jobs:
           npx @cyclonedx/cyclonedx-npm --output-file ../sbom-npm.json --ignore-npm-errors || true
         continue-on-error: true
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
 
-      - name: Install frontend dependencies
-        run: |
-          cd frontend
-          bun install
-
-       - name: Generate NPM SBOM with CycloneDX
-         run: |
-           cd frontend
-           npx @cyclonedx/cyclonedx-npm --output-file ../sbom-npm.json --ignore-npm-errors || true
-
-      - name: Upload SBOM artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-reports
-          path: |
-            sbom-rust.json
-            sbom-npm.json
 
   license-summary:
     name: License Summary
     runs-on: ubuntu-latest
-    needs: [license-check, sbom-generation]
+    needs: [license-check]
     if: always()
     steps:
       - name: License check summary
