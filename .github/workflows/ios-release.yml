@@ -9,6 +9,7 @@ on:
       - 'test-ios-build'
       - 'test-ios-build-fix'
       - 'release'
+  workflow_dispatch:
 
 jobs:
   build-ios:
