@@ -370,7 +370,8 @@ async fn list_sessions(app_handle: tauri::AppHandle) -> Result<Vec<serde_json::V
     let sessions = client.list_sessions().await
         .map_err(|e| e.to_string())?;
     
-    let sessions_json = serde_json::to_value(&sessions);
+    let sessions_json = serde_json::to_value(&sessions)
+        .map_err(|e| e.to_string())?;
     Ok(sessions_json.as_array().unwrap_or(&serde_json::Value::Array).to_vec())
 }
 
@@ -388,7 +389,8 @@ async fn create_session(
     let session = client.create_session(title).await
         .map_err(|e| e.to_string())?;
     
-    let session_json = serde_json::to_value(&session);
+    let session_json = serde_json::to_value(&session)
+        .map_err(|e| e.to_string())?;
     Ok(session_json)
 }
 
