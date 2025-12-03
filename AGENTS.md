@@ -195,17 +195,25 @@ async fn my_command(
 - **No Comments:** Code should be self-documenting. Add comments only if logic is non-obvious
 - **Testing Coverage:** Target 80-90% for critical paths
 
-## Project Structure
+## Project Structure & Agent Context Files
 
 ```
 opencode-nexus/
+├── AGENTS.md                      # Root agent guidelines (this file)
+├── CLAUDE.md                      # Comprehensive development guide
+├── CONTRIBUTING.md                # Contribution guidelines
+│
 ├── frontend/                      # Astro + Svelte 5 (bun runtime)
+│   ├── AGENTS.md                 # ← Frontend quick reference
 │   ├── src/
 │   │   ├── pages/                # File-based routes (.astro)
 │   │   ├── components/           # Reusable .svelte components
+│   │   │   └── AGENTS.md         # ← Component patterns & accessibility
 │   │   ├── layouts/              # Layout wrappers (.astro)
 │   │   ├── stores/               # Svelte stores (state management)
+│   │   │   └── AGENTS.md         # ← Reactive state patterns
 │   │   ├── lib/                  # Core business logic
+│   │   │   └── AGENTS.md         # ← API integration & utilities
 │   │   ├── utils/                # Helper functions
 │   │   ├── types/                # TypeScript interfaces
 │   │   └── tests/                # Unit & E2E tests
@@ -213,6 +221,7 @@ opencode-nexus/
 │   └── tsconfig.json
 │
 ├── src-tauri/                     # Rust backend (Tauri 2)
+│   ├── AGENTS.md                 # ← Backend quick reference
 │   ├── src/
 │   │   ├── lib.rs                # Tauri command handlers
 │   │   ├── connection_manager.rs # Server connection logic
@@ -222,23 +231,53 @@ opencode-nexus/
 │   │   └── error.rs              # Error types & retry logic
 │   └── Cargo.toml
 │
-├── docs/client/                   # Architecture & design documentation
-│   ├── ARCHITECTURE.md            # System architecture
-│   ├── SECURITY.md                # Security implementation
-│   ├── TESTING.md                 # TDD approach (MANDATORY)
-│   ├── PRD.md                     # Product requirements
-│   └── USER-FLOWS.md              # Mobile interaction flows
+├── docs/                          # Documentation root
+│   ├── AGENTS.md                 # ← Documentation structure guide
+│   └── client/                   # Architecture & design docs
+│       ├── ARCHITECTURE.md       # System architecture (READ FIRST)
+│       ├── SECURITY.md           # Security implementation
+│       ├── TESTING.md            # TDD approach (MANDATORY)
+│       ├── PRD.md                # Product requirements
+│       ├── USER-FLOWS.md         # Mobile interaction flows
+│       └── README.md             # Documentation guide
 │
 ├── status_docs/                   # Project status & tracking
-│   ├── TODO.md                    # Current tasks & progress (15% complete)
-│   ├── CURRENT_STATUS.md          # Implementation status
-│   └── MVP_ROADMAP.md             # Milestone tracking
+│   ├── TODO.md                   # Current tasks & progress (15% complete)
+│   ├── CURRENT_STATUS.md         # Implementation status
+│   └── MVP_ROADMAP.md            # Milestone tracking
 │
-├── CLAUDE.md                      # Comprehensive development guide
-├── AGENTS.md                      # This file (agent guidelines)
-├── CONTRIBUTING.md                # Contribution guidelines
+├── thoughts/plans/               # Implementation planning
+│   └── opencode-client-pivot-implementation-plan.md
+│
 └── README.md
 ```
+
+### 📍 Agent Context Index
+
+Quick navigation to agent context files for different development areas:
+
+| Area | Context File | Purpose |
+|------|--------------|---------|
+| **Root** | [AGENTS.md](AGENTS.md) | Quick start, build commands, code style (YOU ARE HERE) |
+| **Frontend** | [frontend/AGENTS.md](frontend/AGENTS.md) | Astro/Svelte development, testing, common issues |
+| **Components** | [frontend/src/components/AGENTS.md](frontend/src/components/AGENTS.md) | Svelte component patterns, accessibility standards |
+| **Stores** | [frontend/src/stores/AGENTS.md](frontend/src/stores/AGENTS.md) | Reactive state management patterns |
+| **Business Logic** | [frontend/src/lib/AGENTS.md](frontend/src/lib/AGENTS.md) | API integration, error handling, utilities |
+| **Backend (Rust)** | [src-tauri/AGENTS.md](src-tauri/AGENTS.md) | Rust/Tauri development, async patterns, IPC |
+| **Documentation** | [docs/AGENTS.md](docs/AGENTS.md) | Architecture & design docs reference |
+
+### 🔍 Finding Context for Your Task
+
+**"I'm working on [task], which AGENTS.md should I read?"**
+
+- **Frontend UI:** [frontend/AGENTS.md](frontend/AGENTS.md) → [frontend/src/components/AGENTS.md](frontend/src/components/AGENTS.md)
+- **State Management:** [frontend/src/stores/AGENTS.md](frontend/src/stores/AGENTS.md)
+- **API Integration:** [frontend/src/lib/AGENTS.md](frontend/src/lib/AGENTS.md)
+- **Rust Backend:** [src-tauri/AGENTS.md](src-tauri/AGENTS.md)
+- **Architecture/Design:** [docs/AGENTS.md](docs/AGENTS.md) → [docs/client/ARCHITECTURE.md](docs/client/ARCHITECTURE.md)
+- **Security:** [docs/client/SECURITY.md](docs/client/SECURITY.md)
+- **Testing (TDD):** [docs/client/TESTING.md](docs/client/TESTING.md)
+- **Status/Tasks:** [status_docs/TODO.md](status_docs/TODO.md)
 
 ## Import Patterns & Module Organization
 
