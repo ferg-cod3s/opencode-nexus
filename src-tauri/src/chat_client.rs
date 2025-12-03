@@ -87,15 +87,15 @@ impl ChatClient {
 
     pub fn set_server_url(&self, url: String) -> Result<(), Box<dyn std::error::Error>> {
         *self.server_url.lock().unwrap() = Some(url.clone());
-        
+
         // Update connection manager if it exists
-        if let Some(conn_manager) = self.connection_manager.lock().unwrap().as_ref() {
+        if let Some(conn_manager) = self.connection_manager.lock().unwrap().as_mut() {
             // Parse URL to get hostname and port
             if let Ok(parsed_url) = url::Url::parse(&url) {
                 let hostname = parsed_url.host_str().unwrap_or("localhost").to_string();
                 let port = parsed_url.port().unwrap_or(80);
                 let secure = parsed_url.scheme() == "https";
-                
+
                 // Use connection manager to establish connection
                 let rt = tokio::runtime::Runtime::new()?;
                 rt.block_on(async {
@@ -103,7 +103,7 @@ impl ChatClient {
                 })?;
             }
         }
-        
+
         Ok(())
     }
 
