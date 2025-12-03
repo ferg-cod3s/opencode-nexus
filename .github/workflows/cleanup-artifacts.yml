@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete old artifacts
-        uses: actions/delete-artifact@v2
+        uses: actions/delete-artifact@v4
         with:
           # Remove artifacts older than 7 days
           age: '7 days'

@@ -23,12 +23,12 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
-          release_name: OpenCode Nexus v${{ steps.get_version.outputs.version }}
+          name: OpenCode Nexus v${{ steps.get_version.outputs.version }}
           draft: false
           prerelease: false
           body: |
@@ -113,24 +113,18 @@ jobs:
           cargo tauri build
 
       - name: Upload Linux AppImage
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/bundle/appimage/opencode-nexus_${{ needs.create-release.outputs.version }}_amd64.AppImage
-          asset_name: opencode-nexus-linux-x64.AppImage
-          asset_content_type: application/octet-stream
+          files: ./src-tauri/target/release/bundle/appimage/opencode-nexus_${{ needs.create-release.outputs.version }}_amd64.AppImage
 
       - name: Upload Linux deb
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/bundle/deb/opencode-nexus_${{ needs.create-release.outputs.version }}_amd64.deb
-          asset_name: opencode-nexus-linux-x64.deb
-          asset_content_type: application/vnd.debian.binary-package
+          files: ./src-tauri/target/release/bundle/deb/opencode-nexus_${{ needs.create-release.outputs.version }}_amd64.deb
 
   build-macos:
     needs: create-release
@@ -197,13 +191,11 @@ jobs:
           cargo tauri build --target ${{ matrix.target }}
 
       - name: Upload macOS dmg
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/${{ matrix.target }}/release/bundle/dmg/OpenCode Nexus_${{ needs.create-release.outputs.version }}_${{ matrix.target }}.dmg
-          asset_name: opencode-nexus-macos-${{ matrix.arch }}.dmg
+          files: ./src-tauri/target/${{ matrix.target }}/release/bundle/dmg/OpenCode Nexus_${{ needs.create-release.outputs.version }}_${{ matrix.target }}.dmg
           asset_content_type: application/octet-stream
 
   build-windows:
@@ -260,21 +252,15 @@ jobs:
           cargo tauri build
 
       - name: Upload Windows MSI
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/bundle/msi/OpenCode Nexus_${{ needs.create-release.outputs.version }}_x64_en-US.msi
-          asset_name: opencode-nexus-windows-x64.msi
-          asset_content_type: application/x-msi
+          files: ./src-tauri/target/release/bundle/msi/OpenCode Nexus_${{ needs.create-release.outputs.version }}_x64_en-US.msi
 
       - name: Upload Windows EXE
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ./src-tauri/target/release/opencode-nexus.exe
-          asset_name: opencode-nexus-windows-x64.exe
-          asset_content_type: application/x-msdownload
+          files: ./src-tauri/target/release/opencode-nexus.exe

@@ -68,6 +68,24 @@ pub enum AppError {
         operation: String,
         timeout_secs: u64,
     },
+    /// Data parsing error (JSON, serialization)
+    ParseError {
+        message: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        details: Option<String>,
+    },
+    /// Connection/network error
+    ConnectionError {
+        message: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        details: Option<String>,
+    },
+    /// I/O operation error
+    IoError {
+        message: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        details: Option<String>,
+    },
     /// Generic error with message
     Other { message: String },
 }
@@ -116,6 +134,15 @@ impl AppError {
             } => {
                 format!("{} timed out after {} seconds", operation, timeout_secs)
             }
+            AppError::ParseError { message, .. } => {
+                format!("Parse error: {}", message)
+            }
+            AppError::ConnectionError { message, .. } => {
+                format!("Connection error: {}", message)
+            }
+            AppError::IoError { message, .. } => {
+                format!("I/O error: {}", message)
+            }
             AppError::Other { message } => message.clone(),
         }
     }
@@ -146,6 +173,15 @@ impl AppError {
             } => {
                 format!("Operation: {}, Timeout: {}s", operation, timeout_secs)
             }
+            AppError::ParseError { details, .. } => {
+                details.clone().unwrap_or_default()
+            }
+            AppError::ConnectionError { details, .. } => {
+                details.clone().unwrap_or_default()
+            }
+            AppError::IoError { details, .. } => {
+                details.clone().unwrap_or_default()
+            }
             AppError::Other { message } => message.clone(),
         }
     }
@@ -159,6 +195,9 @@ impl AppError {
                 *status_code == 429 || (*status_code >= 500 && *status_code < 600)
             }
             AppError::TimeoutError { .. } => true,
+            AppError::ConnectionError { .. } => true,
+            AppError::IoError { .. } => true,
+            AppError::ParseError { .. } => false,
             _ => false,
         }
     }
@@ -177,6 +216,9 @@ impl AppError {
                 }
             }
             AppError::TimeoutError { .. } => Some(2),
+            AppError::ConnectionError { .. } => Some(2),
+            AppError::IoError { .. } => Some(1),
+            AppError::ParseError { .. } => None,
             _ => None,
         }
     }

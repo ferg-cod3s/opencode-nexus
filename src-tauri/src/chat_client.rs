@@ -115,7 +115,9 @@ impl ChatClient {
             .send()
             .await
             .map_err(|e| AppError::NetworkError { 
-                message: format!("Failed to fetch sessions: {}", e) 
+                message: format!("Failed to fetch sessions: {}", e),
+                details: e.to_string(),
+                retry_after: Some(2),
             })?;
 
         if !response.status().is_success() {
@@ -127,8 +129,9 @@ impl ChatClient {
         }
 
         let sessions: Vec<ChatSession> = response.json().await
-            .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse sessions: {}", e) 
+            .map_err(|e| AppError::DataError { 
+                message: format!("Failed to parse sessions: {}", e),
+                details: e.to_string(),
             })?;
 
         Ok(sessions)
@@ -148,7 +151,9 @@ impl ChatClient {
             .send()
             .await
             .map_err(|e| AppError::NetworkError { 
-                message: format!("Failed to create session: {}", e) 
+                message: format!("Failed to create session: {}", e),
+                details: e.to_string(),
+                retry_after: Some(2),
             })?;
 
         if !response.status().is_success() {
@@ -160,8 +165,9 @@ impl ChatClient {
         }
 
         let session: ChatSession = response.json().await
-            .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse session: {}", e) 
+            .map_err(|e| AppError::ParseError {
+                message: format!("Failed to parse session: {}", e),
+                details: Some(e.to_string()),
             })?;
 
         // Emit session created event
@@ -182,7 +188,9 @@ impl ChatClient {
             .send()
             .await
             .map_err(|e| AppError::NetworkError { 
-                message: format!("Failed to send message: {}", e) 
+                message: format!("Failed to send message: {}", e),
+                details: e.to_string(),
+                retry_after: Some(2),
             })?;
 
         if !response.status().is_success() {
@@ -194,8 +202,9 @@ impl ChatClient {
         }
 
         let message: ChatMessage = response.json().await
-            .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse message: {}", e) 
+            .map_err(|e| AppError::DataError { 
+                message: format!("Failed to parse message: {}", e),
+                details: e.to_string(),
             })?;
 
         // Emit message received event
@@ -215,7 +224,9 @@ impl ChatClient {
             .send()
             .await
             .map_err(|e| AppError::NetworkError { 
-                message: format!("Failed to fetch session messages: {}", e) 
+                message: format!("Failed to fetch session messages: {}", e),
+                details: e.to_string(),
+                retry_after: Some(2),
             })?;
 
         if !response.status().is_success() {
@@ -227,8 +238,9 @@ impl ChatClient {
         }
 
         let messages: Vec<ChatMessage> = response.json().await
-            .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse messages: {}", e) 
+            .map_err(|e| AppError::DataError { 
+                message: format!("Failed to parse messages: {}", e),
+                details: e.to_string(),
             })?;
 
         Ok(messages)
@@ -241,8 +253,9 @@ impl ChatClient {
     fn get_server_url(&self) -> Result<String, Box<dyn std::error::Error>> {
         self.server_url.lock().unwrap()
             .clone()
-            .ok_or_else(|| AppError::ConnectionError { 
-                message: "No server URL configured".to_string() 
+            .ok_or_else(|| AppError::ConnectionError {
+                message: "No server URL configured".to_string(),
+                details: None,
             }.into())
     }
 
@@ -254,13 +267,15 @@ impl ChatClient {
         }
 
         let sessions_json = std::fs::read_to_string(&sessions_file)
-            .map_err(|e| AppError::IoError { 
-                message: format!("Failed to read sessions file: {}", e) 
+            .map_err(|e| AppError::IoError {
+                message: format!("Failed to read sessions file: {}", e),
+                details: Some(e.to_string()),
             })?;
 
         let _sessions: Vec<ChatSession> = serde_json::from_str(&sessions_json)
-            .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to parse sessions file: {}", e) 
+            .map_err(|e| AppError::ParseError {
+                message: format!("Failed to parse sessions file: {}", e),
+                details: Some(e.to_string()),
             })?;
 
         Ok(())
@@ -270,13 +285,15 @@ impl ChatClient {
         let sessions_file = self.config_dir.join("chat_sessions.json");
         
         let sessions_json = serde_json::to_string_pretty(sessions)
-            .map_err(|e| AppError::ParseError { 
-                message: format!("Failed to serialize sessions: {}", e) 
+            .map_err(|e| AppError::ParseError {
+                message: format!("Failed to serialize sessions: {}", e),
+                details: Some(e.to_string()),
             })?;
 
         std::fs::write(sessions_file, sessions_json)
-            .map_err(|e| AppError::IoError { 
-                message: format!("Failed to write sessions file: {}", e) 
+            .map_err(|e| AppError::IoError {
+                message: format!("Failed to write sessions file: {}", e),
+                details: Some(e.to_string()),
             })?;
 
         Ok(())

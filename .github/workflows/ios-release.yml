@@ -7,7 +7,9 @@ on:
     branches:
       - 'main'
       - 'test-ios-build'
+      - 'test-ios-build-fix'
       - 'release'
+  workflow_dispatch:
 
 jobs:
   build-ios:
@@ -155,18 +157,13 @@ jobs:
               content = f.read()
           
           # Find the shellScript line for "Build Rust Code" phase and replace it
-          old_pattern = r'(shellScript = ")cargo tauri ios xcode-script[^"]*(")'
+          # The pattern must handle escaped quotes (\") inside the pbxproj string
+          # (?:[^"\\]|\\.)* matches: non-quote/non-backslash chars OR any escaped char
+          old_pattern = r'(shellScript = ")cargo tauri ios xcode-script(?:[^"\\]|\\.)*(")'
           
-          # CI-compatible script that checks for pre-built library first
-          new_script = '''\\1# CI-Compatible: Skip if pre-built libapp.a exists
-          OUTPUT_DIR="${SRCROOT}/Externals/arm64/${CONFIGURATION}"
-          LIBAPP_PATH="${OUTPUT_DIR}/libapp.a"
-          if [ -f "$LIBAPP_PATH" ]; then
-            echo "Pre-built libapp.a found at $LIBAPP_PATH - skipping Rust build"
-            exit 0
-          fi
-          echo "libapp.a not found, running Tauri build..."
-          cargo tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}\\2'''
+          # CI-compatible script - must be properly escaped for pbxproj format
+          # In pbxproj: quotes become \", newlines become \n (literal backslash-n)
+          new_script = r'''\1# CI-Compatible: Skip if pre-built libapp.a exists\nOUTPUT_DIR=\"${SRCROOT}/Externals/arm64/${CONFIGURATION}\"\nLIBAPP_PATH=\"${OUTPUT_DIR}/libapp.a\"\nif [ -f \"$LIBAPP_PATH\" ]; then\n  echo \"Pre-built libapp.a found - skipping Rust build\"\n  exit 0\nfi\necho \"libapp.a not found, running Tauri build...\"\ncargo tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths \"${FRAMEWORK_SEARCH_PATHS:?}\" --header-search-paths \"${HEADER_SEARCH_PATHS:?}\" --gcc-preprocessor-definitions \"${GCC_PREPROCESSOR_DEFINITIONS:-}\" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}\2'''
           
           content = re.sub(old_pattern, new_script, content)
           
@@ -197,6 +194,20 @@ jobs:
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || secrets.IOS_CERTIFICATE_PASSWORD }}
         run: |
+          # Validate required secrets are present
+          if [ -z "$IOS_CERTIFICATE_P12" ]; then
+            echo "❌ ERROR: IOS_CERTIFICATE_P12 secret is not configured"
+            echo "Please configure the following secrets in GitHub repository settings:"
+            echo "- IOS_CERTIFICATE_P12 (base64 encoded .p12 certificate)"
+            echo "- IOS_CERTIFICATE_PASSWORD"
+            echo "- KEYCHAIN_PASSWORD"
+            echo "- IOS_PROVISIONING_PROFILE"
+            echo "- APP_STORE_CONNECT_API_KEY_ID"
+            echo "- APP_STORE_CONNECT_ISSUER_ID" 
+            echo "- APP_STORE_CONNECT_API_PRIVATE_KEY"
+            exit 1
+          fi
+
           KEYCHAIN_PATH=$(mktemp -d)/build.keychain
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -206,6 +217,13 @@ jobs:
           security set-keychain-settings -t 3600 -u "$KEYCHAIN_PATH"
 
           echo "$IOS_CERTIFICATE_P12" | base64 --decode > /tmp/cert.p12
+
+          # Validate certificate file was created and is not empty
+          if [ ! -s /tmp/cert.p12 ]; then
+            echo "❌ ERROR: Certificate file is empty or invalid"
+            echo "Check that IOS_CERTIFICATE_P12 secret contains valid base64 data"
+            exit 1
+          fi
 
           security import /tmp/cert.p12 \
             -k "$KEYCHAIN_PATH" \
@@ -222,7 +240,7 @@ jobs:
 
           rm -f /tmp/cert.p12
 
-          echo "Keychain configured for code signing"
+          echo "✅ Keychain configured for code signing"
 
       - name: Install provisioning profile
         env:

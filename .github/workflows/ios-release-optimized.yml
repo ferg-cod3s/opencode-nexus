@@ -268,9 +268,23 @@ jobs:
       - name: Setup code signing
         env:
           IOS_CERTIFICATE_P12: ${{ secrets.IOS_CERTIFICATE_P12 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD || secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD_TEMP || secrets.IOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD_TEMP || secrets.IOS_CERTIFICATE_PASSWORD }}
         run: |
+          # Validate required secrets are present
+          if [ -z "$IOS_CERTIFICATE_P12" ]; then
+            echo "❌ ERROR: IOS_CERTIFICATE_P12 secret is not configured"
+            echo "Please configure the following secrets in GitHub repository settings:"
+            echo "- IOS_CERTIFICATE_P12 (base64 encoded .p12 certificate)"
+            echo "- IOS_CERTIFICATE_PASSWORD"
+            echo "- KEYCHAIN_PASSWORD"
+            echo "- IOS_PROVISIONING_PROFILE"
+            echo "- APP_STORE_CONNECT_API_KEY_ID"
+            echo "- APP_STORE_CONNECT_ISSUER_ID"
+            echo "- APP_STORE_CONNECT_API_PRIVATE_KEY"
+            exit 1
+          fi
+
           KEYCHAIN_PATH=$(mktemp -d)/build.keychain
 
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
@@ -281,12 +295,19 @@ jobs:
 
           echo "$IOS_CERTIFICATE_P12" | base64 --decode > /tmp/cert.p12
 
-          security import /tmp/cert.p12 \
-            -k "$KEYCHAIN_PATH" \
-            -P "$IOS_CERTIFICATE_PASSWORD" \
-            -T /usr/bin/codesign \
-            -T /usr/bin/security \
-            -T /usr/bin/xcodebuild
+          # Validate certificate file was created and is not empty
+          if [ ! -s /tmp/cert.p12 ]; then
+            echo "❌ ERROR: Certificate file is empty or invalid"
+            echo "Check that IOS_CERTIFICATE_P12 secret contains valid base64 data"
+            exit 1
+          fi
+
+           # Import certificate without password (exported without -P flag)
+           security import /tmp/cert.p12 \
+             -k "$KEYCHAIN_PATH" \
+             -T /usr/bin/codesign \
+             -T /usr/bin/security \
+             -T /usr/bin/xcodebuild
 
           security set-key-partition-list \
             -S apple-tool:,apple:,codesign: \
@@ -435,7 +456,7 @@ jobs:
       - name: Upload to TestFlight
         if: github.event.inputs.upload_to_testflight != 'false' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_to_testflight == 'true')
         env:
-          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ID: J94Q923ZNG
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
         run: |
