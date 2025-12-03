@@ -152,62 +152,17 @@ jobs:
           ls -la gen/apple/Externals/arm64/Release/
           ls -la gen/apple/Externals/arm64/release/
           
-          # Patch the Xcode project to skip Rust build phase when library exists
-          echo "🔧 Patching Xcode project for CI compatibility..."
-          cat > /tmp/patch_pbxproj.py << 'PYEOF'
-          import re
-          import sys
-          
-          def patch_xcode_project(pbxproj_path):
-              with open(pbxproj_path, "r") as f:
-                  content = f.read()
-              
-              # More robust pattern matching for the shell script
-              old_pattern = r'(shellScript = ")[^"]*cargo tauri ios xcode-script[^"]*(")'
-              
-              # CI-compatible script that checks for pre-built library first
-              new_script = r'''\1# CI-Compatible: Skip if pre-built libapp.a exists
-          OUTPUT_DIR="${SRCROOT}/Externals/arm64/${CONFIGURATION}"
-          LIBAPP_PATH="${OUTPUT_DIR}/libapp.a"
-          if [ -f "$LIBAPP_PATH" ]; then
-            echo "✅ Pre-built libapp.a found at $LIBAPP_PATH - skipping Rust build"
-            exit 0
-          fi
-          echo "⚠️ libapp.a not found, falling back to Tauri build..."
-          cargo tauri ios xcode-script -v --platform ${PLATFORM_DISPLAY_NAME:?} --sdk-root ${SDKROOT:?} --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration ${CONFIGURATION:?} ${FORCE_COLOR} ${ARCHS:?}\2'''
-              
-              # Apply the replacement
-              new_content = re.sub(old_pattern, new_script, content, flags=re.MULTILINE | re.DOTALL)
-              
-              # Write back the modified content
-              with open(pbxproj_path, "w") as f:
-                  f.write(new_content)
-              
-              print("✅ Xcode project patched successfully")
-              return True
-          
-          if __name__ == "__main__":
-              if len(sys.argv) != 2:
-                  print("Usage: python3 patch_pbxproj.py <path_to_project.pbxproj>")
-                  sys.exit(1)
-              
-              pbxproj_path = sys.argv[1]
-              if patch_xcode_project(pbxproj_path):
-                  sys.exit(0)
-              else:
-                  sys.exit(1)
-          PYEOF
-          
-          python3 /tmp/patch_pbxproj.py gen/apple/src-tauri.xcodeproj/project.pbxproj
-          
           # Copy ExportOptions.plist
           if [ -f "ios-config/ExportOptions.plist" ]; then
             cp ios-config/ExportOptions.plist gen/apple/ExportOptions.plist
             echo "✅ ExportOptions.plist copied"
           fi
           
-          # Setup CocoaPods
-          echo "📦 Setting up CocoaPods..."
+          # =====================================================
+          # IMPORTANT: Run CocoaPods BEFORE patching project.pbxproj
+          # This avoids the "Dictionary missing ';'" parsing error
+          # =====================================================
+          echo "📦 Setting up CocoaPods (BEFORE project patching)..."
           cd gen/apple
           
           # Remove macOS target from Podfile
@@ -217,12 +172,46 @@ jobs:
             rm -f Podfile.bak
           fi
           
-          # Install pods
+          # Install pods (parses project.pbxproj - must happen before we modify it)
           if ! command -v pod &> /dev/null; then
             echo "Installing CocoaPods..."
             sudo gem install cocoapods
           fi
           pod install --repo-update || pod install
+          echo "✅ CocoaPods setup complete"
+          
+          # =====================================================
+          # NOW patch the Xcode project (AFTER CocoaPods is done)
+          # Use simple sed replacement that maintains valid pbxproj syntax
+          # =====================================================
+          echo "🔧 Patching Xcode project for CI compatibility..."
+          cd ../..
+          PBXPROJ="gen/apple/src-tauri.xcodeproj/project.pbxproj"
+          
+          # Backup original
+          cp "$PBXPROJ" "$PBXPROJ.backup"
+          
+          # Simple single-line patch: prepend an exit check to the existing cargo command
+          # This keeps the script on one line and maintains valid pbxproj syntax
+          # The pattern: shellScript = "cargo tauri ios xcode-script..."
+          # Becomes:     shellScript = "if [ -f \"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\" ]; then echo 'Skip Rust build - using pre-built library'; exit 0; fi; cargo tauri ios xcode-script..."
+          sed -i.bak 's|shellScript = "cargo tauri ios xcode-script|shellScript = "if [ -f \\"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\\" ]; then echo CI-Skip; exit 0; fi; cargo tauri ios xcode-script|' "$PBXPROJ"
+          
+          # Validate the patch was applied
+          if grep -q 'CI-Skip' "$PBXPROJ"; then
+            echo "✅ Xcode project patched successfully"
+          else
+            echo "⚠️ Patch may not have been applied, checking original pattern..."
+            if grep -q 'cargo tauri ios xcode-script' "$PBXPROJ"; then
+              echo "❌ Original pattern still exists - patch failed"
+              # Restore backup and continue (build phase will just run longer)
+              cp "$PBXPROJ.backup" "$PBXPROJ"
+            else
+              echo "⚠️ Script pattern not found - Tauri may have changed format"
+            fi
+          fi
+          
+          rm -f "$PBXPROJ.bak" "$PBXPROJ.backup"
           
           echo "✅ iOS Xcode project setup complete"
 
@@ -251,15 +240,23 @@ jobs:
             exit 1
           fi
           
-          # Check Xcode project was patched
-          if ! grep -q "CI-Compatible: Skip if pre-built libapp.a exists" gen/apple/src-tauri.xcodeproj/project.pbxproj; then
-            echo "❌ ERROR: Xcode project not properly patched"
+          # Check Xcode project was patched (look for the CI-Skip marker)
+          if ! grep -q "CI-Skip" gen/apple/src-tauri.xcodeproj/project.pbxproj; then
+            echo "⚠️ WARNING: Xcode project patch marker not found"
+            echo "Build phase may run the full Rust build (slower but still works)"
+          else
+            echo "✅ Xcode project patched for CI skip"
+          fi
+          
+          # Check workspace exists (created by pod install)
+          if [ ! -f "gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata" ]; then
+            echo "❌ ERROR: Xcode workspace not found (CocoaPods may have failed)"
             exit 1
           fi
           
-          # Check workspace exists
-          if [ ! -f "gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata" ]; then
-            echo "❌ ERROR: Xcode workspace not found"
+          # Check Pods directory exists
+          if [ ! -d "gen/apple/Pods" ]; then
+            echo "❌ ERROR: Pods directory not found (CocoaPods may have failed)"
             exit 1
           fi
           
