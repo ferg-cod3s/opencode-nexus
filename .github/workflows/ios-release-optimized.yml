@@ -12,14 +12,14 @@ on:
   workflow_dispatch:
     inputs:
       upload_to_testflight:
-        description: 'Upload to TestFlight'
-        required: false
-        default: true
-        type: boolean
+      description: 'Upload to TestFlight'
+      required: false
+      default: true
+      type: boolean
       tag_name:
-        description: 'Release tag name'
-        required: false
-        type: string
+      description: 'Release tag name'
+      required: false
+      type: string
 
 jobs:
   build-ios:
@@ -27,436 +27,422 @@ jobs:
     timeout-minutes: 90
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Set up environment variables
-        run: |
-          TAG_NAME="${{ github.event.inputs.tag_name || github.ref_name }}"
-          VERSION_NUMBER=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/-.*$//')
-          BUILD_NUMBER=$(git rev-list --count HEAD)
+    - name: Set up environment variables
+      run: |
+        TAG_NAME="${{ github.event.inputs.tag_name || github.ref_name }}"
+        VERSION_NUMBER=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/-.*$//')
+        BUILD_NUMBER=$(git rev-list --count HEAD)
 
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
-          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+        echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+        echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
+        echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
 
-          echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
+        echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
 
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '15.4'
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
+      with:
+        xcode-version: '15.4'
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-ios
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: aarch64-apple-ios
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
+    - name: Install Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
 
-      - name: Setup caching
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.bun/install/cache
-            frontend/node_modules
-          key: ${{ runner.os }}-deps-${{ hashFiles('**/Cargo.lock', '**/bun.lockb', 'src-tauri/Cargo.toml', 'frontend/package.json') }}
-          restore-keys: |
-            ${{ runner.os }}-deps-
-            ${{ runner.os }}-
+    - name: Setup caching
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ~/.bun/install/cache
+          frontend/node_modules
+        key: ${{ runner.os }}-deps-${{ hashFiles('**/Cargo.lock', '**/bun.lockb', 'src-tauri/Cargo.toml', 'frontend/package.json') }}
+        restore-keys: |
+          ${{ runner.os }}-deps-
+          ${{ runner.os }}-
 
-      - name: Cache Rust target
-        uses: actions/cache@v4
-        with:
-          path: src-tauri/target
-          key: ${{ runner.os }}-rust-target-${{ hashFiles('**/Cargo.lock', 'src-tauri/src/**/*.rs') }}
-          restore-keys: |
-            ${{ runner.os }}-rust-target-
+    - name: Cache Rust target
+      uses: actions/cache@v4
+      with:
+        path: src-tauri/target
+        key: ${{ runner.os }}-rust-target-${{ hashFiles('**/Cargo.lock', 'src-tauri/src/**/*.rs') }}
+        restore-keys: |
+          ${{ runner.os }}-rust-target-
 
-      - name: Install frontend dependencies
-        run: |
-          cd frontend
-          bun install --frozen-lockfile
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        bun install --frozen-lockfile
 
-      - name: Build frontend (production)
-        run: |
-          cd frontend
-          bun run build
-        env:
-          NODE_ENV: production
+    - name: Build frontend (production)
+      run: |
+        cd frontend
+        bun run build
+      env:
+        NODE_ENV: production
 
-      - name: Install Tauri CLI
-        run: |
-          cargo install tauri-cli --version "^2" --locked
+    - name: Install Tauri CLI
+      run: |
+        cargo install tauri-cli --version "^2" --locked
 
-      - name: Pre-build Rust library for iOS
-        id: prebuild
-        run: |
-          echo "::group::Pre-building Rust library for iOS"
-          START_TIME=$(date +%s)
-          
-          cd src-tauri
-          echo "Building Rust code for iOS (aarch64-apple-ios)..."
-          
-          # Build with correct library name from Cargo.toml
-          RUST_BACKTRACE=0 cargo build --target aarch64-apple-ios --release --lib
-          
-          RUST_BUILD_TIME=$(($(date +%s) - START_TIME))
-          echo "::notice::Rust build completed in ${RUST_BUILD_TIME}s"
-          
-          # Verify library was built
-          LIB_NAME="libsrc_tauri_lib.a"
-          RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
-          
-          if [ ! -f "$RUST_LIB_PATH" ]; then
-            echo "❌ ERROR: Expected library not found at $RUST_LIB_PATH"
-            echo "Available files:"
-            find target/aarch64-apple-ios/release -name "*.a" -type f
-            exit 1
-          fi
-          
-          echo "✅ Rust library built successfully: $LIB_NAME"
-          echo "::endgroup::"
-        env:
-          RUST_LOG: warn
+    - name: Pre-build Rust library for iOS
+      id: prebuild
+      run: |
+        echo "::group::Pre-building Rust library for iOS"
+        START_TIME=$(date +%s)
+        
+        cd src-tauri
+        echo "Building Rust code for iOS (aarch64-apple-ios)..."
+        
+        # Build with correct library name from Cargo.toml
+        RUST_BACKTRACE=0 cargo build --target aarch64-apple-ios --release --lib
+        
+        RUST_BUILD_TIME=$(($(date +%s) - START_TIME))
+        echo "::notice::Rust build completed in ${RUST_BUILD_TIME}s"
+        
+        # Verify library was built
+        LIB_NAME="libsrc_tauri_lib.a"
+        RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
+        
+        if [ ! -f "$RUST_LIB_PATH" ]; then
+        echo "❌ ERROR: Expected library not found at $RUST_LIB_PATH"
+        echo "Available files:"
+        find target/aarch64-apple-ios/release -name "*.a" -type f
+        exit 1
+        fi
+        
+        echo "✅ Rust library built successfully: $LIB_NAME"
+        echo "::endgroup::"
+      env:
+        RUST_LOG: warn
 
-      - name: Setup iOS Xcode project
-        run: |
-          cd src-tauri
-          
-          # Initialize the iOS project (creates gen/apple/)
-          echo "🔧 Initializing iOS project..."
-          cargo tauri ios init
-          
-          # Create the Externals directory structure
-          echo "📁 Creating directory structure..."
-          mkdir -p gen/apple/Externals/arm64/Release
-          mkdir -p gen/apple/Externals/arm64/release
-          
-          # Copy the pre-built library to where Xcode expects it
-          echo "📦 Copying pre-built library..."
-          LIB_NAME="libsrc_tauri_lib.a"
-          RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
-          
-          cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/Release/libapp.a
-          cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/release/libapp.a
-          echo "✅ Copied $LIB_NAME to gen/apple/Externals/arm64/"
-          
-          # Verify the copies
-          ls -la gen/apple/Externals/arm64/Release/
-          ls -la gen/apple/Externals/arm64/release/
-          
-          # Copy ExportOptions.plist
-          if [ -f "ios-config/ExportOptions.plist" ]; then
-            cp ios-config/ExportOptions.plist gen/apple/ExportOptions.plist
-            echo "✅ ExportOptions.plist copied"
-          fi
-          
-          # =====================================================
-          # Patch the Xcode project for CI compatibility
-          # Use simple sed replacement that maintains valid pbxproj syntax
-          # =====================================================
-          echo "🔧 Patching Xcode project for CI compatibility..."
-          cd gen/apple
-          PBXPROJ="src-tauri.xcodeproj/project.pbxproj"
-          
-          # Backup original
-          cp "$PBXPROJ" "$PBXPROJ.backup"
-          
-          # Simple single-line patch: prepend an exit check to the existing cargo command
-          # This keeps the script on one line and maintains valid pbxproj syntax
-          # The pattern: shellScript = "cargo tauri ios xcode-script..."
-          # Becomes:     shellScript = "if [ -f \"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\" ]; then echo CI-Skip; exit 0; fi; cargo tauri ios xcode-script..."
-          sed -i.bak 's|shellScript = "cargo tauri ios xcode-script|shellScript = "if [ -f \\"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\\" ]; then echo CI-Skip; exit 0; fi; cargo tauri ios xcode-script|' "$PBXPROJ"
-          
-          # Validate the patch was applied
-          if grep -q 'CI-Skip' "$PBXPROJ"; then
-            echo "✅ Xcode project patched successfully"
-          else
-            echo "⚠️ Patch may not have been applied, checking original pattern..."
-            if grep -q 'cargo tauri ios xcode-script' "$PBXPROJ"; then
-              echo "❌ Original pattern still exists - patch failed"
-              # Restore backup and continue (build phase will just run longer)
-              cp "$PBXPROJ.backup" "$PBXPROJ"
-            else
-              echo "⚠️ Script pattern not found - Tauri may have changed format"
-            fi
-          fi
-          
-          rm -f "$PBXPROJ.bak" "$PBXPROJ.backup"
-          
-          echo "✅ iOS Xcode project setup complete (CocoaPods-free)"
+    - name: Setup iOS Xcode project
+      run: |
+        cd src-tauri
+        
+        # Initialize the iOS project (creates gen/apple/)
+        echo "🔧 Initializing iOS project..."
+        cargo tauri ios init
+        
+        # Create the Externals directory structure
+        echo "📁 Creating directory structure..."
+        mkdir -p gen/apple/Externals/arm64/Release
+        mkdir -p gen/apple/Externals/arm64/release
+        
+        # Copy the pre-built library to where Xcode expects it
+        echo "📦 Copying pre-built library..."
+        LIB_NAME="libsrc_tauri_lib.a"
+        RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
+        
+        cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/Release/libapp.a
+        cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/release/libapp.a
+        echo "✅ Copied $LIB_NAME to gen/apple/Externals/arm64/"
+        
+        # Verify the copies
+        ls -la gen/apple/Externals/arm64/Release/
+        ls -la gen/apple/Externals/arm64/release/
+        
+        # Copy ExportOptions.plist
+        if [ -f "ios-config/ExportOptions.plist" ]; then
+        cp ios-config/ExportOptions.plist gen/apple/ExportOptions.plist
+        echo "✅ ExportOptions.plist copied"
+        fi
+        
+        # =====================================================
+        # Patch the Xcode project for CI compatibility
+        # Use simple sed replacement that maintains valid pbxproj syntax
+        # =====================================================
+        echo "🔧 Patching Xcode project for CI compatibility..."
+        cd gen/apple
+        PBXPROJ="src-tauri.xcodeproj/project.pbxproj"
+        
+        # Backup original
+        cp "$PBXPROJ" "$PBXPROJ.backup"
+        
+        # Simple single-line patch: prepend an exit check to the existing cargo command
+        # This keeps the script on one line and maintains valid pbxproj syntax
+        # The pattern: shellScript = "cargo tauri ios xcode-script..."
+        # Becomes:     shellScript = "if [ -f \"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\" ]; then echo CI-Skip; exit 0; fi; cargo tauri ios xcode-script..."
+        sed -i.bak 's|shellScript = "cargo tauri ios xcode-script|shellScript = "if [ -f \\"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\\" ]; then echo CI-Skip; exit 0; fi; cargo tauri ios xcode-script|' "$PBXPROJ"
+        
+        # Validate the patch was applied
+        if grep -q 'CI-Skip' "$PBXPROJ"; then
+        echo "✅ Xcode project patched successfully"
+        else
+        echo "⚠️ Patch may not have been applied, checking original pattern..."
+        if grep -q 'cargo tauri ios xcode-script' "$PBXPROJ"; then
+          echo "❌ Original pattern still exists - patch failed"
+          # Restore backup and continue (build phase will just run longer)
+          cp "$PBXPROJ.backup" "$PBXPROJ"
+        else
+          echo "⚠️ Script pattern not found - Tauri may have changed format"
+        fi
+        fi
+        
+        rm -f "$PBXPROJ.bak" "$PBXPROJ.backup"
+        
+        echo "✅ iOS Xcode project setup complete (CocoaPods-free)"
 
-      - name: Validate pre-build setup
-        run: |
-          cd src-tauri
-          
-          echo "🔍 Validating pre-build setup..."
-          
-          # Check library exists
-          LIB_PATH="gen/apple/Externals/arm64/Release/libapp.a"
-          if [ ! -f "$LIB_PATH" ]; then
-            echo "❌ ERROR: Pre-built library not found at $LIB_PATH"
-            exit 1
-          fi
-          
-          # Validate library format
-          if ! file "$LIB_PATH" | grep -q "ar archive"; then
-            echo "❌ ERROR: Library is not a valid ar archive"
-            exit 1
-          fi
-          
-          # Validate architecture
-          if ! lipo -info "$LIB_PATH" 2>/dev/null | grep -q "arm64"; then
-            echo "❌ ERROR: Library not built for arm64"
-            exit 1
-          fi
-          
-          # Check Xcode project was patched (look for the CI-Skip marker)
-          if ! grep -q "CI-Skip" gen/apple/src-tauri.xcodeproj/project.pbxproj; then
-            echo "⚠️ WARNING: Xcode project patch marker not found"
-            echo "Build phase may run the full Rust build (slower but still works)"
-          else
-            echo "✅ Xcode project patched for CI skip"
-          fi
-          
-           # Check Xcode project exists
-           if [ ! -f "gen/apple/src-tauri.xcodeproj/project.pbxproj" ]; then
-             echo "❌ ERROR: Xcode project not found"
-             exit 1
-           fi
+    - name: Validate pre-build setup
+      run: |
+        cd src-tauri
+        
+        echo "🔍 Validating pre-build setup..."
+        
+        # Check library exists
+        LIB_PATH="gen/apple/Externals/arm64/Release/libapp.a"
+        if [ ! -f "$LIB_PATH" ]; then
+        echo "❌ ERROR: Pre-built library not found at $LIB_PATH"
+        exit 1
+        fi
+        
+        # Validate library format
+        if ! file "$LIB_PATH" | grep -q "ar archive"; then
+        echo "❌ ERROR: Library is not a valid ar archive"
+        exit 1
+        fi
+        
+        # Validate architecture
+        if ! lipo -info "$LIB_PATH" 2>/dev/null | grep -q "arm64"; then
+        echo "❌ ERROR: Library not built for arm64"
+        exit 1
+        fi
+        
+        # Check Xcode project was patched (look for the CI-Skip marker)
+        if ! grep -q "CI-Skip" gen/apple/src-tauri.xcodeproj/project.pbxproj; then
+        echo "⚠️ WARNING: Xcode project patch marker not found"
+        echo "Build phase may run the full Rust build (slower but still works)"
+        else
+        echo "✅ Xcode project patched for CI skip"
+        fi
+        
+        # Check Xcode project exists
+        if [ ! -f "gen/apple/src-tauri.xcodeproj/project.pbxproj" ]; then
+          echo "❌ ERROR: Xcode project not found"
+          exit 1
+        fi
 
-           echo "✅ All validations passed"
-
-      - name: Validate signing secrets
-         run: |
-           # Validate required secrets are present for automatic signing
-           if [ -z "${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" ]; then
-             echo "❌ ERROR: APP_STORE_CONNECT_API_KEY_ID secret is not configured"
-             echo "Please configure the following secrets in GitHub repository settings:"
-             echo "- APP_STORE_CONNECT_API_KEY_ID"
-             echo "- APP_STORE_CONNECT_ISSUER_ID"
-             echo "- APP_STORE_CONNECT_API_PRIVATE_KEY"
-             exit 1
-           fi
-
-           echo "✅ App Store Connect API credentials configured for automatic signing"
+        echo "✅ All validations passed"
 
 
 
        - name: Archive iOS app (Automatic signing)
-         run: |
-           cd src-tauri/gen/apple
+       run: |
+        cd src-tauri/gen/apple
 
-           mkdir -p build/archives
+        mkdir -p build/archives
 
-           echo "🏗️ Starting iOS archive with automatic signing..."
+        echo "🏗️ Starting iOS archive with automatic signing..."
 
-           # Archive with automatic signing - Xcode will manage certificates and provisioning
-           xcodebuild \
-             -project src-tauri.xcodeproj \
-             -scheme src-tauri_iOS \
-             -configuration Release \
-             -archivePath build/archives/OpenCodeNexus.xcarchive \
-             -derivedDataPath build/DerivedData \
-             -allowProvisioningUpdates \
-             archive \
-             -verbose
+        # Archive with automatic signing - Xcode will manage certificates and provisioning
+        xcodebuild \
+         -project src-tauri.xcodeproj \
+         -scheme src-tauri_iOS \
+         -configuration Release \
+         -archivePath build/archives/OpenCodeNexus.xcarchive \
+         -derivedDataPath build/DerivedData \
+         -allowProvisioningUpdates \
+         archive \
+         -verbose
 
-           echo "✅ App archived successfully with automatic signing"
+        echo "✅ App archived successfully with automatic signing"
 
        - name: Export IPA for App Store
-         id: export
-         run: |
-           cd src-tauri/gen/apple
+       id: export
+       run: |
+        cd src-tauri/gen/apple
 
-           mkdir -p build/ipa
+        mkdir -p build/ipa
 
-           echo "📦 Exporting IPA with automatic signing..."
-           xcodebuild \
-             -exportArchive \
-             -archivePath build/archives/OpenCodeNexus.xcarchive \
-             -exportOptionsPlist ExportOptions.plist \
-             -exportPath build/ipa \
-             -allowProvisioningUpdates
+        echo "📦 Exporting IPA with automatic signing..."
+        xcodebuild \
+         -exportArchive \
+         -archivePath build/archives/OpenCodeNexus.xcarchive \
+         -exportOptionsPlist ExportOptions.plist \
+         -exportPath build/ipa \
+         -allowProvisioningUpdates
 
-          IPA_FILE=$(find build/ipa -name "*.ipa" -type f)
-          if [ -z "$IPA_FILE" ]; then
-            echo "❌ IPA file not found!"
-            exit 1
-          fi
+        IPA_FILE=$(find build/ipa -name "*.ipa" -type f)
+        if [ -z "$IPA_FILE" ]; then
+        echo "❌ IPA file not found!"
+        exit 1
+        fi
 
-          IPA_SIZE=$(du -h "$IPA_FILE" | cut -f1)
-          echo "✅ IPA exported: $IPA_FILE ($IPA_SIZE)"
-          echo "IPA_FILE=$IPA_FILE" >> $GITHUB_ENV
+        IPA_SIZE=$(du -h "$IPA_FILE" | cut -f1)
+        echo "✅ IPA exported: $IPA_FILE ($IPA_SIZE)"
+        echo "IPA_FILE=$IPA_FILE" >> $GITHUB_ENV
 
-          # Set output for next job
-          echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
+        # Set output for next job
+        echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
 
        - name: Normalize IPA for TestFlight
-         run: |
-           set -e
-           echo "🔧 Normalizing IPA for automatic signing..."
+       run: |
+        set -e
+        echo "🔧 Normalizing IPA for automatic signing..."
 
-           IPA_FILE="${{ env.IPA_FILE }}"
-           WORK_DIR="$(pwd)"
+        IPA_FILE="${{ env.IPA_FILE }}"
+        WORK_DIR="$(pwd)"
 
-           rm -rf build/ipa_work temp_app Payload
-           mkdir -p build/ipa_work
+        rm -rf build/ipa_work temp_app Payload
+        mkdir -p build/ipa_work
 
-           cd build/ipa_work
-           cp "$WORK_DIR/$IPA_FILE" app.ipa
-           unzip -q app.ipa -d temp_app
+        cd build/ipa_work
+        cp "$WORK_DIR/$IPA_FILE" app.ipa
+        unzip -q app.ipa -d temp_app
 
-           if [ ! -d "temp_app/Payload" ]; then
-             echo "❌ Payload directory not found in IPA"
-             exit 1
-           fi
+        if [ ! -d "temp_app/Payload" ]; then
+         echo "❌ Payload directory not found in IPA"
+         exit 1
+        fi
 
-           APP_DIR=$(find temp_app/Payload -maxdepth 1 -type d -name "*.app" | head -n 1)
-           if [ -z "$APP_DIR" ]; then
-             echo "❌ App bundle not found in Payload"
-             exit 1
-           fi
+        APP_DIR=$(find temp_app/Payload -maxdepth 1 -type d -name "*.app" | head -n 1)
+        if [ -z "$APP_DIR" ]; then
+         echo "❌ App bundle not found in Payload"
+         exit 1
+        fi
 
-           echo "📱 App bundle: $APP_DIR"
+        echo "📱 App bundle: $APP_DIR"
 
-           # Update Info.plist version
-           INFO_PLIST="$APP_DIR/Info.plist"
-           /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION_NUMBER" "$INFO_PLIST" 2>/dev/null || true
-           /usr/libexec/PlistBuddy -c "Set CFBundleVersion $BUILD_NUMBER" "$INFO_PLIST" 2>/dev/null || true
+        # Update Info.plist version
+        INFO_PLIST="$APP_DIR/Info.plist"
+        /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION_NUMBER" "$INFO_PLIST" 2>/dev/null || true
+        /usr/libexec/PlistBuddy -c "Set CFBundleVersion $BUILD_NUMBER" "$INFO_PLIST" 2>/dev/null || true
 
-           # Remove forbidden static library if present
-           if [ -f "$APP_DIR/libapp.a" ]; then
-             echo "🗑️ Removing forbidden static library libapp.a from app bundle"
-             rm -f "$APP_DIR/libapp.a"
-           fi
+        # Remove forbidden static library if present
+        if [ -f "$APP_DIR/libapp.a" ]; then
+         echo "🗑️ Removing forbidden static library libapp.a from app bundle"
+         rm -f "$APP_DIR/libapp.a"
+        fi
 
-           # With automatic signing, Xcode handles provisioning and entitlements
-           # No need to manually re-sign or re-embed provisioning profiles
+        # With automatic signing, Xcode handles provisioning and entitlements
+        # No need to manually re-sign or re-embed provisioning profiles
 
-           # Re-pack IPA
-           cd temp_app
-           rm -f "$WORK_DIR/$IPA_FILE"
-           zip -qr "$WORK_DIR/$IPA_FILE" Payload
+        # Re-pack IPA
+        cd temp_app
+        rm -f "$WORK_DIR/$IPA_FILE"
+        zip -qr "$WORK_DIR/$IPA_FILE" Payload
 
-           cd "$WORK_DIR"
+        cd "$WORK_DIR"
 
-           echo "✅ Normalized IPA ready for automatic signing: $IPA_FILE"
+        echo "✅ Normalized IPA ready for automatic signing: $IPA_FILE"
 
-      - name: Upload to TestFlight
-        if: github.event.inputs.upload_to_testflight != 'false' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_to_testflight == 'true')
-        env:
-          APP_STORE_CONNECT_API_KEY_ID: J94Q923ZNG
-          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
-        run: |
-          TEMP_KEY_DIR=$(mktemp -d)
+    - name: Upload to TestFlight
+      if: github.event.inputs.upload_to_testflight != 'false' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_to_testflight == 'true')
+      env:
+        APP_STORE_CONNECT_API_KEY_ID: J94Q923ZNG
+        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+      run: |
+        TEMP_KEY_DIR=$(mktemp -d)
 
-          echo "$APP_STORE_CONNECT_API_PRIVATE_KEY" | base64 --decode > "$TEMP_KEY_DIR/AuthKey.p8"
+        echo "$APP_STORE_CONNECT_API_PRIVATE_KEY" | base64 --decode > "$TEMP_KEY_DIR/AuthKey.p8"
 
-          IPA_FILE="${{ env.IPA_FILE }}"
+        IPA_FILE="${{ env.IPA_FILE }}"
 
-          echo "📤 Uploading to TestFlight..."
-          xcrun altool \
-            --upload-app \
-            --type ios \
-            --file "$IPA_FILE" \
-            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
-            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-            --apiKeysDir "$TEMP_KEY_DIR" \
-            --verbose
+        echo "📤 Uploading to TestFlight..."
+        xcrun altool \
+        --upload-app \
+        --type ios \
+        --file "$IPA_FILE" \
+        --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+        --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+        --apiKeysDir "$TEMP_KEY_DIR" \
+        --verbose
 
-          rm -rf "$TEMP_KEY_DIR"
+        rm -rf "$TEMP_KEY_DIR"
 
-          echo "✅ IPA uploaded to TestFlight"
+        echo "✅ IPA uploaded to TestFlight"
 
-      - name: Create GitHub Release
-        if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ env.IPA_FILE }}
-          tag_name: ${{ env.TAG_NAME }}
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(env.TAG_NAME, 'beta') || contains(env.TAG_NAME, 'rc') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create GitHub Release
+      if: github.ref_type == 'tag'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: ${{ env.IPA_FILE }}
+        tag_name: ${{ env.TAG_NAME }}
+        generate_release_notes: true
+        draft: false
+        prerelease: ${{ contains(env.TAG_NAME, 'beta') || contains(env.TAG_NAME, 'rc') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload IPA to artifacts
-        if: always() && env.IPA_FILE != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: opencode-nexus-ios-${{ env.VERSION_NUMBER }}-build-${{ env.BUILD_NUMBER }}
-          path: ${{ env.IPA_FILE }}
-          retention-days: 30
+    - name: Upload IPA to artifacts
+      if: always() && env.IPA_FILE != ''
+      uses: actions/upload-artifact@v4
+      with:
+        name: opencode-nexus-ios-${{ env.VERSION_NUMBER }}-build-${{ env.BUILD_NUMBER }}
+        path: ${{ env.IPA_FILE }}
+        retention-days: 30
 
-      - name: Build success summary
-        if: success()
-        run: |
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-          ## 🎉 iOS Build Successful
+    - name: Build success summary
+      if: success()
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+        ## 🎉 iOS Build Successful
 
-          ### ✅ Completed Steps
-          1. **Pre-build Phase**: Rust library built separately
-          2. **Project Setup**: Xcode project patched for CI compatibility
-          3. **Archive Phase**: Direct xcodebuild archive (no TCP socket issues)
-          4. **Export**: IPA successfully exported and normalized
-          5. **Deployment**: Uploaded to TestFlight and GitHub Release
+        ### ✅ Completed Steps
+        1. **Pre-build Phase**: Rust library built separately
+        2. **Project Setup**: Xcode project patched for CI compatibility
+        3. **Archive Phase**: Direct xcodebuild archive (no TCP socket issues)
+        4. **Export**: IPA successfully exported and normalized
+        5. **Deployment**: Uploaded to TestFlight and GitHub Release
 
-          ### 📱 Next Steps
-          1. Check [App Store Connect](https://appstoreconnect.apple.com/apps) for processing status
-          2. Monitor TestFlight for build availability (5-15 minutes)
-          3. Invite internal testers to test the build
+        ### 📱 Next Steps
+        1. Check [App Store Connect](https://appstoreconnect.apple.com/apps) for processing status
+        2. Monitor TestFlight for build availability (5-15 minutes)
+        3. Invite internal testers to test the build
 
-          ### 🔧 Build Details
-          - **Runner**: macOS 14 (Apple Silicon)
-          - **Xcode**: 15.4
-          - **Rust Target**: aarch64-apple-ios
-          - **Library**: libsrc_tauri_lib.a → libapp.a
-          - **Export Method**: App Store
-          - **Build Time**: Optimized with pre-build strategy
+        ### 🔧 Build Details
+        - **Runner**: macOS 14 (Apple Silicon)
+        - **Xcode**: 15.4
+        - **Rust Target**: aarch64-apple-ios
+        - **Library**: libsrc_tauri_lib.a → libapp.a
+        - **Export Method**: App Store
+        - **Build Time**: Optimized with pre-build strategy
 
-          ### 🚀 Improvements Made
-          - ✅ Eliminated TCP socket connection errors
-          - ✅ Reduced build time by pre-building Rust library
-          - ✅ Enhanced error handling and validation
-          - ✅ Improved reliability with direct xcodebuild
+        ### 🚀 Improvements Made
+        - ✅ Eliminated TCP socket connection errors
+        - ✅ Reduced build time by pre-building Rust library
+        - ✅ Enhanced error handling and validation
+        - ✅ Improved reliability with direct xcodebuild
 
-          Release workflow completed successfully!
-          EOF
+        Release workflow completed successfully!
+        EOF
 
-      - name: Build failure analysis
-        if: failure()
-        run: |
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-          ## ❌ iOS Build Failed
+    - name: Build failure analysis
+      if: failure()
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+        ## ❌ iOS Build Failed
 
-          ### 🔍 Troubleshooting Checklist
-          1. **Library Build**: Check if `libsrc_tauri_lib.a` was built successfully
-          2. **Library Copy**: Verify library was copied to `gen/apple/Externals/arm64/Release/libapp.a`
-          3. **Xcode Patch**: Ensure project.pbxproj was patched correctly
-          4. **Code Signing**: Verify certificate and provisioning profile are current
-          5. **Dependencies**: Check Rust toolchain and Xcode compatibility
+        ### 🔍 Troubleshooting Checklist
+        1. **Library Build**: Check if `libsrc_tauri_lib.a` was built successfully
+        2. **Library Copy**: Verify library was copied to `gen/apple/Externals/arm64/Release/libapp.a`
+        3. **Xcode Patch**: Ensure project.pbxproj was patched correctly
+        4. **Code Signing**: Verify certificate and provisioning profile are current
+        5. **Dependencies**: Check Rust toolchain and Xcode compatibility
 
-          ### 🛠️ Common Issues & Solutions
-          - **Library not found**: Check Cargo.toml name matches scripts
-          - **Code signing errors**: Verify certificate and provisioning profile validity
-          - **Xcode build failures**: Check iOS SDK and target compatibility
-          - **TestFlight upload fails**: Verify API key permissions and IPA format
+        ### 🛠️ Common Issues & Solutions
+        - **Library not found**: Check Cargo.toml name matches scripts
+        - **Code signing errors**: Verify certificate and provisioning profile validity
+        - **Xcode build failures**: Check iOS SDK and target compatibility
+        - **TestFlight upload fails**: Verify API key permissions and IPA format
 
-          ### 📊 Debug Information
-          - **Rust Version**: $(rustc --version)
-          - **Tauri CLI**: $(cargo tauri --version 2>/dev/null || echo "Not found")
-          - **Xcode Version**: $(xcodebuild -version | head -1)
-          - **iOS SDK**: $(xcrun --sdk iphoneos --show-sdk-version)
+        ### 📊 Debug Information
+        - **Rust Version**: $(rustc --version)
+        - **Tauri CLI**: $(cargo tauri --version 2>/dev/null || echo "Not found")
+        - **Xcode Version**: $(xcodebuild -version | head -1)
+        - **iOS SDK**: $(xcrun --sdk iphoneos --show-sdk-version)
 
-          Check the job logs above for specific error details.
-          EOF
+        Check the job logs above for specific error details.
+        EOF
