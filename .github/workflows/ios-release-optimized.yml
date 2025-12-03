@@ -1,13 +1,14 @@
 name: iOS TestFlight Release (Optimized)
 
 on:
-  push:
-    tags:
-      - 'ios-v*'
-    branches:
-      - 'main'
-      - 'test-ios-build'
-      - 'release'
+   push:
+     tags:
+       - 'ios-v*'
+     branches:
+       - 'main'
+       - 'test-ios-build'
+       - 'release'
+       - 'fix-ios-automatic-signing'
   workflow_dispatch:
     inputs:
       upload_to_testflight:
