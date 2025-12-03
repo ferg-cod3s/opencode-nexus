@@ -9,21 +9,10 @@ on:
       - 'test-ios-build'
       - 'release'
       - 'fix-ios-automatic-signing'
-  workflow_dispatch:
-    inputs:
-      upload_to_testflight:
-        description: 'Upload to TestFlight'
-        required: false
-        default: true
-        type: boolean
-      tag_name:
-        description: 'Release tag name'
-        required: false
-        type: string
 
 jobs:
-   build-ios:
-     runs-on: macos-latest
+  build-ios:
+    runs-on: macos-14
     timeout-minutes: 90
 
     steps:
@@ -33,19 +22,10 @@ jobs:
         fetch-depth: 0
 
     - name: Set up environment variables
-      run: |
-        TAG_NAME="${{ github.event.inputs.tag_name || github.ref_name }}"
-        VERSION_NUMBER=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/-.*$//')
-        BUILD_NUMBER=$(git rev-list --count HEAD)
+      run: echo "Setting up environment"
 
-        echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-        echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
-        echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
-
-        echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+    - name: Setup Xcode
+      uses: maxim-lobanov/setup-xcode@v1
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
