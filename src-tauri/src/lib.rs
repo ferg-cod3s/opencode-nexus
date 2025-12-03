@@ -31,7 +31,6 @@ use chrono::Utc;
 use serde::Deserialize;
 use std::fs::OpenOptions;
 use std::io::Write;
-use tauri::Emitter;
 
 // Logging utility function
 fn log_to_file(message: &str) {
@@ -372,7 +371,7 @@ async fn list_sessions(app_handle: tauri::AppHandle) -> Result<Vec<serde_json::V
     
     let sessions_json = serde_json::to_value(&sessions)
         .map_err(|e| e.to_string())?;
-    Ok(sessions_json.as_array().unwrap_or(&serde_json::Value::Array).to_vec())
+    Ok(sessions_json.as_array().cloned().unwrap_or_default())
 }
 
 #[tauri::command]
@@ -409,8 +408,9 @@ async fn send_message(
     
     let message = client.send_message(&session_id, &content).await
         .map_err(|e| e.to_string())?;
-    
-    let message_json = serde_json::to_value(&message);
+
+    let message_json = serde_json::to_value(&message)
+        .map_err(|e| e.to_string())?;
     Ok(message_json)
 }
 
@@ -427,9 +427,9 @@ async fn get_session_messages(
     
     let messages = client.get_session_messages(&session_id).await
         .map_err(|e| e.to_string())?;
-    
+
     let messages_json: Vec<serde_json::Value> = messages.into_iter()
-        .map(|m| serde_json::to_value(&m))
+        .filter_map(|m| serde_json::to_value(&m).ok())
         .collect();
     Ok(messages_json)
 }
