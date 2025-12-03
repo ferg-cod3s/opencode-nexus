@@ -24,15 +24,22 @@
 
 import { invoke } from '../utils/tauri-api';
 
-// Mock OpencodeClient type for Tauri builds
+// OpenCode SDK client interface based on actual SDK API
 export interface OpencodeClient {
+  config: {
+    get(): Promise<{ data: any }>;
+    providers(): Promise<{ data: { providers: any[]; default: { [key: string]: string } } }>;
+  };
   session: {
     list(): Promise<{ data: any[] }>;
-    create(params?: any): Promise<{ data: any }>;
+    get(params: { path: { id: string } }): Promise<{ data: any }>;
+    create(params: { body: any }): Promise<{ data: any }>;
+    delete(params: { path: { id: string } }): Promise<boolean>;
+    messages(params: { path: { id: string } }): Promise<{ data: any[] }>;
+    prompt(params: { path: { id: string }; body: any }): Promise<any>;
   };
-  message: {
-    send(sessionId: string, content: string): Promise<{ data: any }>;
-    stream(sessionId: string, content: string, onChunk?: (chunk: any) => void): Promise<{ data: any }>;
+  event: {
+    subscribe(): Promise<{ stream: AsyncIterable<any> }>;
   };
 }
 
@@ -44,14 +51,29 @@ export function createOpencodeClient(options: { baseUrl: string }): OpencodeClie
   });
 
   return {
+    config: {
+      get: () => invoke('get_config'),
+      providers: () => invoke('get_providers'),
+    },
     session: {
       list: () => invoke('list_sessions'),
-      create: (params?: any) => invoke('create_session', { params }),
+      get: (params) => invoke('get_session', { sessionId: params.path.id }),
+      create: (params) => invoke('create_session', { body: params.body }),
+      delete: (params) => invoke('delete_session', { sessionId: params.path.id }),
+      messages: (params) => invoke('get_session_messages', { sessionId: params.path.id }),
+      prompt: (params) => invoke('send_prompt', { sessionId: params.path.id, body: params.body }),
     },
-    message: {
-      send: (sessionId: string, content: string) => invoke('send_message', { sessionId, content }),
-      stream: (sessionId: string, content: string, onChunk?: (chunk: any) => void) => 
-        invoke('stream_message', { sessionId, content, onChunk }),
+    event: {
+      subscribe: async () => {
+        // Return a mock stream for now - real implementation would use SSE
+        const stream = {
+          async *[Symbol.asyncIterator]() {
+            // Mock event stream - real implementation needed
+            yield { type: 'mock', data: {} };
+          }
+        };
+        return { stream };
+      },
     },
   };
 }

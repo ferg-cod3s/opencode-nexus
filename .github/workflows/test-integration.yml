@@ -27,47 +27,47 @@ jobs:
   integration-test:
     name: Integration Test Suite
     runs-on: ubuntu-latest
-    
+
     services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_DB: opencode_test
-          POSTGRES_USER: test_user
-          POSTGRES_PASSWORD: test_password
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      
-      redis:
-        image: redis:7
-        options: >-
+       postgres:
+         image: postgres:15
+         env:
+           POSTGRES_DB: opencode_test
+           POSTGRES_USER: test_user
+           POSTGRES_PASSWORD: test_password
+         options: >-
+           --health-cmd pg_isready
+           --health-interval 10s
+           --health-timeout 5s
+           --health-retries 5
+         ports:
+           - 5432:5432
+
+       redis:
+         image: redis:7
+         options: >-
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-        ports:
-          - 6379:6379
-    
+          ports:
+            - 6379:6379
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
           cache: 'frontend'
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      
+
       - name: Cache Cargo registry
         uses: actions/cache@v4
         with:
@@ -77,27 +77,27 @@ jobs:
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-registry-
-      
+
       - name: Install frontend dependencies
         working-directory: ./frontend
         run: bun install --frozen-lockfile
-      
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev postgresql-client
-      
+          sudo apt-get install -y pkg-config libssl-dev postgresql-client redis-tools
+
       - name: Wait for services
         run: |
           timeout 60 bash -c 'until pg_isready -h localhost -p 5432 -U test_user; do sleep 1; done'
           timeout 60 bash -c 'until redis-cli -h localhost -p 6379 ping; do sleep 1; done'
-      
+
       - name: Setup test database
         env:
           PGPASSWORD: test_password
         run: |
           psql -h localhost -p 5432 -U test_user -d opencode_test -f tests/integration/init-test-db.sql
-      
+
       - name: Run backend integration tests
         working-directory: ./src-tauri
         env:
@@ -105,7 +105,7 @@ jobs:
           REDIS_URL: redis://localhost:6379
           RUST_LOG: debug
         run: cargo test --test integration --all-features
-      
+
       - name: Run frontend integration tests
         working-directory: ./frontend
         env:
@@ -117,27 +117,27 @@ jobs:
   docker-integration-test:
     name: Docker Integration Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Build test images
         run: |
-          docker-compose -f docker-compose.test.yml build frontend-test backend-test mock-opencode-server
-      
+          docker compose -f docker-compose.test.yml build frontend-test backend-test mock-opencode-server
+
       - name: Run integration tests with Docker Compose
         run: |
-          docker-compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from frontend-test
-      
+          docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from frontend-test
+
       - name: Capture logs
         if: failure()
         run: |
-          docker-compose -f docker-compose.test.yml logs --no-color > docker-integration-logs.txt
-      
+          docker compose -f docker-compose.test.yml logs --no-color > docker-integration-logs.txt
+
       - name: Upload logs
         if: failure()
         uses: actions/upload-artifact@v4
@@ -145,16 +145,16 @@ jobs:
           name: docker-integration-logs
           path: docker-integration-logs.txt
           retention-days: 7
-      
+
       - name: Cleanup
         if: always()
         run: |
-          docker-compose -f docker-compose.test.yml down -v --remove-orphans
+          docker compose -f docker-compose.test.yml down -v --remove-orphans
 
   api-integration-test:
     name: API Integration Tests
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

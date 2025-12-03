@@ -403,7 +403,8 @@ impl ConnectionManager {
         // Find the most recent connection (by last_connected timestamp)
         let connection_to_restore = {
             let connections_guard = self.connections.lock().unwrap();
-            connections_guard.values()
+            connections_guard
+                .values()
                 .filter(|c| c.last_connected.is_some())
                 .max_by_key(|c| c.last_connected.as_ref().unwrap())
                 .or_else(|| connections_guard.values().next())
@@ -411,12 +412,21 @@ impl ConnectionManager {
         };
 
         if let Some(connection) = connection_to_restore {
-            log_info!("🔄 [CONNECTION] Attempting to restore connection to: {}", connection.to_url());
+            log_info!(
+                "🔄 [CONNECTION] Attempting to restore connection to: {}",
+                connection.to_url()
+            );
 
             // Attempt to reconnect
-            match self.connect_to_server(&connection.hostname, connection.port, connection.secure).await {
+            match self
+                .connect_to_server(&connection.hostname, connection.port, connection.secure)
+                .await
+            {
                 Ok(_) => {
-                    log_info!("✅ [CONNECTION] Successfully restored connection to: {}", connection.to_url());
+                    log_info!(
+                        "✅ [CONNECTION] Successfully restored connection to: {}",
+                        connection.to_url()
+                    );
                     self.emit_event(&ConnectionEvent {
                         timestamp: SystemTime::now(),
                         event_type: ConnectionEventType::Connected,
@@ -425,7 +435,11 @@ impl ConnectionManager {
                     Ok(())
                 }
                 Err(e) => {
-                    log_warn!("⚠️ [CONNECTION] Failed to restore connection to {}: {}", connection.to_url(), e);
+                    log_warn!(
+                        "⚠️ [CONNECTION] Failed to restore connection to {}: {}",
+                        connection.to_url(),
+                        e
+                    );
                     self.emit_event(&ConnectionEvent {
                         timestamp: SystemTime::now(),
                         event_type: ConnectionEventType::Error,

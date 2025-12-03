@@ -78,7 +78,7 @@ import ConnectionStatus from '../components/ConnectionStatus.svelte';
       
       const svelteModule = await import('svelte');
       mount = svelteModule.mount;
-      get = svelteModule.get;
+      const { get } = await import('svelte/store');
       
       console.log('🔍 Chat: Svelte loaded');
       
