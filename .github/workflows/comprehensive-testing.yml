@@ -2,7 +2,7 @@ name: Comprehensive Testing
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, test-ios-build-fix ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -74,18 +74,22 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      
-      - name: Run Rust tests
-        working-directory: src-tauri
-        run: cargo test
-      
-      - name: Run Rust clippy
-        working-directory: src-tauri
-        run: cargo clippy -- -D warnings
-      
-      - name: Run Rust format check
-        working-directory: src-tauri
-        run: cargo fmt --check
+
+       - name: Run Rust tests
+         working-directory: src-tauri
+         run: cargo test
+
+       - name: Run Rust clippy
+         working-directory: src-tauri
+         run: cargo clippy -- -D warnings
+
+       - name: Run Rust format check
+         working-directory: src-tauri
+         run: cargo fmt --check
+
+       - name: Check Rust compilation for iOS target
+         working-directory: src-tauri
+         run: cargo check --target aarch64-apple-ios
 
   # Frontend E2E Tests
   frontend-e2e-tests:
