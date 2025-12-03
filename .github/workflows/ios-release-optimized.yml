@@ -12,14 +12,14 @@ on:
   workflow_dispatch:
     inputs:
       upload_to_testflight:
-      description: 'Upload to TestFlight'
-      required: false
-      default: true
-      type: boolean
+        description: 'Upload to TestFlight'
+        required: false
+        default: true
+        type: boolean
       tag_name:
-      description: 'Release tag name'
-      required: false
-      type: string
+        description: 'Release tag name'
+        required: false
+        type: string
 
 jobs:
   build-ios:
