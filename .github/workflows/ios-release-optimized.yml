@@ -44,8 +44,22 @@ jobs:
 
         echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
 
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+
+      - name: Authenticate with App Store Connect
+        run: |
+          echo "Authenticating with App Store Connect for automatic signing..."
+          # Create API key file for Xcode authentication
+          mkdir -p ~/private_keys
+          echo "${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+
+          # Set up Xcode authentication
+          xcodebuild -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8 \
+            -showBuildSettings
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
