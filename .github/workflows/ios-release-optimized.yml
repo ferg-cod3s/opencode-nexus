@@ -22,8 +22,8 @@ on:
         type: string
 
 jobs:
-  build-ios:
-    runs-on: macos-14
+   build-ios:
+     runs-on: macos-15
     timeout-minutes: 90
 
     steps:
