@@ -159,34 +159,12 @@ jobs:
           fi
           
           # =====================================================
-          # IMPORTANT: Run CocoaPods BEFORE patching project.pbxproj
-          # This avoids the "Dictionary missing ';'" parsing error
-          # =====================================================
-          echo "📦 Setting up CocoaPods (BEFORE project patching)..."
-          cd gen/apple
-          
-          # Remove macOS target from Podfile
-          if [ -f "Podfile" ]; then
-            sed -i.bak '/target.*macOS/,/^end$/d' Podfile 2>/dev/null || true
-            sed -i.bak '/MACOSX_DEPLOYMENT_TARGET/d' Podfile 2>/dev/null || true
-            rm -f Podfile.bak
-          fi
-          
-          # Install pods (parses project.pbxproj - must happen before we modify it)
-          if ! command -v pod &> /dev/null; then
-            echo "Installing CocoaPods..."
-            sudo gem install cocoapods
-          fi
-          pod install --repo-update || pod install
-          echo "✅ CocoaPods setup complete"
-          
-          # =====================================================
-          # NOW patch the Xcode project (AFTER CocoaPods is done)
+          # Patch the Xcode project for CI compatibility
           # Use simple sed replacement that maintains valid pbxproj syntax
           # =====================================================
           echo "🔧 Patching Xcode project for CI compatibility..."
-          cd ../..
-          PBXPROJ="gen/apple/src-tauri.xcodeproj/project.pbxproj"
+          cd gen/apple
+          PBXPROJ="src-tauri.xcodeproj/project.pbxproj"
           
           # Backup original
           cp "$PBXPROJ" "$PBXPROJ.backup"
@@ -194,7 +172,7 @@ jobs:
           # Simple single-line patch: prepend an exit check to the existing cargo command
           # This keeps the script on one line and maintains valid pbxproj syntax
           # The pattern: shellScript = "cargo tauri ios xcode-script..."
-          # Becomes:     shellScript = "if [ -f \"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\" ]; then echo 'Skip Rust build - using pre-built library'; exit 0; fi; cargo tauri ios xcode-script..."
+          # Becomes:     shellScript = "if [ -f \"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\" ]; then echo CI-Skip; exit 0; fi; cargo tauri ios xcode-script..."
           sed -i.bak 's|shellScript = "cargo tauri ios xcode-script|shellScript = "if [ -f \\"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\\" ]; then echo CI-Skip; exit 0; fi; cargo tauri ios xcode-script|' "$PBXPROJ"
           
           # Validate the patch was applied
@@ -213,7 +191,7 @@ jobs:
           
           rm -f "$PBXPROJ.bak" "$PBXPROJ.backup"
           
-          echo "✅ iOS Xcode project setup complete"
+          echo "✅ iOS Xcode project setup complete (CocoaPods-free)"
 
       - name: Validate pre-build setup
         run: |
@@ -248,15 +226,9 @@ jobs:
             echo "✅ Xcode project patched for CI skip"
           fi
           
-          # Check workspace exists (created by pod install)
-          if [ ! -f "gen/apple/src-tauri.xcworkspace/contents.xcworkspacedata" ]; then
-            echo "❌ ERROR: Xcode workspace not found (CocoaPods may have failed)"
-            exit 1
-          fi
-          
-          # Check Pods directory exists
-          if [ ! -d "gen/apple/Pods" ]; then
-            echo "❌ ERROR: Pods directory not found (CocoaPods may have failed)"
+          # Check Xcode project exists
+          if [ ! -f "gen/apple/src-tauri.xcodeproj/project.pbxproj" ]; then
+            echo "❌ ERROR: Xcode project not found"
             exit 1
           fi
           
@@ -342,7 +314,7 @@ jobs:
           # Archive directly with xcodebuild - the Build Rust Code phase will skip
           # since we already have libapp.a in place
           xcodebuild \
-            -workspace src-tauri.xcworkspace \
+            -project src-tauri.xcodeproj \
             -scheme src-tauri_iOS \
             -configuration Release \
             -archivePath build/archives/OpenCodeNexus.xcarchive \
