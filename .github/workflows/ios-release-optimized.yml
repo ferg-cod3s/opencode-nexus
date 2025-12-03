@@ -234,113 +234,57 @@ jobs:
           
           echo "✅ All validations passed"
 
-      - name: Setup code signing
-        env:
-          IOS_CERTIFICATE_P12: ${{ secrets.IOS_CERTIFICATE_P12 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD_TEMP || secrets.IOS_CERTIFICATE_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD_TEMP || secrets.IOS_CERTIFICATE_PASSWORD }}
-        run: |
-          # Validate required secrets are present
-          if [ -z "$IOS_CERTIFICATE_P12" ]; then
-            echo "❌ ERROR: IOS_CERTIFICATE_P12 secret is not configured"
-            echo "Please configure the following secrets in GitHub repository settings:"
-            echo "- IOS_CERTIFICATE_P12 (base64 encoded .p12 certificate)"
-            echo "- IOS_CERTIFICATE_PASSWORD"
-            echo "- KEYCHAIN_PASSWORD"
-            echo "- IOS_PROVISIONING_PROFILE"
-            echo "- APP_STORE_CONNECT_API_KEY_ID"
-            echo "- APP_STORE_CONNECT_ISSUER_ID"
-            echo "- APP_STORE_CONNECT_API_PRIVATE_KEY"
-            exit 1
-          fi
+       - name: Validate signing secrets
+         run: |
+           # Validate required secrets are present for automatic signing
+           if [ -z "${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" ]; then
+             echo "❌ ERROR: APP_STORE_CONNECT_API_KEY_ID secret is not configured"
+             echo "Please configure the following secrets in GitHub repository settings:"
+             echo "- APP_STORE_CONNECT_API_KEY_ID"
+             echo "- APP_STORE_CONNECT_ISSUER_ID"
+             echo "- APP_STORE_CONNECT_API_PRIVATE_KEY"
+             exit 1
+           fi
 
-          KEYCHAIN_PATH=$(mktemp -d)/build.keychain
+           echo "✅ App Store Connect API credentials configured for automatic signing"
 
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security default-keychain -s "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
 
-          security set-keychain-settings -t 3600 -u "$KEYCHAIN_PATH"
 
-          echo "$IOS_CERTIFICATE_P12" | base64 --decode > /tmp/cert.p12
+       - name: Archive iOS app (Automatic signing)
+         run: |
+           cd src-tauri/gen/apple
 
-          # Validate certificate file was created and is not empty
-          if [ ! -s /tmp/cert.p12 ]; then
-            echo "❌ ERROR: Certificate file is empty or invalid"
-            echo "Check that IOS_CERTIFICATE_P12 secret contains valid base64 data"
-            exit 1
-          fi
+           mkdir -p build/archives
 
-           # Import certificate without password (exported without -P flag)
-           security import /tmp/cert.p12 \
-             -k "$KEYCHAIN_PATH" \
-             -T /usr/bin/codesign \
-             -T /usr/bin/security \
-             -T /usr/bin/xcodebuild
+           echo "🏗️ Starting iOS archive with automatic signing..."
 
-          security set-key-partition-list \
-            -S apple-tool:,apple:,codesign: \
-            -s \
-            -k "$KEYCHAIN_PASSWORD" \
-            "$KEYCHAIN_PATH"
+           # Archive with automatic signing - Xcode will manage certificates and provisioning
+           xcodebuild \
+             -project src-tauri.xcodeproj \
+             -scheme src-tauri_iOS \
+             -configuration Release \
+             -archivePath build/archives/OpenCodeNexus.xcarchive \
+             -derivedDataPath build/DerivedData \
+             -allowProvisioningUpdates \
+             archive \
+             -verbose
 
-          rm -f /tmp/cert.p12
+           echo "✅ App archived successfully with automatic signing"
 
-          echo "✅ Keychain configured for code signing"
+       - name: Export IPA for App Store
+         id: export
+         run: |
+           cd src-tauri/gen/apple
 
-      - name: Install provisioning profile
-        env:
-          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
-        run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
+           mkdir -p build/ipa
 
-          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
-
-          cp /tmp/profile.mobileprovision \
-            ~/Library/MobileDevice/Provisioning\ Profiles/OpenCodeNexus_AppStore.mobileprovision
-
-          rm -f /tmp/profile.mobileprovision
-
-          echo "✅ Provisioning profile installed"
-
-      - name: Archive iOS app (Direct xcodebuild)
-        run: |
-          cd src-tauri/gen/apple
-
-          mkdir -p build/archives
-
-          echo "🏗️ Starting iOS archive with direct xcodebuild..."
-          
-          # Archive directly with xcodebuild - the Build Rust Code phase will skip
-          # since we already have libapp.a in place
-          xcodebuild \
-            -project src-tauri.xcodeproj \
-            -scheme src-tauri_iOS \
-            -configuration Release \
-            -archivePath build/archives/OpenCodeNexus.xcarchive \
-            -derivedDataPath build/DerivedData \
-            archive \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM="PCJU8QD9FN" \
-            OTHER_CODE_SIGN_FLAGS="--timestamp=none" \
-            -verbose
-
-          echo "✅ App archived successfully"
-
-      - name: Export IPA for App Store
-        id: export
-        run: |
-          cd src-tauri/gen/apple
-
-          mkdir -p build/ipa
-
-          echo "📦 Exporting IPA..."
-          xcodebuild \
-            -exportArchive \
-            -archivePath build/archives/OpenCodeNexus.xcarchive \
-            -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/ipa \
-            -allowProvisioningUpdates
+           echo "📦 Exporting IPA with automatic signing..."
+           xcodebuild \
+             -exportArchive \
+             -archivePath build/archives/OpenCodeNexus.xcarchive \
+             -exportOptionsPlist ExportOptions.plist \
+             -exportPath build/ipa \
+             -allowProvisioningUpdates
 
           IPA_FILE=$(find build/ipa -name "*.ipa" -type f)
           if [ -z "$IPA_FILE" ]; then
@@ -355,72 +299,56 @@ jobs:
           # Set output for next job
           echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
 
-      - name: Normalize IPA for TestFlight
-        run: |
-          set -e
-          echo "🔧 Normalizing IPA for TestFlight..."
+       - name: Normalize IPA for TestFlight
+         run: |
+           set -e
+           echo "🔧 Normalizing IPA for automatic signing..."
 
-          IPA_FILE="${{ env.IPA_FILE }}"
-          WORK_DIR="$(pwd)"
+           IPA_FILE="${{ env.IPA_FILE }}"
+           WORK_DIR="$(pwd)"
 
-          rm -rf build/ipa_work temp_app Payload
-          mkdir -p build/ipa_work
+           rm -rf build/ipa_work temp_app Payload
+           mkdir -p build/ipa_work
 
-          cd build/ipa_work
-          cp "$WORK_DIR/$IPA_FILE" app.ipa
-          unzip -q app.ipa -d temp_app
+           cd build/ipa_work
+           cp "$WORK_DIR/$IPA_FILE" app.ipa
+           unzip -q app.ipa -d temp_app
 
-          if [ ! -d "temp_app/Payload" ]; then
-            echo "❌ Payload directory not found in IPA"
-            exit 1
-          fi
+           if [ ! -d "temp_app/Payload" ]; then
+             echo "❌ Payload directory not found in IPA"
+             exit 1
+           fi
 
-          APP_DIR=$(find temp_app/Payload -maxdepth 1 -type d -name "*.app" | head -n 1)
-          if [ -z "$APP_DIR" ]; then
-            echo "❌ App bundle not found in Payload"
-            exit 1
-          fi
+           APP_DIR=$(find temp_app/Payload -maxdepth 1 -type d -name "*.app" | head -n 1)
+           if [ -z "$APP_DIR" ]; then
+             echo "❌ App bundle not found in Payload"
+             exit 1
+           fi
 
-          echo "📱 App bundle: $APP_DIR"
+           echo "📱 App bundle: $APP_DIR"
 
-          # Update Info.plist version
-          INFO_PLIST="$APP_DIR/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION_NUMBER" "$INFO_PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Set CFBundleVersion $BUILD_NUMBER" "$INFO_PLIST" 2>/dev/null || true
+           # Update Info.plist version
+           INFO_PLIST="$APP_DIR/Info.plist"
+           /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION_NUMBER" "$INFO_PLIST" 2>/dev/null || true
+           /usr/libexec/PlistBuddy -c "Set CFBundleVersion $BUILD_NUMBER" "$INFO_PLIST" 2>/dev/null || true
 
-          # Remove forbidden static library if present
-          if [ -f "$APP_DIR/libapp.a" ]; then
-            echo "🗑️ Removing forbidden static library libapp.a from app bundle"
-            rm -f "$APP_DIR/libapp.a"
-          fi
+           # Remove forbidden static library if present
+           if [ -f "$APP_DIR/libapp.a" ]; then
+             echo "🗑️ Removing forbidden static library libapp.a from app bundle"
+             rm -f "$APP_DIR/libapp.a"
+           fi
 
-          # Re-embed provisioning profile
-          PROFILE_PATH="${HOME}/Library/MobileDevice/Provisioning Profiles/OpenCodeNexus_AppStore.mobileprovision"
-          if [ -f "$PROFILE_PATH" ]; then
-            cp "$PROFILE_PATH" "$APP_DIR/embedded.mobileprovision"
-          fi
+           # With automatic signing, Xcode handles provisioning and entitlements
+           # No need to manually re-sign or re-embed provisioning profiles
 
-          # Create distribution entitlements
-          rm -f distribution_entitlements.plist
-          plutil -create xml1 distribution_entitlements.plist
-          /usr/libexec/PlistBuddy -c "Add :application-identifier string PCJU8QD9FN.com.agentic-codeflow.opencode-nexus" distribution_entitlements.plist
-          /usr/libexec/PlistBuddy -c "Add :com.apple.developer.team-identifier string PCJU8QD9FN" distribution_entitlements.plist
-          /usr/libexec/PlistBuddy -c "Add :get-task-allow bool false" distribution_entitlements.plist
+           # Re-pack IPA
+           cd temp_app
+           rm -f "$WORK_DIR/$IPA_FILE"
+           zip -qr "$WORK_DIR/$IPA_FILE" Payload
 
-          # Re-sign app
-          codesign --force \
-            --sign "Apple Distribution: John Ferguson (PCJU8QD9FN)" \
-            --entitlements distribution_entitlements.plist \
-            "$APP_DIR"
+           cd "$WORK_DIR"
 
-          # Re-pack IPA
-          cd temp_app
-          rm -f "$WORK_DIR/$IPA_FILE"
-          zip -qr "$WORK_DIR/$IPA_FILE" Payload
-
-          cd "$WORK_DIR"
-
-          echo "✅ Normalized IPA ready: $IPA_FILE"
+           echo "✅ Normalized IPA ready for automatic signing: $IPA_FILE"
 
       - name: Upload to TestFlight
         if: github.event.inputs.upload_to_testflight != 'false' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_to_testflight == 'true')
