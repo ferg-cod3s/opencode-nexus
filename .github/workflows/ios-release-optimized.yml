@@ -47,19 +47,12 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
 
-      - name: Authenticate with App Store Connect
+      - name: Setup App Store Connect API Key
         run: |
-          echo "Authenticating with App Store Connect for automatic signing..."
-          # Create API key file for Xcode authentication
+          echo "Setting up App Store Connect API key for automatic signing..."
           mkdir -p ~/private_keys
           echo "${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}" > ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
-
-          # Set up Xcode authentication
-          xcodebuild -allowProvisioningUpdates \
-            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
-            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
-            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8 \
-            -showBuildSettings
+          echo "API key file created at ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8"
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -247,41 +240,47 @@ jobs:
 
         echo "✅ All validations passed"
 
-    - name: Archive iOS app (Automatic signing)
-      run: |
-        cd src-tauri/gen/apple
+      - name: Archive iOS app (Automatic signing)
+        run: |
+          cd src-tauri/gen/apple
 
-        mkdir -p build/archives
+          mkdir -p build/archives
 
-        echo "🏗️ Starting iOS archive with automatic signing..."
+          echo "🏗️ Starting iOS archive with automatic signing..."
 
-        # Archive with automatic signing - Xcode will manage certificates and provisioning
-        xcodebuild \
-          -project src-tauri.xcodeproj \
-          -scheme src-tauri_iOS \
-          -configuration Release \
-          -archivePath build/archives/OpenCodeNexus.xcarchive \
-          -derivedDataPath build/DerivedData \
-          -allowProvisioningUpdates \
-          archive \
-          -verbose
+          # Archive with automatic signing and App Store Connect authentication
+          xcodebuild \
+            -project src-tauri.xcodeproj \
+            -scheme src-tauri_iOS \
+            -configuration Release \
+            -archivePath build/archives/OpenCodeNexus.xcarchive \
+            -derivedDataPath build/DerivedData \
+            -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8 \
+            archive \
+            -verbose
 
         echo "✅ App archived successfully with automatic signing"
 
-    - name: Export IPA for App Store
-      id: export
-      run: |
-        cd src-tauri/gen/apple
+      - name: Export IPA for App Store
+        id: export
+        run: |
+          cd src-tauri/gen/apple
 
-        mkdir -p build/ipa
+          mkdir -p build/ipa
 
-        echo "📦 Exporting IPA with automatic signing..."
-        xcodebuild \
-         -exportArchive \
-         -archivePath build/archives/OpenCodeNexus.xcarchive \
-         -exportOptionsPlist ExportOptions.plist \
-         -exportPath build/ipa \
-         -allowProvisioningUpdates
+          echo "📦 Exporting IPA with automatic signing..."
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/archives/OpenCodeNexus.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/ipa \
+            -allowProvisioningUpdates \
+            -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
+            -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
+            -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
 
         IPA_FILE=$(find build/ipa -name "*.ipa" -type f)
         if [ -z "$IPA_FILE" ]; then
