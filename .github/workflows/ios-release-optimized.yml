@@ -44,10 +44,10 @@ jobs:
 
         echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
 
-    - name: Setup Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: '15.4'
+       - name: Setup Xcode
+         uses: maxim-lobanov/setup-xcode@v1
+         with:
+           xcode-version: '16.1'
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
