@@ -235,10 +235,8 @@ jobs:
 
         echo "✅ All validations passed"
 
-
-
-       - name: Archive iOS app (Automatic signing)
-       run: |
+    - name: Archive iOS app (Automatic signing)
+      run: |
         cd src-tauri/gen/apple
 
         mkdir -p build/archives
@@ -247,20 +245,20 @@ jobs:
 
         # Archive with automatic signing - Xcode will manage certificates and provisioning
         xcodebuild \
-         -project src-tauri.xcodeproj \
-         -scheme src-tauri_iOS \
-         -configuration Release \
-         -archivePath build/archives/OpenCodeNexus.xcarchive \
-         -derivedDataPath build/DerivedData \
-         -allowProvisioningUpdates \
-         archive \
-         -verbose
+          -project src-tauri.xcodeproj \
+          -scheme src-tauri_iOS \
+          -configuration Release \
+          -archivePath build/archives/OpenCodeNexus.xcarchive \
+          -derivedDataPath build/DerivedData \
+          -allowProvisioningUpdates \
+          archive \
+          -verbose
 
         echo "✅ App archived successfully with automatic signing"
 
-       - name: Export IPA for App Store
-       id: export
-       run: |
+    - name: Export IPA for App Store
+      id: export
+      run: |
         cd src-tauri/gen/apple
 
         mkdir -p build/ipa
@@ -286,8 +284,8 @@ jobs:
         # Set output for next job
         echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
 
-       - name: Normalize IPA for TestFlight
-       run: |
+    - name: Normalize IPA for TestFlight
+      run: |
         set -e
         echo "🔧 Normalizing IPA for automatic signing..."
 
