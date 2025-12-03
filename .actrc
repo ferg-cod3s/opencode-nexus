@@ -1,0 +1,21 @@
+# Act CLI Configuration for OpenCode Nexus
+# This file configures Docker images for local GitHub Actions testing
+
+# Use the official act images for Ubuntu and macOS runners
+-P ubuntu-latest=nektos/act-ubuntu-latest:latest
+-P ubuntu-22.04=nektos/act-ubuntu-latest:latest
+-P macos-14=nektos/act-macos-latest:latest
+-P macos-13=nektos/act-macos-latest:latest
+
+# Default platform for workflows
+# Remove this line if you want to be prompted for platform selection
+# -P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# Enable verbose output for debugging
+# -v
+
+# Use specific secrets file for local testing
+# -s .secrets.local
+
+# Don't use the default secret file
+# -s

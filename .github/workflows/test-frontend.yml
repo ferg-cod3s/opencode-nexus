@@ -1,0 +1,143 @@
+name: Frontend Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/test-frontend.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/test-frontend.yml'
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "frontend"
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Frontend Test Suite
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [20]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          cache: 'frontend'
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: bun install --frozen-lockfile
+      
+      - name: Type check
+        working-directory: ./frontend
+        run: bun run typecheck
+      
+      - name: Lint code
+        working-directory: ./frontend
+        run: bun run lint
+      
+      - name: Run unit tests
+        working-directory: ./frontend
+        run: bun test --coverage
+      
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./frontend/coverage/lcov.info
+          flags: frontend
+          name: frontend-coverage
+          fail_ci_if_error: false
+
+  e2e-test:
+    name: E2E Test Suite
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          cache: 'frontend'
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: bun install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        working-directory: ./frontend
+        run: bunx playwright install --with-deps
+      
+      - name: Build application
+        working-directory: ./frontend
+        run: bun run build
+      
+      - name: Run E2E tests
+        working-directory: ./frontend
+        run: bun run test:e2e
+      
+      - name: Upload E2E test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+      
+      - name: Upload E2E test screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots
+          path: frontend/test-results/
+          retention-days: 7
+
+  accessibility-test:
+    name: Accessibility Tests
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          cache: 'frontend'
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: bun install --frozen-lockfile
+      
+      - name: Build application
+        working-directory: ./frontend
+        run: bun run build
+      
+      - name: Install accessibility tools
+        run: npm install -g @axe-core/cli
+      
+      - name: Run accessibility tests
+        working-directory: ./frontend
+        run: |
+          bun run preview &
+          sleep 10
+          axe http://localhost:4321 --include "iframe" --tags wcag2a,wcag2aa
+          kill %1 || true

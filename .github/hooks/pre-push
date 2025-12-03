@@ -1,0 +1,154 @@
+#!/bin/bash
+
+# Pre-push hook for comprehensive testing
+# This hook runs full test suite before pushing to remote
+
+set -e
+
+echo "🚀 Running pre-push checks..."
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+print_status() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+print_error() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+# Get current branch and remote
+CURRENT_BRANCH=$(git branch --show-current)
+REMOTE=$1
+URL=$2
+
+# Skip for certain branches
+if [[ "$CURRENT_BRANCH" == "dependabot"* ]] || [[ "$CURRENT_BRANCH" == "renovate"* ]]; then
+    print_status "Skipping pre-push checks for automated branch"
+    exit 0
+fi
+
+# Check if Act CLI is available
+if ! command -v act &> /dev/null; then
+    print_warning "Act CLI not found. Install it with: brew install act"
+    echo "Running basic tests instead..."
+    
+    # Run basic tests
+    echo "Running frontend tests..."
+    cd frontend
+    if bun test; then
+        print_status "Frontend tests passed"
+    else
+        print_error "Frontend tests failed"
+        exit 1
+    fi
+    cd ..
+    
+    echo "Running backend tests..."
+    cd src-tauri
+    if cargo test; then
+        print_status "Backend tests passed"
+    else
+        print_error "Backend tests failed"
+        exit 1
+    fi
+    cd ..
+    
+    print_status "Basic tests completed. Consider installing Act CLI for full workflow testing."
+    exit 0
+fi
+
+# Check if Docker is running
+if ! docker info &> /dev/null; then
+    print_warning "Docker is not running. Start Docker to enable full workflow testing."
+    echo "Running basic tests instead..."
+    
+    # Run basic tests as fallback
+    cd frontend && bun test && cd ..
+    cd src-tauri && cargo test && cd ..
+    
+    print_status "Basic tests completed. Start Docker for full workflow testing."
+    exit 0
+fi
+
+# Run GitHub Actions workflows locally
+print_status "Running GitHub Actions workflows locally..."
+
+# Determine which workflows to run based on changes
+CHANGED_FILES=$(git diff --name-only $REMOTE/$CURRENT_BRANCH..HEAD)
+
+FRONTEND_CHANGED=false
+BACKEND_CHANGED=false
+WORKFLOWS_CHANGED=false
+
+for file in $CHANGED_FILES; do
+    if [[ "$file" == frontend/** ]]; then
+        FRONTEND_CHANGED=true
+    elif [[ "$file" == src-tauri/** ]]; then
+        BACKEND_CHANGED=true
+    elif [[ "$file" == .github/workflows/** ]]; then
+        WORKFLOWS_CHANGED=true
+    fi
+done
+
+# Run relevant workflows
+if [ "$FRONTEND_CHANGED" = true ] || [ "$WORKFLOWS_CHANGED" = true ]; then
+    echo "Running frontend test workflow..."
+    if act -j test -W .github/workflows/test-frontend.yml; then
+        print_status "Frontend workflow tests passed"
+    else
+        print_error "Frontend workflow tests failed"
+        exit 1
+    fi
+fi
+
+if [ "$BACKEND_CHANGED" = true ] || [ "$WORKFLOWS_CHANGED" = true ]; then
+    echo "Running backend test workflow..."
+    if act -j test -W .github/workflows/test-backend.yml; then
+        print_status "Backend workflow tests passed"
+    else
+        print_error "Backend workflow tests failed"
+        exit 1
+    fi
+fi
+
+# Run integration tests if both frontend and backend changed
+if [ "$FRONTEND_CHANGED" = true ] && [ "$BACKEND_CHANGED" = true ]; then
+    echo "Running integration tests..."
+    if act -j integration-test -W .github/workflows/test-integration.yml; then
+        print_status "Integration tests passed"
+    else
+        print_warning "Integration tests failed, but allowing push"
+        echo "Consider fixing integration issues before merging"
+    fi
+fi
+
+# Run security audit
+if [ "$BACKEND_CHANGED" = true ]; then
+    echo "Running security audit..."
+    cd src-tauri
+    if command -v cargo-audit &> /dev/null; then
+        if cargo audit; then
+            print_status "Security audit passed"
+        else
+            print_warning "Security audit found issues"
+            echo "Review and address security vulnerabilities"
+        fi
+    else
+        print_warning "cargo-audit not installed. Install with: cargo install cargo-audit"
+    fi
+    cd ..
+fi
+
+print_status "All pre-push checks passed! 🎉"
+echo "Ready to push to $REMOTE/$CURRENT_BRANCH"
+
+exit 0

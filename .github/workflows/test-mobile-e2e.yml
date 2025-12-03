@@ -1,0 +1,316 @@
+name: Mobile E2E Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - 'e2e/**'
+      - '.github/workflows/test-mobile-e2e.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'frontend/**'
+      - 'e2e/**'
+      - '.github/workflows/test-mobile-e2e.yml'
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "mobile-e2e"
+  cancel-in-progress: false
+
+jobs:
+  mobile-e2e:
+    name: Mobile E2E Tests
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        device:
+          - name: 'iPhone 14'
+            viewport: { width: 390, height: 844 }
+            userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15'
+            platform: 'ios'
+          - name: 'Samsung Galaxy S23'
+            viewport: { width: 360, height: 780 }
+            userAgent: 'Mozilla/5.0 (Linux; Android 13; SM-S901B) AppleWebKit/537.36'
+            platform: 'android'
+          - name: 'iPad Air'
+            viewport: { width: 820, height: 1180 }
+            userAgent: 'Mozilla/5.0 (iPad; CPU OS 16_0 like Mac OS X) AppleWebKit/605.1.15'
+            platform: 'ios'
+        browser: [chromium, firefox, webkit]
+        exclude:
+          # Exclude Safari on Android (not applicable)
+          - browser: webkit
+            device: { platform: android }
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          cache: 'frontend'
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: bun install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        working-directory: ./frontend
+        run: bunx playwright install --with-deps ${{ matrix.browser }}
+      
+      - name: Build application
+        working-directory: ./frontend
+        run: bun run build
+      
+      - name: Start application
+        working-directory: ./frontend
+        run: |
+          bun run preview &
+          sleep 10
+      
+      - name: Run mobile E2E tests
+        working-directory: ./frontend
+        env:
+          DEVICE_NAME: ${{ matrix.device.name }}
+          DEVICE_VIEWPORT_WIDTH: ${{ matrix.device.viewport.width }}
+          DEVICE_VIEWPORT_HEIGHT: ${{ matrix.device.viewport.height }}
+          DEVICE_USER_AGENT: ${{ matrix.device.userAgent }}
+          DEVICE_PLATFORM: ${{ matrix.device.platform }}
+        run: |
+          bunx playwright test \
+            --project=${{ matrix.browser }} \
+            --grep="Mobile" \
+            --reporter=html,list
+      
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ matrix.device.platform }}-${{ matrix.browser }}
+          path: frontend/playwright-report/
+          retention-days: 7
+      
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots-${{ matrix.device.platform }}-${{ matrix.browser }}
+          path: frontend/test-results/
+          retention-days: 7
+      
+      - name: Stop application
+        if: always()
+        run: pkill -f "bun run preview" || true
+
+  ios-native-e2e:
+    name: iOS Native E2E Tests
+    runs-on: macos-14
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          cache: 'frontend'
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install system dependencies
+        run: |
+          brew install openssl@3
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: bun install --frozen-lockfile
+      
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0"
+      
+      - name: Setup iOS Simulator
+        run: |
+          xcrun simctl create "iPhone 14" "iPhone 14" || true
+          xcrun simctl boot "iPhone 14" || true
+      
+      - name: Build iOS app
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          cd src-tauri
+          cargo tauri build --target aarch64-apple-ios-sim
+      
+      - name: Install iOS app on Simulator
+        run: |
+          APP_PATH=$(find src-tauri/target -name "*.app" | head -1)
+          xcrun simctl install "iPhone 14" "$APP_PATH"
+      
+      - name: Run iOS E2E tests
+        working-directory: ./frontend
+        run: |
+          bunx playwright test --config=playwright.ios.config.ts
+      
+      - name: Upload iOS test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ios-playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+      
+      - name: Upload iOS screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: ios-test-screenshots
+          path: frontend/test-results/
+          retention-days: 7
+
+  android-native-e2e:
+    name: Android Native E2E Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          cache: 'frontend'
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: bun install --frozen-lockfile
+      
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0"
+      
+      - name: Setup Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis
+          arch: x86_64
+          script: |
+            echo "Android emulator is ready"
+      
+      - name: Build Android app
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: |
+          cd src-tauri
+          cargo tauri build --target aarch64-linux-android
+      
+      - name: Install Android app on Emulator
+        run: |
+          APK_PATH=$(find src-tauri/target -name "*.apk" | head -1)
+          adb install "$APK_PATH"
+      
+      - name: Run Android E2E tests
+        working-directory: ./frontend
+        run: |
+          bunx playwright test --config=playwright.android.config.ts
+      
+      - name: Upload Android test results
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: android-playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
+      
+      - name: Upload Android screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: android-test-screenshots
+          path: frontend/test-results/
+          retention-days: 7
+
+  performance-e2e:
+    name: Performance E2E Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+          cache: 'frontend'
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: bun install --frozen-lockfile
+      
+      - name: Install Playwright browsers
+        working-directory: ./frontend
+        run: bunx playwright install --with-deps chromium
+      
+      - name: Install Lighthouse CI
+        run: npm install -g @lhci/cli@0.12.x
+      
+      - name: Build application
+        working-directory: ./frontend
+        run: bun run build
+      
+      - name: Start application
+        working-directory: ./frontend
+        run: |
+          bun run preview &
+          sleep 10
+      
+      - name: Run Lighthouse CI
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+        run: |
+          lhci autorun
+          lhci upload --target=temporary-public-storage
+      
+      - name: Run performance E2E tests
+        working-directory: ./frontend
+        run: |
+          bunx playwright test --grep="Performance"
+      
+      - name: Upload performance results
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-results
+          path: |
+            frontend/.lighthouseci/
+            frontend/test-results/
+          retention-days: 7
+      
+      - name: Stop application
+        if: always()
+        run: pkill -f "bun run preview" || true
