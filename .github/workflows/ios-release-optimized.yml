@@ -227,15 +227,15 @@ jobs:
             echo "✅ Xcode project patched for CI skip"
           fi
           
-          # Check Xcode project exists
-          if [ ! -f "gen/apple/src-tauri.xcodeproj/project.pbxproj" ]; then
-            echo "❌ ERROR: Xcode project not found"
-            exit 1
-          fi
-          
-          echo "✅ All validations passed"
+           # Check Xcode project exists
+           if [ ! -f "gen/apple/src-tauri.xcodeproj/project.pbxproj" ]; then
+             echo "❌ ERROR: Xcode project not found"
+             exit 1
+           fi
 
-       - name: Validate signing secrets
+           echo "✅ All validations passed"
+
+      - name: Validate signing secrets
          run: |
            # Validate required secrets are present for automatic signing
            if [ -z "${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" ]; then
