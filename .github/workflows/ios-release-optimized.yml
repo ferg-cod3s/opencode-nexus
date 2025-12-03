@@ -240,60 +240,62 @@ jobs:
 
         echo "✅ All validations passed"
 
-    - name: Archive iOS app (Automatic signing)
-      run: |
-        cd src-tauri/gen/apple
+     - name: Archive iOS app (Manual signing)
+       run: |
+         cd src-tauri/gen/apple
 
-        mkdir -p build/archives
+         mkdir -p build/archives
 
-        echo "🏗️ Starting iOS archive with automatic signing..."
+         echo "🏗️ Starting iOS archive with manual signing..."
 
-        # Archive with automatic signing and App Store Connect authentication
-        xcodebuild \
-          -project src-tauri.xcodeproj \
-          -scheme src-tauri_iOS \
-          -configuration Release \
-          -archivePath build/archives/OpenCodeNexus.xcarchive \
-          -derivedDataPath build/DerivedData \
-          -allowProvisioningUpdates \
-          -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
-          -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
-          -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8 \
-          archive \
-          -verbose
+         # Set up manual signing certificates and profiles
+         mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
 
-        echo "✅ App archived successfully with automatic signing"
+         # Import certificate
+         echo "${{ secrets.IOS_CERTIFICATE_P12 }}" | base64 --decode > certificate.p12
+         security import certificate.p12 -k ~/Library/Keychains/build.keychain -P "${{ secrets.IOS_CERTIFICATE_PASSWORD }}" -T /usr/bin/codesign
 
-    - name: Export IPA for App Store
-      id: export
-      run: |
-        cd src-tauri/gen/apple
+         # Import provisioning profile
+         echo "${{ secrets.IOS_PROVISIONING_PROFILE }}" | base64 --decode > ~/Library/MobileDevice/Provisioning\ Profiles/OpenCodeNexus.mobileprovision
 
-        mkdir -p build/ipa
+         # Archive with manual signing
+         xcodebuild \
+           -project src-tauri.xcodeproj \
+           -scheme src-tauri_iOS \
+           -configuration Release \
+           -archivePath build/archives/OpenCodeNexus.xcarchive \
+           -derivedDataPath build/DerivedData \
+           archive \
+           -verbose
 
-        echo "📦 Exporting IPA with automatic signing..."
-        xcodebuild \
-          -exportArchive \
-          -archivePath build/archives/OpenCodeNexus.xcarchive \
-          -exportOptionsPlist ExportOptions.plist \
-          -exportPath build/ipa \
-          -allowProvisioningUpdates \
-          -authenticationKeyID ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }} \
-          -authenticationKeyIssuerID ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }} \
-          -authenticationKeyPath ~/private_keys/AuthKey_${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}.p8
+         echo "✅ App archived successfully with manual signing"
 
-        IPA_FILE=$(find build/ipa -name "*.ipa" -type f)
-        if [ -z "$IPA_FILE" ]; then
-          echo "❌ IPA file not found!"
-          exit 1
-        fi
+     - name: Export IPA for App Store
+       id: export
+       run: |
+         cd src-tauri/gen/apple
 
-        IPA_SIZE=$(du -h "$IPA_FILE" | cut -f1)
-        echo "✅ IPA exported: $IPA_FILE ($IPA_SIZE)"
-        echo "IPA_FILE=$IPA_FILE" >> $GITHUB_ENV
+         mkdir -p build/ipa
 
-        # Set output for next job
-        echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
+         echo "📦 Exporting IPA with manual signing..."
+         xcodebuild \
+           -exportArchive \
+           -archivePath build/archives/OpenCodeNexus.xcarchive \
+           -exportOptionsPlist ExportOptions.plist \
+           -exportPath build/ipa
+
+         IPA_FILE=$(find build/ipa -name "*.ipa" -type f)
+         if [ -z "$IPA_FILE" ]; then
+           echo "❌ IPA file not found!"
+           exit 1
+         fi
+
+         IPA_SIZE=$(du -h "$IPA_FILE" | cut -f1)
+         echo "✅ IPA exported: $IPA_FILE ($IPA_SIZE)"
+         echo "IPA_FILE=$IPA_FILE" >> $GITHUB_ENV
+
+         # Set output for next job
+         echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
 
     - name: Normalize IPA for TestFlight
       run: |
@@ -346,32 +348,21 @@ jobs:
 
         echo "✅ Normalized IPA ready for automatic signing: $IPA_FILE"
 
-    - name: Upload to TestFlight
-      if: github.event.inputs.upload_to_testflight != 'false' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_to_testflight == 'true')
-      env:
-        APP_STORE_CONNECT_API_KEY_ID: J94Q923ZNG
-        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-        APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
-      run: |
-        TEMP_KEY_DIR=$(mktemp -d)
+     - name: Upload to TestFlight
+       if: github.event.inputs.upload_to_testflight != 'false' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_to_testflight == 'true')
+       run: |
+         IPA_FILE="${{ env.IPA_FILE }}"
 
-        echo "$APP_STORE_CONNECT_API_PRIVATE_KEY" | base64 --decode > "$TEMP_KEY_DIR/AuthKey.p8"
+         echo "📤 Uploading to TestFlight..."
+         xcrun altool \
+         --upload-app \
+         --type ios \
+         --file "$IPA_FILE" \
+         --username "${{ secrets.APPLE_ID }}" \
+         --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
+         --verbose
 
-        IPA_FILE="${{ env.IPA_FILE }}"
-
-        echo "📤 Uploading to TestFlight..."
-        xcrun altool \
-        --upload-app \
-        --type ios \
-        --file "$IPA_FILE" \
-        --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
-        --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
-        --apiKeysDir "$TEMP_KEY_DIR" \
-        --verbose
-
-        rm -rf "$TEMP_KEY_DIR"
-
-        echo "✅ IPA uploaded to TestFlight"
+         echo "✅ IPA uploaded to TestFlight"
 
     - name: Create GitHub Release
       if: github.ref_type == 'tag'
