@@ -10,12 +10,12 @@
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.svelte",
-    "src/**/*.astro"
+    "src/**/*.svelte"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    "src/tests/**"
+    "src/tests/**",
+    "src/**/*.astro"
   ]
 }
