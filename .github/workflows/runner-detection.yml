@@ -52,18 +52,35 @@ jobs:
             "https://api.github.com/repos/${{ github.repository }}/actions/runners" | \
             jq -r '.runners[] | select(.labels[] | contains("self-hosted")) | .status' | head -n1)
           
+          # If RUNNER_CHECK is empty, set to "not_found"
+          if [ -z "$RUNNER_CHECK" ]; then
+            RUNNER_CHECK="not_found"
+          fi
+          
           if [ "$RUNNER_CHECK" = "online" ]; then
             echo "available=true" >> $GITHUB_OUTPUT
             echo "runner_os=macOS" >> $GITHUB_OUTPUT
             echo "runner_arch=arm64" >> $GITHUB_OUTPUT
             echo "disk_space_gb=50" >> $GITHUB_OUTPUT
             echo "✅ Self-hosted runner is online"
+          elif [ "$RUNNER_CHECK" = "offline" ]; then
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "runner_os=unknown" >> $GITHUB_OUTPUT
+            echo "runner_arch=unknown" >> $GITHUB_OUTPUT
+            echo "disk_space_gb=0" >> $GITHUB_OUTPUT
+            echo "❌ Self-hosted runner is offline"
+          elif [ "$RUNNER_CHECK" = "not_found" ]; then
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "runner_os=not_found" >> $GITHUB_OUTPUT
+            echo "runner_arch=not_found" >> $GITHUB_OUTPUT
+            echo "disk_space_gb=0" >> $GITHUB_OUTPUT
+            echo "❌ No self-hosted runner found"
           else
             echo "available=false" >> $GITHUB_OUTPUT
             echo "runner_os=unknown" >> $GITHUB_OUTPUT
             echo "runner_arch=unknown" >> $GITHUB_OUTPUT
             echo "disk_space_gb=0" >> $GITHUB_OUTPUT
-            echo "❌ Self-hosted runner is offline or not found"
+            echo "❌ Self-hosted runner status unknown: $RUNNER_CHECK"
           fi
           
           # Get runner details if available
