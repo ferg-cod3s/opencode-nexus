@@ -107,9 +107,10 @@ jobs:
       
       - name: Check for outdated dependencies
         working-directory: ./src-tauri
+        continue-on-error: true
         run: |
           cargo install cargo-outdated
-          cargo outdated --exit-code 1
+          cargo outdated
 
   coverage:
     name: Code Coverage

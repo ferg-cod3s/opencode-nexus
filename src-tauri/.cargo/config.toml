@@ -1,8 +1,7 @@
 # iOS Build Configuration for OpenCode Nexus
 # Fixes cross-compilation linker issues
-
-[build]
-target = "aarch64-apple-ios"
+# NOTE: Default build target is NOT set here to allow CI/CD to build for multiple targets
+# Use explicit --target flags when building for iOS
 
 [target.aarch64-apple-ios]
 rustflags = [
@@ -44,6 +43,5 @@ rustflags = [
 ]
 
 [env]
-IPHONEOS_DEPLOYMENT_TARGET = "14.0"
-CARGO_CFG_TARGET_OS = "ios"
-CARGO_CFG_TARGET_VENDOR = "apple"
+# iOS-specific environment variables are set in the [target.aarch64-apple-ios] section
+# to avoid interfering with other targets

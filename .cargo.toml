@@ -3,9 +3,10 @@
 # This file addresses the iOS cross-compilation linker issues
 # where Rust tries to link with macOS libraries instead of iOS libraries
 
+# NOTE: Do NOT set a default build target here, as it breaks CI/CD pipelines
+# that need to build for multiple targets. Use explicit --target flags instead.
+
 [build]
-# Ensure we're using the correct iOS SDK
-target = "aarch64-apple-ios"
 
 [target.aarch64-apple-ios]
 # iOS-specific linker flags
