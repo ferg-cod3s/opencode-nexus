@@ -83,7 +83,7 @@
 ### High Priority (Immediate Impact)
 
 #### 1. Add Runner Detection to Existing Self-Hosted Workflows
-- **Files**: `ios-release-optimized.yml`, `ios-release-fined.yml`, `test-backend.yml`
+- **Files**: `ios-release-optimized.yml`, `ios-release-fixed.yml`, `test-backend.yml`
 - **Change**: Add runner availability detection and fallback logic
 - **Impact**: Prevent build failures when self-hosted runner unavailable
 
