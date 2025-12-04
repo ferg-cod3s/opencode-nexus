@@ -62,6 +62,8 @@ alert() {
 
 # Get system metrics
 get_cpu_usage() {
+    local CPU_USAGE=""
+    
     if [[ "$OSTYPE" == "darwin"* ]]; then
         # macOS - try top first
         if command -v top >/dev/null 2>&1; then
@@ -69,7 +71,7 @@ get_cpu_usage() {
         fi
         
         # If top didn't work or returned empty, use ps as fallback
-        if [ -z "$CPU_USAGE" ] && command -v ps >/dev/null 2>&1; then
+        if [ -z "${CPU_USAGE}" ] && command -v ps >/dev/null 2>&1; then
             CPU_USAGE=$(ps -A -o %cpu | awk '{s+=$1} END {printf "%.0f", s}')
         fi
     else
