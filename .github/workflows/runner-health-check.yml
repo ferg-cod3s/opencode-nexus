@@ -122,10 +122,15 @@ jobs:
           echo "- [Setup Guide](../SELF_HOSTED_RUNNER_SETUP.md)" >> $GITHUB_STEP_SUMMARY
 
       - name: Create Health Check Artifact
+        id: health-report
         run: |
           mkdir -p health-reports
           
-          cat > health-reports/runner-health-$(date +%Y%m%d).json << EOF
+          # Generate date for artifact naming
+          REPORT_DATE=$(date +%Y%m%d)
+          echo "report_date=$REPORT_DATE" >> $GITHUB_OUTPUT
+          
+          cat > health-reports/runner-health-${REPORT_DATE}.json << EOF
           {
             "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "repository": "${{ github.repository }}",
@@ -143,12 +148,12 @@ jobs:
           }
           EOF
           
-          echo "Health report generated: health-reports/runner-health-$(date +%Y%m%d).json"
+          echo "Health report generated: health-reports/runner-health-${REPORT_DATE}.json"
 
       - name: Upload Health Report
         uses: actions/upload-artifact@v4
         with:
-          name: runner-health-report-$(date +%Y%m%d)
+          name: runner-health-report-${{ steps.health-report.outputs.report_date }}
           path: health-reports/
           retention-days: 30
 
