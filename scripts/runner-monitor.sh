@@ -341,11 +341,11 @@ main() {
     # Handle command line arguments
     case "${1:-monitor}" in
         "health")
-            exec "$RUNNER_DIR/../scripts/runner-health-check.sh"
-            ;;
+            "$RUNNER_DIR/../scripts/runner-health-check.sh"
+            exit $?
         "restart")
-            exec "$RUNNER_DIR/../scripts/runner-restart.sh"
-            ;;
+            "$RUNNER_DIR/../scripts/runner-restart.sh"
+            exit $?
         "status")
             echo "Runner Status: $(get_runner_status)"
             echo "Network Status: $(get_network_status)"
