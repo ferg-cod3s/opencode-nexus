@@ -45,6 +45,7 @@ jobs:
           echo "📊 Collecting CI/CD metrics for last $REPORT_PERIOD days..."
           
           # Get workflow runs from GitHub API
+          # NOTE: The following uses 'date -d', which is Linux-specific and will not work on macOS (use 'date -v' there).
           SINCE_DATE=$(date -d "$REPORT_PERIOD days ago" -u +%Y-%m-%dT%H:%M:%SZ)
           
           # Fetch workflow runs
