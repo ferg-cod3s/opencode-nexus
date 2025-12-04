@@ -470,17 +470,4 @@
     outline: 2px solid hsl(220, 90%, 60%);
     outline-offset: 2px;
   }
-
-  /* Screen reader only */
-  .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
 </style>

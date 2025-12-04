@@ -193,27 +193,28 @@
     <p class="connection-subtitle">Enter your server details to establish a connection</p>
   </div>
 
-  <form class="connection-form" on:keydown={handleKeydown}>
+  <form class="connection-form">
     <!-- Hostname/IP Input -->
     <div class="form-group">
       <label for="hostname-input" class="form-label">
         Server Address
         <span class="required" aria-label="required">*</span>
       </label>
-      <input
-        id="hostname-input"
-        type="text"
-        class="form-input"
-        class:error={hostnameError}
-        placeholder="example.com or 192.168.1.100"
-        value={hostname}
-        on:input={handleHostnameInput}
-        disabled={loading}
-        aria-describedby={hostnameError ? "hostname-error" : "hostname-help"}
-        aria-invalid={hostnameError ? "true" : "false"}
-        autocomplete="off"
-        spellcheck="false"
-      />
+       <input
+         id="hostname-input"
+         type="text"
+         class="form-input"
+         class:error={hostnameError}
+         placeholder="example.com or 192.168.1.100"
+         value={hostname}
+         on:input={handleHostnameInput}
+         on:keydown={handleKeydown}
+         disabled={loading}
+         aria-describedby={hostnameError ? "hostname-error" : "hostname-help"}
+         aria-invalid={hostnameError ? "true" : "false"}
+         autocomplete="off"
+         spellcheck="false"
+       />
       {#if hostnameError}
         <div id="hostname-error" class="error-message" role="alert" aria-live="polite">
           {hostnameError}
@@ -293,7 +294,7 @@
         {#if showHistory}
           <div id="connection-history" class="history-list" role="listbox">
             {#each connectionHistory as item, index (item.hostname + item.port + item.https)}
-              <div class="history-item" role="option">
+               <div class="history-item" role="option" aria-selected="false">
                 <button
                   type="button"
                   class="history-select"

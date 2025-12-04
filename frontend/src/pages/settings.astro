@@ -384,7 +384,7 @@ import Layout from '../layouts/Layout.astro';
   }
 </style>
 
-<script>
+<script lang="ts">
   import { invoke } from '../utils/tauri-api.ts';
 
   // Settings state
@@ -431,7 +431,7 @@ import Layout from '../layouts/Layout.astro';
 
   async function loadTunnelSettings() {
     try {
-      const config = await invoke<any>('get_tunnel_config');
+      const config = await invoke('get_tunnel_config') as any;
       
       if (config) {
         tunnelSettings = { ...tunnelSettings, ...config };
@@ -447,8 +447,8 @@ import Layout from '../layouts/Layout.astro';
 
   async function updateTunnelStatusDisplay() {
     try {
-      const status = await invoke<string>('get_tunnel_status');
-      const url = await invoke<string>('get_tunnel_url');
+      const status = await invoke('get_tunnel_status') as string;
+      const url = await invoke('get_tunnel_url') as string;
 
       currentTunnelStatus = status.toLowerCase();
       currentTunnelUrl = url || '';

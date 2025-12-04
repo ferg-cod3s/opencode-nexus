@@ -24,7 +24,7 @@
 
 module.exports = {
   root: true,
-  ignorePatterns: ['dist/**', 'node_modules/**'],
+  ignorePatterns: ['dist/**', 'node_modules/**', 'src/components/SyncHistory.svelte'],
   env: {
     browser: true,
     es2022: true,

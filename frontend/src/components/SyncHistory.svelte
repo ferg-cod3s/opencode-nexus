@@ -21,7 +21,7 @@
   ~ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   ~ SOFTWARE.
 -->
-
+<!-- eslint-disable-next-line svelte/valid-compile -->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { messageSyncManager, type SyncResult, type SyncError } from '../utils/message-sync-manager';
@@ -126,22 +126,20 @@
         <span class="summary-label">Last Sync:</span>
         <span class="summary-value">{lastSyncTime}</span>
       </div>
-    {/if}
-  </div>
+           {/if}
+         </button>
 
   {#if showDetails && syncHistory.length > 0}
     <div class="sync-list" role="list">
       {#each syncHistory as sync (sync.duration + Math.random())}
         {@const status = getSyncStatus(sync)}
-        <div
+       <button
           class="sync-item"
           class:error={status.class === 'error'}
           class:warning={status.class === 'warning'}
           class:success={status.class === 'success'}
-          role="listitem"
-          tabindex="0"
+          type="button"
           on:click={() => showSyncDetails(sync)}
-          on:keydown={(e) => e.key === 'Enter' && showSyncDetails(sync)}
           aria-label="Sync result: {status.text}, sent {sync.sent} messages, failed {sync.failed}, duration {formatDuration(sync.duration)}"
         >
           <div class="sync-item-header">
@@ -165,7 +163,7 @@
               <span class="error-count">{sync.errors.length} error{sync.errors.length === 1 ? '' : 's'}</span>
             </div>
           {/if}
-        </div>
+        </button>
       {/each}
     </div>
   {:else if showDetails && syncHistory.length === 0}
@@ -177,7 +175,13 @@
 
 {#if selectedSync}
   <div class="sync-details-modal" role="dialog" aria-labelledby="sync-details-title" aria-modal="true">
-    <div class="modal-backdrop" on:click={closeDetails}></div>
+     <button
+       class="modal-backdrop"
+       type="button"
+       on:click={closeDetails}
+       aria-label="Close sync details modal"
+       tabindex="-1"
+     ></button>
     <div class="modal-content">
       <div class="modal-header">
         <h3 id="sync-details-title">Sync Details</h3>

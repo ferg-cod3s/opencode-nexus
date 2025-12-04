@@ -136,7 +136,7 @@ import Layout from '../layouts/Layout.astro';
   }
 </style>
 
-<script>
+<script lang="ts">
   // Import required modules
   import { invoke, listen } from '../utils/tauri-api';
   import type { ChatSession } from '../types/chat';
@@ -174,7 +174,7 @@ import Layout from '../layouts/Layout.astro';
 
       // Check authentication
       console.log('🔍 Chat page: Checking authentication...');
-      const isAuthenticated = await invoke<boolean>('is_authenticated');
+      const isAuthenticated = await invoke('is_authenticated') as boolean;
       console.log('🔍 Chat page: Authentication status:', isAuthenticated);
       console.log('🔍 Chat page: Authentication check completed');
 
@@ -186,7 +186,7 @@ import Layout from '../layouts/Layout.astro';
 
       // Check onboarding completion
       console.log('🔍 Chat page: Checking onboarding status...');
-      const onboardingState = await invoke<any>('get_onboarding_state');
+      const onboardingState = await invoke('get_onboarding_state') as any;
       console.log('🔍 Chat page: Onboarding state:', onboardingState);
 
       if (!onboardingState.config.is_completed) {
