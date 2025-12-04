@@ -115,7 +115,7 @@ describe('Chat Store - Error Handling & State Management', () => {
     test('should track online/offline status', () => {
       // Initialize online status if not already set
       chatStateStore.setOnline(true);
-      let status = get(isOnline);
+      const status = get(isOnline);
       expect(status).toBe(true);
 
       chatStateStore.setOnline(false);

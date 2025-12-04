@@ -75,8 +75,8 @@ export function classifyError(error: unknown): AppError {
   const timestamp = Date.now();
 
   if (error && typeof error === 'object' && 'type' in error) {
-    const err = error as any;
-    if (err.type in ErrorType) {
+    const err = error as Record<string, unknown>;
+    if (typeof err.type === 'string' && err.type in ErrorType) {
       return err as AppError;
     }
   }

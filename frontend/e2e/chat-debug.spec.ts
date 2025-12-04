@@ -63,7 +63,7 @@ test('debug chat page DOM structure', async ({ page }) => {
 });
 
 test('debug chat initialization process', async ({ page }) => {
-  let initLogs = [];
+  const initLogs = [];
   
   // Capture all console messages
   page.on('console', msg => {

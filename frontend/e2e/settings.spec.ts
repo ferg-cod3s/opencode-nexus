@@ -155,7 +155,7 @@ test.describe('Settings Page', () => {
     
     // Check keyboard navigation
     await page.keyboard.press('Tab');
-    let focusedElement = await page.evaluate(() => document.activeElement?.id);
+    const focusedElement = await page.evaluate(() => document.activeElement?.id);
     expect(['custom-domain', 'auth-token', 'auto-start-tunnel', 'theme-select']).toContain(focusedElement);
   });
 

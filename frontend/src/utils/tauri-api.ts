@@ -29,23 +29,51 @@
  */
 
 import { getEnvironmentInfo, shouldEnableAuthentication } from './environment';
-
-// Type for mock onboarding state (onboarding removed, kept for backward compatibility)
-type OnboardingState = {
-  completed: boolean;
-  current_step?: string;
-  [key: string]: any; // Legacy mock fields (onboarding system removed)
-};
+import type {
+  OnboardingState,
+  ServerInfo,
+  ServerMetrics,
+  ActiveSession,
+  SessionStats,
+  MockChatSession,
+  AuthStorage,
+  AccountLockStatus,
+  ConnectionInfo,
+  TauriEvent,
+  AuthenticateArgs,
+  CreateChatSessionArgs,
+  ChatSessionHistoryArgs,
+  SendChatMessageArgs,
+  ConnectToServerArgs,
+  TestConnectionArgs,
+  UserInfo,
+  EnvironmentCheck,
+  WindowWithConfig,
+  ChatEventMessage,
+} from '../types/api';
+import type { ChatMessage } from '../types/chat';
 
 // Check if we're running in a Tauri environment
 export const isTauriEnvironment = (): boolean => {
   return typeof window !== 'undefined' && '__TAURI__' in window;
 };
 
+// Tauri invoke function type
+type TauriInvokeFunction = <T>(cmd: string, args?: Record<string, unknown>) => Promise<T>;
+
+// Tauri listen function type  
+type TauriListenFunction = <T>(
+  event: string, 
+  handler: (event: TauriEvent<T>) => void
+) => Promise<() => void>;
+
+// Tauri emit function type
+type TauriEmitFunction = (event: string, payload?: unknown) => Promise<void>;
+
 // Import Tauri APIs (only available in Tauri environment)
-let tauriInvoke: ((cmd: string, args?: any) => Promise<any>) | null = null;
-let tauriListen: ((event: string, handler: (event: any) => void) => Promise<() => void>) | undefined = undefined;
-let tauriEmit: ((event: string, payload?: any) => Promise<void>) | undefined = undefined;
+let tauriInvoke: TauriInvokeFunction | null = null;
+let tauriListen: TauriListenFunction | undefined = undefined;
+let tauriEmit: TauriEmitFunction | undefined = undefined;
 
 // Promise that resolves when Tauri APIs are fully loaded
 let tauriReadyResolve: (() => void) | null = null;
@@ -66,14 +94,14 @@ if (isTauriEnvironment()) {
     // Dynamically import Tauri APIs
     Promise.all([
       import('@tauri-apps/api/core').then((module) => {
-        tauriInvoke = module.invoke;
-      }).catch((error) => {
+        tauriInvoke = module.invoke as TauriInvokeFunction;
+      }).catch((error: unknown) => {
         console.warn('[TAURI API] Failed to load Tauri core API:', error);
       }),
       import('@tauri-apps/api/event').then((module) => {
-        tauriListen = module.listen;
-        tauriEmit = module.emit;
-      }).catch((error) => {
+        tauriListen = module.listen as TauriListenFunction;
+        tauriEmit = module.emit as TauriEmitFunction;
+      }).catch((error: unknown) => {
         console.warn('[TAURI API] Failed to load Tauri event API:', error);
       })
     ]).then(() => {
@@ -96,26 +124,30 @@ const MOCK_TEST_USER = {
 };
 
 // Mock storage for chat sessions and messages (persists in localStorage for E2E tests)
-const getMockChatStorage = (): Map<string, any> => {
+const getMockChatStorage = (): Map<string, MockChatSession> => {
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('mockChatStorage');
-    return stored ? new Map<string, any>(JSON.parse(stored)) : new Map<string, any>();
+    return stored ? new Map<string, MockChatSession>(JSON.parse(stored)) : new Map<string, MockChatSession>();
   }
-  return new Map<string, any>();
+  return new Map<string, MockChatSession>();
 };
 
-const setMockChatStorage = (storage: Map<string, any>) => {
+const setMockChatStorage = (storage: Map<string, MockChatSession>) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('mockChatStorage', JSON.stringify(Array.from(storage.entries())));
   }
 };
 
 // Mock storage for authentication state (persists in localStorage for E2E tests)
-const getMockAuthStorage = () => {
+const getMockAuthStorage = (): AuthStorage => {
   if (typeof window !== 'undefined') {
     const stored = localStorage.getItem('mockAuthStorage');
     if (stored) {
-      const parsed = JSON.parse(stored);
+      const parsed = JSON.parse(stored) as { 
+        failedAttempts: number; 
+        lockedUntil: string | null; 
+        lockoutDuration: number 
+      };
       return {
         ...parsed,
         lockedUntil: parsed.lockedUntil ? new Date(parsed.lockedUntil) : null
@@ -129,7 +161,7 @@ const getMockAuthStorage = () => {
   };
 };
 
-const setMockAuthStorage = (storage: any) => {
+const setMockAuthStorage = (storage: AuthStorage) => {
   if (typeof window !== 'undefined') {
     localStorage.setItem('mockAuthStorage', JSON.stringify(storage));
   }
@@ -138,7 +170,7 @@ const setMockAuthStorage = (storage: any) => {
 // Mock API responses for E2E tests
 const mockApi = {
   // Authentication APIs
-  authenticate_user: async (args: { username: string; password: string }): Promise<boolean> => {
+  authenticate_user: async (args: AuthenticateArgs): Promise<boolean> => {
     console.log(`[MOCK API] authenticate_user called with:`, args);
 
     const authStorage = getMockAuthStorage();
@@ -182,12 +214,12 @@ const mockApi = {
     return true;
   },
 
-  create_owner_account: async (args: { username: string; password: string }): Promise<void> => {
+  create_owner_account: async (args: AuthenticateArgs): Promise<void> => {
     console.log(`[MOCK API] create_owner_account called with:`, args);
     return;
   },
 
-  get_user_info: async (): Promise<[string, string, string | null] | null> => {
+  get_user_info: async (): Promise<UserInfo | null> => {
     console.log(`[MOCK API] get_user_info called`);
     return [MOCK_TEST_USER.username, '2024-01-01 12:00:00 UTC', '2024-01-01 13:00:00 UTC'];
   },
@@ -232,7 +264,7 @@ const mockApi = {
    },
 
   // Server Management APIs
-  get_server_info: async (): Promise<any> => {
+  get_server_info: async (): Promise<ServerInfo> => {
     console.log(`[MOCK API] get_server_info called`);
     return {
       status: 'Running',
@@ -246,7 +278,7 @@ const mockApi = {
     };
   },
 
-  get_server_metrics: async (): Promise<any> => {
+  get_server_metrics: async (): Promise<ServerMetrics> => {
     console.log(`[MOCK API] get_server_metrics called`);
     return {
       cpu_usage: 15.5,
@@ -273,7 +305,7 @@ const mockApi = {
   },
 
   // Session Management APIs
-  get_active_sessions: async (): Promise<any[]> => {
+  get_active_sessions: async (): Promise<ActiveSession[]> => {
     console.log(`[MOCK API] get_active_sessions called`);
     return [
       {
@@ -286,7 +318,7 @@ const mockApi = {
     ];
   },
 
-  get_session_stats: async (): Promise<any> => {
+  get_session_stats: async (): Promise<SessionStats> => {
     console.log(`[MOCK API] get_session_stats called`);
     return {
       total_sessions: 5,
@@ -297,19 +329,19 @@ const mockApi = {
   },
 
   // Chat APIs
-  get_chat_sessions: async (): Promise<any[]> => {
+  get_chat_sessions: async (): Promise<MockChatSession[]> => {
     console.log(`[MOCK API] get_chat_sessions called`);
 
     const chatStorage = getMockChatStorage();
 
     // Return stored sessions or create a default one
-    const sessions = Array.from(chatStorage.values()).filter((session: any) => session.type === 'session');
+    const sessions = Array.from(chatStorage.values()).filter((session) => session.type === 'session');
     console.log(`[MOCK API] Found ${sessions.length} sessions in storage`);
-    console.log(`[MOCK API] Session IDs:`, sessions.map((s: any) => s.id));
+    console.log(`[MOCK API] Session IDs:`, sessions.map((s) => s.id));
     
     if (sessions.length === 0) {
       // Create a default session
-      const defaultSession = {
+      const defaultSession: MockChatSession = {
         id: 'mock-chat-1',
         title: 'Chat Session',
         created_at: new Date().toISOString(),
@@ -327,11 +359,11 @@ const mockApi = {
     return sessions;
   },
 
-  create_chat_session: async (args: { title?: string }): Promise<any> => {
+  create_chat_session: async (args: CreateChatSessionArgs): Promise<MockChatSession> => {
     console.log(`[MOCK API] create_chat_session called with:`, args);
     const chatStorage = getMockChatStorage();
     const sessionId = `mock-chat-${Date.now()}`;
-    const session = {
+    const session: MockChatSession = {
       id: sessionId,
       title: args.title || 'New Chat',
       created_at: new Date().toISOString(),
@@ -348,14 +380,14 @@ const mockApi = {
     return session;
   },
 
-  get_chat_session_history: async (args: { session_id: string }): Promise<any[]> => {
+  get_chat_session_history: async (args: ChatSessionHistoryArgs): Promise<ChatMessage[]> => {
     console.log(`[MOCK API] get_chat_session_history called with:`, args);
     const chatStorage = getMockChatStorage();
     const session = chatStorage.get(args.session_id);
     return session ? session.messages : [];
   },
 
-  send_chat_message: async (args: { session_id: string; content: string }): Promise<void> => {
+  send_chat_message: async (args: SendChatMessageArgs): Promise<void> => {
     console.log(`[MOCK API] send_chat_message called with:`, args);
 
     const chatStorage = getMockChatStorage();
@@ -376,13 +408,13 @@ const mockApi = {
     }
 
     // Add user message to session
-    const userMessage = {
+    const userMessage: ChatEventMessage = {
       id: `user-msg-${Date.now()}`,
       role: 'user',
       content: args.content,
       timestamp: new Date().toISOString()
     };
-    session.messages.push(userMessage);
+    session.messages.push(userMessage as ChatMessage);
     session.message_count = session.messages.length;
     session.updated_at = new Date().toISOString();
 
@@ -409,7 +441,7 @@ const mockApi = {
     });
 
     // Emit final received message after all chunks
-    const finalMessage = {
+    const finalMessage: ChatEventMessage = {
       id: `assistant-msg-${Date.now()}`,
       role: 'assistant',
       content: fullResponse,
@@ -421,7 +453,7 @@ const mockApi = {
       const updatedChatStorage = getMockChatStorage();
       const updatedSession = updatedChatStorage.get(args.session_id);
       if (updatedSession) {
-        updatedSession.messages.push(finalMessage);
+        updatedSession.messages.push(finalMessage as ChatMessage);
         updatedSession.message_count = updatedSession.messages.length;
         setMockChatStorage(updatedChatStorage);
       }
@@ -442,12 +474,12 @@ const mockApi = {
     return true;
   },
 
-  is_account_locked: async (): Promise<{ locked: boolean; unlockTime?: string }> => {
+  is_account_locked: async (): Promise<AccountLockStatus> => {
     console.log(`[MOCK API] is_account_locked called`);
     const authStorage = getMockAuthStorage();
     const locked = authStorage.lockedUntil && new Date() < authStorage.lockedUntil;
     return {
-      locked,
+      locked: Boolean(locked),
       unlockTime: locked ? authStorage.lockedUntil!.toISOString() : undefined
     };
   },
@@ -463,7 +495,7 @@ const mockApi = {
   },
 
   // Connection Management APIs
-  connect_to_server: async (args: { serverUrl: string; apiKey?: string; method: string; name: string }): Promise<string> => {
+  connect_to_server: async (args: ConnectToServerArgs): Promise<string> => {
     console.log(`[MOCK API] connect_to_server called with:`, args);
     await new Promise(resolve => setTimeout(resolve, 500));
     const connectionId = `${args.method}-${Date.now()}`;
@@ -473,7 +505,7 @@ const mockApi = {
     return connectionId;
   },
 
-  test_server_connection: async (args: { serverUrl: string; apiKey?: string }): Promise<boolean> => {
+  test_server_connection: async (args: TestConnectionArgs): Promise<boolean> => {
     console.log(`[MOCK API] test_server_connection called with:`, args);
     await new Promise(resolve => setTimeout(resolve, 300));
     return true;
@@ -484,7 +516,7 @@ const mockApi = {
     return localStorage.getItem('mockConnectionStatus') || 'Disconnected';
   },
 
-  get_current_connection: async (): Promise<any> => {
+  get_current_connection: async (): Promise<ConnectionInfo | null> => {
     console.log(`[MOCK API] get_current_connection called`);
     const connectionUrl = localStorage.getItem('mockConnectionUrl');
     if (!connectionUrl) {
@@ -507,7 +539,7 @@ const mockApi = {
     return;
   },
 
-  get_saved_connections: async (): Promise<any[]> => {
+  get_saved_connections: async (): Promise<ConnectionInfo[]> => {
     console.log(`[MOCK API] get_saved_connections called`);
     const connectionUrl = localStorage.getItem('mockConnectionUrl');
     if (!connectionUrl) {
@@ -523,21 +555,26 @@ const mockApi = {
   }
 };
 
+// Type for the mock API object
+type MockApiType = typeof mockApi;
+type MockApiCommand = keyof MockApiType;
+
 /**
  * Get the HTTP backend URL if configured
  */
 const getHttpBackendUrl = (): string | null => {
   try {
     // Try to get from Vite environment variables
-    const backendUrl = (import.meta as any).env?.VITE_CHAT_BACKEND_URL;
+    const importMetaEnv = (import.meta as { env?: { VITE_CHAT_BACKEND_URL?: string } }).env;
+    const backendUrl = importMetaEnv?.VITE_CHAT_BACKEND_URL;
     if (backendUrl) {
       return backendUrl;
     }
     // Also check window for runtime configuration
     if (typeof window !== 'undefined') {
-      return (window as any).VITE_CHAT_BACKEND_URL || null;
+      return (window as WindowWithConfig).VITE_CHAT_BACKEND_URL || null;
     }
-  } catch (error) {
+  } catch (_error) {
     // Silently ignore environment access errors
   }
   return null;
@@ -556,10 +593,10 @@ const isChatCommand = (command: string): boolean => {
 /**
  * Call HTTP backend endpoint for chat commands
  */
-const invokeHttpBackend = async <T = any>(
+const invokeHttpBackend = async <T>(
   command: string, 
   backendUrl: string,
-  args?: Record<string, any>
+  args?: Record<string, unknown>
 ): Promise<T> => {
   const endpoint = backendUrl.replace(/\/$/, '') + `/api/chat/${command}`;
   
@@ -586,7 +623,7 @@ const invokeHttpBackend = async <T = any>(
 /**
  * Invoke a Tauri command with automatic fallback to mock API in browser environments
  */
-export const invoke = async <T = any>(command: string, args?: Record<string, any>): Promise<T> => {
+export const invoke = async <T>(command: string, args?: Record<string, unknown>): Promise<T> => {
   console.log(`[API] Invoking command: ${command}`, args);
   const env = checkEnvironment();
   console.log('[API] Environment check:', env);
@@ -600,9 +637,9 @@ export const invoke = async <T = any>(command: string, args?: Record<string, any
     }
 
     try {
-      const result = await tauriInvoke(command, args);
+      const result = await tauriInvoke<T>(command, args);
       console.log(`[TAURI API] ${command} result:`, result);
-      return result as T;
+      return result;
     } catch (error) {
       console.error(`[TAURI API] Command ${command} failed:`, error);
       throw error;
@@ -625,9 +662,11 @@ export const invoke = async <T = any>(command: string, args?: Record<string, any
 
   if (command in mockApi) {
     try {
-      const result = await (mockApi as any)[command](args);
+      const mockFunction = mockApi[command as MockApiCommand];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Dynamic mock API dispatch requires any
+      const result = await (mockFunction as (args: any) => Promise<unknown>)(args);
       console.log(`[MOCK API] ${command} result:`, result);
-      return result;
+      return result as T;
     } catch (error) {
       console.error(`[MOCK API] Command ${command} failed:`, error);
       throw error;
@@ -639,17 +678,16 @@ export const invoke = async <T = any>(command: string, args?: Record<string, any
 };
 
 // Mock event system for browser/test environments
-const mockEventListeners = new Map<string, Function[]>();
-
-/**
- * Listener type helper
- */
-type EventListener = (event: any) => void;
+type EventHandler = (event: TauriEvent<unknown>) => void;
+const mockEventListeners = new Map<string, EventHandler[]>();
 
 /**
  * Event listening system with Tauri/mock fallback
  */
-export const listen = async (event: string, handler: EventListener): Promise<() => void> => {
+export const listen = async <T = unknown>(
+  event: string, 
+  handler: (event: TauriEvent<T>) => void
+): Promise<() => void> => {
   if (isTauriEnvironment()) {
     try {
       // Wait for Tauri APIs to be fully loaded
@@ -676,15 +714,16 @@ export const listen = async (event: string, handler: EventListener): Promise<() 
   }
 
   const listeners = mockEventListeners.get(event)!;
+  const wrappedHandler = handler as EventHandler;
   
   // Deduplication: check if handler already exists
-  if (listeners.includes(handler)) {
+  if (listeners.includes(wrappedHandler)) {
     console.log(`[MOCK EVENT] Handler already registered for ${event}, skipping duplicate`);
     // Return unsubscribe function for consistency
     return () => {
       const listeners = mockEventListeners.get(event);
       if (listeners) {
-        const index = listeners.indexOf(handler);
+        const index = listeners.indexOf(wrappedHandler);
         if (index > -1) {
           listeners.splice(index, 1);
         }
@@ -692,13 +731,13 @@ export const listen = async (event: string, handler: EventListener): Promise<() 
     };
   }
 
-  listeners.push(handler);
+  listeners.push(wrappedHandler);
 
   // Return unsubscribe function
   return () => {
     const listeners = mockEventListeners.get(event);
     if (listeners) {
-      const index = listeners.indexOf(handler);
+      const index = listeners.indexOf(wrappedHandler);
       if (index > -1) {
         listeners.splice(index, 1);
       }
@@ -709,7 +748,7 @@ export const listen = async (event: string, handler: EventListener): Promise<() 
 /**
  * Event emission system with Tauri/mock fallback
  */
-export const emit = async (event: string, payload?: any): Promise<void> => {
+export const emit = async (event: string, payload?: unknown): Promise<void> => {
   if (isTauriEnvironment()) {
     try {
       // Wait for Tauri APIs to be fully loaded
@@ -744,27 +783,23 @@ export const emit = async (event: string, payload?: any): Promise<void> => {
 /**
  * Check if the current environment supports Tauri functionality
  */
-export const checkEnvironment = (): {
-  isTauri: boolean;
-  canAuthenticate: boolean;
-  environment: 'tauri' | 'browser' | 'test';
-  httpBackendUrl?: string;
-} => {
+export const checkEnvironment = (): EnvironmentCheck => {
   const env = getEnvironmentInfo();
   
   // Check for HTTP backend URL from environment variables or window
   let httpBackendUrl = '';
   try {
     // Try to get from Vite environment variables
-    const backendUrl = (import.meta as any).env?.VITE_CHAT_BACKEND_URL;
+    const importMetaEnv = (import.meta as { env?: { VITE_CHAT_BACKEND_URL?: string } }).env;
+    const backendUrl = importMetaEnv?.VITE_CHAT_BACKEND_URL;
     if (backendUrl) {
       httpBackendUrl = backendUrl;
     }
     // Also check window for runtime configuration
     if (!httpBackendUrl && typeof window !== 'undefined') {
-      httpBackendUrl = (window as any).VITE_CHAT_BACKEND_URL || '';
+      httpBackendUrl = (window as WindowWithConfig).VITE_CHAT_BACKEND_URL || '';
     }
-  } catch (error) {
+  } catch (_error) {
     // Silently ignore environment access errors
   }
 

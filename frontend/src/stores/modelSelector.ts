@@ -50,7 +50,7 @@ function createModelSelectorStore() {
         const selectedModelStillAvailable = state.selectedModel &&
           models.some(m => m.fullId === state.selectedModel!.fullId);
 
-        let newState = { ...state, availableModels: models };
+        const newState = { ...state, availableModels: models };
 
         if (selectedModelStillAvailable) {
           // Keep current selection

@@ -254,7 +254,7 @@ describe('Offline Storage & Message Queue', () => {
       await OfflineStorage.queueMessage('session-1', 'Message 1');
       await OfflineStorage.queueMessage('session-1', 'Message 2');
 
-      let queued = await OfflineStorage.getQueuedMessagesForSession('session-1');
+      const queued = await OfflineStorage.getQueuedMessagesForSession('session-1');
 
       // Remove first as sent
       await OfflineStorage.removeQueuedMessage(queued[0].id);

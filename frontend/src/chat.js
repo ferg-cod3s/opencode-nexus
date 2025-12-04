@@ -105,7 +105,8 @@ async function initializeChatForTests() {
 
       // Mount the real ChatInterface component
       console.log('🔍 Chat.js: Mounting ChatInterface component...');
-      const chatInterface = new ChatInterface({
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Component mounting triggers initialization
+      const _chatInterface = new ChatInterface({
         target: chatRoot,
         props: {
           onSendMessage: async (content) => {

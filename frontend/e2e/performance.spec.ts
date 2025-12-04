@@ -408,7 +408,7 @@ test.describe.skip('Performance and Real-time Features (SKIPPED - Backend integr
       }
       
       // Monitor SSE performance while multiple streams are active
-      let eventCount = 0;
+      const eventCount = 0;
       const eventTimes: number[] = [];
       
       // Listen for SSE events (this would be implementation-specific)
