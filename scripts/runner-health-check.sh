@@ -130,10 +130,21 @@ check_system_resources() {
             CPU_CORES=$(nproc)
         fi
         
-        if (( $(echo "$LOAD_NUM > $CPU_CORES" | bc -l) )); then
-            warning "High CPU load: $LOAD_AVG (cores: $CPU_CORES)"
+        if command -v bc >/dev/null 2>&1; then
+            if (( $(echo "$LOAD_NUM > $CPU_CORES" | bc -l) )); then
+                warning "High CPU load: $LOAD_AVG (cores: $CPU_CORES)"
+            else
+                success "CPU load OK: $LOAD_AVG (cores: $CPU_CORES)"
+            fi
         else
-            success "CPU load OK: $LOAD_AVG (cores: $CPU_CORES)"
+            # Fallback: compare integer parts only
+            LOAD_NUM_INT=${LOAD_NUM%.*}
+            CPU_CORES_INT=${CPU_CORES%.*}
+            if [ "$LOAD_NUM_INT" -gt "$CPU_CORES_INT" ]; then
+                warning "High CPU load: $LOAD_AVG (cores: $CPU_CORES) [integer comparison, bc not found]"
+            else
+                success "CPU load OK: $LOAD_AVG (cores: $CPU_CORES) [integer comparison, bc not found]"
+            fi
         fi
     fi
 }
