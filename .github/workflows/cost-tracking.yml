@@ -57,15 +57,38 @@ jobs:
           TOTAL_JOBS=$(echo "$WORKFLOW_RUNS" | jq '.workflow_runs | length')
           
           # Count jobs by runner type
-          SELF_HOSTED_JOBS=$(echo "$WORKFLOW_RUNS" | jq '.workflow_runs | map(select(.labels[]? // "" | contains("self-hosted"))) | length')
-          GITHUB_HOSTED_JOBS=$((TOTAL_JOBS - SELF_HOSTED_JOBS))
+          # Initialize counters
+          SELF_HOSTED_JOBS=0
+          GITHUB_HOSTED_JOBS=0
+          SELF_HOSTED_MINUTES=0
+          GITHUB_HOSTED_MINUTES=0
+          
+          # Loop through workflow runs and fetch jobs for each
+          for run_id in $(echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[].id'); do
+            JOBS=$(curl -s \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/jobs?per_page=100")
+            
+            # For each job, check labels and sum minutes
+            SELF_HOSTED_JOB_COUNT=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? == "self-hosted")] | length')
+            GITHUB_HOSTED_JOB_COUNT=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? != "self-hosted")] | length')
+            
+            SELF_HOSTED_JOB_MINUTES=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? == "self-hosted") | ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601) | floor/60)] | add // 0')
+            GITHUB_HOSTED_JOB_MINUTES=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? != "self-hosted") | ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601) | floor/60)] | add // 0')
+            
+            SELF_HOSTED_JOBS=$((SELF_HOSTED_JOBS + SELF_HOSTED_JOB_COUNT))
+            GITHUB_HOSTED_JOBS=$((GITHUB_HOSTED_JOBS + GITHUB_HOSTED_JOB_COUNT))
+            SELF_HOSTED_MINUTES=$((SELF_HOSTED_MINUTES + SELF_HOSTED_JOB_MINUTES))
+            GITHUB_HOSTED_MINUTES=$((GITHUB_HOSTED_MINUTES + GITHUB_HOSTED_JOB_MINUTES))
+          done
           
           # Calculate total minutes (estimated)
           TOTAL_MINUTES=$(echo "$WORKFLOW_RUNS" | jq '[.workflow_runs[] | (.updated_at | fromdateiso8601) - (.created_at | fromdateiso8601) | floor/60] | add // 0')
           
           # Estimate self-hosted vs GitHub-hosted minutes
-          SELF_HOSTED_MINUTES=$(echo "$WORKFLOW_RUNS" | jq '[.workflow_runs[] | select(.labels[]? // "" | contains("self-hosted")) | ((.updated_at | fromdateiso8601) - (.created_at | fromdateiso8601) | floor/60)] | add // 0')
-          GITHUB_HOSTED_MINUTES=$((TOTAL_MINUTES - SELF_HOSTED_MINUTES))
+          # SELF_HOSTED_MINUTES and GITHUB_HOSTED_MINUTES are now calculated above in the loop
+          TOTAL_MINUTES=$((SELF_HOSTED_MINUTES + GITHUB_HOSTED_MINUTES))
           
           # Calculate costs
           # GitHub-hosted costs: Ubuntu $0.008/min, macOS $0.08/min, Windows $0.016/min
