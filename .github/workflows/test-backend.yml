@@ -223,7 +223,7 @@ jobs:
           echo "- **Estimated build time**: 5-10 minutes"
           echo "- **Estimated cost**: $([ "${{ needs.detect-runner.outputs.runner_type }}" = "self-hosted" ] && echo "$0" || echo "$0.40-$0.80")"
           echo ""
-          echo "💰 **Savings with self-hosted runner**: $([ "${{ needs.detect-runner.outputs.runner_type }}" = "self-hosted" ] && echo "Already using self-hosted!" || echo "$0.40-$0.80 per build")"
+          echo "💰 **Savings with self-hosted runner**: ${{ needs.detect-runner.outputs.runner_type == 'self-hosted' && 'Already using self-hosted!' || '$0.40-$0.80 per build' }}"
           echo ""
           echo "🔧 **To fix this**:"
           echo "1. Check self-hosted runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
