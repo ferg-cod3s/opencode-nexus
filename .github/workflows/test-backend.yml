@@ -204,7 +204,7 @@ jobs:
     name: Build Test (macOS)
     runs-on: ${{ needs.detect-runner.outputs.runner_type }}
     needs: detect-runner
-    if: always() && needs.detect-runner.result == 'success'
+    if: always() && needs.detect-runner.result == 'success' && (needs.detect-runner.outputs.runner_type == 'self-hosted' || contains(needs.detect-runner.outputs.runner_type, 'macos'))
     
     strategy:
       matrix:
