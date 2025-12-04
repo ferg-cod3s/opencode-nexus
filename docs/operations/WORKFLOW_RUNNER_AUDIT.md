@@ -14,7 +14,7 @@
 | `ios-release-fixed.yml` | `self-hosted` | ✅ | ✅ | $0/min |
 | `test-backend.yml` | `ubuntu-latest` + `self-hosted` | ✅ | ✅ | $0/min (macOS) |
 | `test-frontend.yml` | `ubuntu-latest` | ❌ | ❌ | $0/min |
-| `test-mobile-e2e.yml` | `ubuntu-l14` | ❌ | ❌ | $0/min |
+| `test-mobile-e2e.yml` | `ubuntu-latest` | ❌ | ❌ | $0/min |
 | `test-integration.yml` | `ubuntu-latest` | ❌ | ❌ | $0/min |
 | `license-check.yml` | `ubuntu-latest` | ❌ | ❌ | $0/min |
 
@@ -83,7 +83,7 @@
 ### High Priority (Immediate Impact)
 
 #### 1. Add Runner Detection to Existing Self-Hosted Workflows
-- **Files**: `ios-release-optimized.yml`, `ios-release-fined.yml`, `test-backend.yml`
+- **Files**: `ios-release-optimized.yml`, `ios-release-fixed.yml`, `test-backend.yml`
 - **Change**: Add runner availability detection and fallback logic
 - **Impact**: Prevent build failures when self-hosted runner unavailable
 

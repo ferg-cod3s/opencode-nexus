@@ -261,7 +261,7 @@ jobs:
       - name: Upload Cost Report
         uses: actions/upload-artifact@v4
         with:
-          name: cost-report-$(date +%Y%m)
+          name: cost-report-${{ github.run_number }}
           path: cost-report.md
           retention-days: 90
 

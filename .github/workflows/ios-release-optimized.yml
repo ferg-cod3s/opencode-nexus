@@ -40,21 +40,10 @@ jobs:
     steps:
       - name: Display Cost Warning
         if: needs.detect-runner.outputs.cost_warning != ''
-        run: |
-          echo "::warning::${{ needs.detect-runner.outputs.cost_warning }}"
-          echo ""
-          echo "💡 **Cost Impact**: This iOS build is running on GitHub-hosted runner"
-          echo "- **Current cost**: $0.08/minute"
-          echo "- **Estimated build time**: 15-20 minutes"
-          echo "- **Estimated cost**: $1.20-$1.60"
-          echo ""
-          echo "💰 **Savings with self-hosted runner**: $1.20-$1.60 per build"
-          echo ""
-          echo "🔧 **To fix this**:"
-          echo "1. Check self-hosted runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
-          echo "2. Restart runner: cd ~/github-runner && ./svc.restart"
-          echo "3. Check logs: cd ~/github-runner && tail -f _diag/Runner_*.log"
-
+        uses: ./.github/actions/display-cost-warning
+        with:
+          cost_warning: ${{ needs.detect-runner.outputs.cost_warning }}
+          repository: ${{ github.repository }}
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -73,31 +62,9 @@ jobs:
           echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
 
       - name: Validate Runner Environment
-        run: |
-          echo "🖥️ Validating runner environment for iOS build..."
-          echo "Runner Type: ${{ needs.detect-runner.outputs.runner_type }}"
-          echo "Operating System: $(uname -s)"
-          echo "Architecture: $(uname -m)"
-          echo "Available Disk Space: $(df -h . | tail -1 | awk '{print $4}')"
-          
-          # Verify we're on macOS
-          if [ "$(uname -s)" != "Darwin" ]; then
-            echo "::error::iOS builds require macOS but detected $(uname -s)"
-            exit 1
-          fi
-          
-          # Check available disk space (minimum 10GB)
-          AVAILABLE_SPACE=$(df . | tail -1 | awk '{print $4}')
-          AVAILABLE_SPACE_GB=$((AVAILABLE_SPACE / 1024 / 1024))
-          
-          if [ "$AVAILABLE_SPACE_GB" -lt 10 ]; then
-            echo "::error::Insufficient disk space: ${AVAILABLE_SPACE_GB}GB < 10GB required"
-            echo "Please free up disk space on the runner"
-            exit 1
-          fi
-          
-          echo "✅ Runner environment validated for iOS build"
-
+        uses: ./.github/actions/validate-runner
+        with:
+          runner_type: ${{ needs.detect-runner.outputs.runner_type }}
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
