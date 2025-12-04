@@ -155,8 +155,8 @@ export function getEnvironmentInfo(): EnvironmentInfo {
   }
 
   if (isTauri && typeof window !== 'undefined') {
-    // @ts-expect-error - Tauri global not in TypeScript definitions
-    tauriVersion = window.__TAURI__?.version;
+    const tauriWindow = window as any;
+    tauriVersion = tauriWindow.__TAURI__?.version;
   }
 
   return {

@@ -584,13 +584,6 @@ import Layout from '../layouts/Layout.astro';
       URL.revokeObjectURL(url);
     }
 
-    private showError(message: string) {
-      const container = document.getElementById('logs-container');
-      if (container) {
-        container.innerHTML = `<div class="log-entry error"><span class="log-message">${message}</span></div>`;
-      }
-    }
-
     private startLogUpdates() {
       // Update logs every 5 seconds
       setInterval(() => {

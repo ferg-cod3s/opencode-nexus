@@ -147,7 +147,7 @@ import Layout from '../layouts/Layout.astro';
 
   // State management
   let chatInterfaceComponent: any = null;
-  let sessionGridComponent: any = null;
+  let _sessionGridComponent: any = null;
   let currentSession: ChatSession | null = null;
   let sessions: ChatSession[] = [];
   let loading = false;
@@ -205,7 +205,7 @@ import Layout from '../layouts/Layout.astro';
         console.log('🔍 Chat page: No sessions found, creating default session...');
         const defaultSession = await invoke('create_chat_session', {
           title: 'Default Chat Session'
-        });
+        }) as ChatSession;
         sessions = [defaultSession];
         currentSession = defaultSession;
         console.log('🔍 Chat page: Default session created:', defaultSession.id);
@@ -296,7 +296,7 @@ import Layout from '../layouts/Layout.astro';
 
     // Mount SessionGrid in sidebar
     if (SessionGrid) {
-      sessionGridComponent = new SessionGrid({
+      _sessionGridComponent = new SessionGrid({
         target: sidebar,
         props: {
           sessions,

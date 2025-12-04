@@ -800,7 +800,7 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
 
     async function checkOnboardingStatus() {
       try {
-        const onboardingState = await invoke('get_onboarding_state');
+        const onboardingState = (await invoke('get_onboarding_state')) as any;
 
         if (!onboardingState.config.is_completed) {
           console.log('Onboarding not completed, redirecting...');
@@ -1011,15 +1011,15 @@ import ActivityFeed from '../components/ActivityFeed.svelte';
      }
    }
 
-   async function loadActivityFeed() {
-     try {
-       const sessions = await invoke('get_active_sessions');
-       updateActivityFeed(sessions);
-     } catch (error) {
-       console.error('Failed to load activity feed:', error);
-       updateActivityFeed([]);
-     }
-   }
+    async function loadActivityFeed() {
+      try {
+        const sessions = (await invoke('get_active_sessions')) as any[];
+        updateActivityFeed(sessions);
+      } catch (error) {
+        console.error('Failed to load activity feed:', error);
+        updateActivityFeed([]);
+      }
+    }
 
    function updateActivityFeed(sessions: any[]) {
      const activityList = document.querySelector('.activity-list');

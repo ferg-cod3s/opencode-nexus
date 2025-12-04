@@ -77,7 +77,7 @@ export function classifyError(error: unknown): AppError {
   if (error && typeof error === 'object' && 'type' in error) {
     const err = error as Record<string, unknown>;
     if (typeof err.type === 'string' && err.type in ErrorType) {
-      return err as AppError;
+      return err as unknown as AppError;
     }
   }
 

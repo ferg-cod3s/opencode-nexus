@@ -64,7 +64,7 @@ function createErrorStore() {
       isRetryable: boolean = false,
       onRetry?: () => void
     ): string {
-      const id = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const id = `error_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
       update((store) => ({
         errors: [

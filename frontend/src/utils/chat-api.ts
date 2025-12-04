@@ -39,7 +39,7 @@ export const loadChatSessions = async (): Promise<ChatSession[]> => {
     const sdkApi = await import('../lib/sdk-api');
     const sessions = await sdkApi.loadSessions();
     console.log('📥 [CHAT API] Loaded sessions:', sessions.length);
-    return sessions as ChatSession[];
+    return sessions as unknown as ChatSession[];
   } catch (error) {
     console.error('❌ [CHAT API] Failed to load chat sessions:', error);
     throw error;
@@ -56,8 +56,8 @@ export const createChatSession = async (title?: string): Promise<ChatSession> =>
     const session = await sdkApi.createSession({
       title: title || `Chat ${new Date().toLocaleDateString()}`
     });
-    console.log('✨ [CHAT API] Created session:', session.id);
-    return session as ChatSession;
+    console.log('✨ [CHAT API] Created session:', session?.id);
+    return session as unknown as ChatSession;
   } catch (error) {
     console.error('❌ [CHAT API] Failed to create chat session:', error);
     throw error;
@@ -73,7 +73,7 @@ export const loadSessionHistory = async (sessionId: string): Promise<ChatMessage
     const sdkApi = await import('../lib/sdk-api');
     const messages = await sdkApi.getSessionHistory(sessionId);
     console.log('📖 [CHAT API] Loaded messages:', messages.length);
-    return messages as ChatMessage[];
+    return messages as unknown as ChatMessage[];
   } catch (error) {
     console.error('❌ [CHAT API] Failed to load session history:', error);
     throw error;
