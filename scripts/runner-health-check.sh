@@ -199,12 +199,23 @@ check_configuration() {
     fi
     
     # Check for required binaries
-    REQUIRED_BINARIES=("git" "curl" "jq")
+    REQUIRED_BINARIES=("git" "curl")
     for binary in "${REQUIRED_BINARIES[@]}"; do
         if command -v "$binary" >/dev/null 2>&1; then
             success "Binary found: $binary"
         else
-            warning "Binary not found: $binary (may affect functionality)"
+            error "Required binary not found: $binary"
+            return 1
+        fi
+    done
+    
+    # Check for optional binaries (enhance functionality but not required)
+    OPTIONAL_BINARIES=("jq" "bc")
+    for binary in "${OPTIONAL_BINARIES[@]}"; do
+        if command -v "$binary" >/dev/null 2>&1; then
+            success "Optional binary found: $binary"
+        else
+            info "Optional binary not found: $binary (some features may be limited)"
         fi
     done
 }
