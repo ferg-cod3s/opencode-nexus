@@ -14,7 +14,7 @@
 | `ios-release-fixed.yml` | `self-hosted` | ✅ | ✅ | $0/min |
 | `test-backend.yml` | `ubuntu-latest` + `self-hosted` | ✅ | ✅ | $0/min (macOS) |
 | `test-frontend.yml` | `ubuntu-latest` | ❌ | ❌ | $0/min |
-| `test-mobile-e2e.yml` | `ubuntu-l14` | ❌ | ❌ | $0/min |
+| `test-mobile-e2e.yml` | `ubuntu-latest` | ❌ | ❌ | $0/min |
 | `test-integration.yml` | `ubuntu-latest` | ❌ | ❌ | $0/min |
 | `license-check.yml` | `ubuntu-latest` | ❌ | ❌ | $0/min |
 
