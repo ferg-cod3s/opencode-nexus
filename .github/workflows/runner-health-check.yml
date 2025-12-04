@@ -145,10 +145,14 @@ jobs:
           
           echo "Health report generated: health-reports/runner-health-$(date +%Y%m%d).json"
 
+      - name: Set artifact name
+        id: artifact-name
+        run: echo "name=runner-health-report-$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+
       - name: Upload Health Report
         uses: actions/upload-artifact@v4
         with:
-          name: runner-health-report-$(date +%Y%m%d)
+          name: ${{ steps.artifact-name.outputs.name }}
           path: health-reports/
           retention-days: 30
 

@@ -98,28 +98,37 @@ jobs:
         id: selection
         run: |
           PREFERRED_RUNNER="${{ inputs.preferred_runner }}"
-          FALLBACK_RUNNER="${{ inputs.fallback_runner }}"
-          REQUIRE_MACOS="${{ inputs.require_macos }}"
           AVAILABLE="${{ steps.check.outputs.available }}"
           
           echo "🎯 Selecting runner..."
           echo "Preferred: $PREFERRED_RUNNER"
-          echo "Fallback: $FALLBACK_RUNNER"
-          echo "Require macOS: $REQUIRE_MACOS"
           echo "Self-hosted available: $AVAILABLE"
           
-          if [ "$PREFERRED_RUNNER" = "self-hosted" ] && [ "$AVAILABLE" = "true" ]; then
-            SELECTED_RUNNER="self-hosted"
-            COST_WARNING=""
-            echo "✅ Selected self-hosted runner (cost: $0/min)"
-          elif [ "$REQUIRE_MACOS" = "true" ]; then
-            SELECTED_RUNNER="$FALLBACK_RUNNER"
-            COST_WARNING="⚠️ WARNING: Using GitHub-hosted macOS runner ($0.08/min). Self-hosted runner was unavailable."
-            echo "⚠️ Fallback to GitHub-hosted macOS runner (cost: $0.08/min)"
+          if [ "$PREFERRED_RUNNER" = "self-hosted" ]; then
+            if [ "$AVAILABLE" = "true" ]; then
+              SELECTED_RUNNER="self-hosted"
+              COST_WARNING=""
+              echo "✅ Selected self-hosted runner (cost: $0/min)"
+            else
+              echo "::error::Self-hosted runner is not available. Workflow will fail."
+              echo "❌ Self-hosted runner is REQUIRED but not available"
+              echo ""
+              echo "🔧 To fix this:"
+              echo "1. Check runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
+              echo "2. Restart runner: cd ~/github-runner && ./svc.sh restart"
+              echo "3. Check runner logs: cd ~/github-runner && tail -f _diag/Runner_*.log"
+              exit 1
+            fi
           else
-            SELECTED_RUNNER="ubuntu-latest"
-            COST_WARNING="ℹ️ INFO: Using Ubuntu runner (cost: $0.008/min). macOS not required for this job."
-            echo "ℹ️ Using Ubuntu runner (cost: $0.008/min)"
+            # If not requesting self-hosted, still use self-hosted if available
+            if [ "$AVAILABLE" = "true" ]; then
+              SELECTED_RUNNER="self-hosted"
+              COST_WARNING=""
+              echo "✅ Using available self-hosted runner (cost: $0/min)"
+            else
+              echo "::error::No suitable runner available. Self-hosted runner is offline."
+              exit 1
+            fi
           fi
           
           echo "runner_type=$SELECTED_RUNNER" >> $GITHUB_OUTPUT
@@ -132,15 +141,10 @@ jobs:
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Selected Runner | $SELECTED_RUNNER |" >> $GITHUB_STEP_SUMMARY
           echo "| Self-Hosted Available | $AVAILABLE |" >> $GITHUB_STEP_SUMMARY
-          echo "| Cost Impact | $([ "$SELECTED_RUNNER" = "self-hosted" ] && echo "$0/min" || [ "$SELECTED_RUNNER" = "ubuntu-latest" ] && echo "$0.008/min" || echo "$0.08/min") |" >> $GITHUB_STEP_SUMMARY
-          
-          if [ -n "$COST_WARNING" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### ⚠️ Cost Warning" >> $GITHUB_STEP_SUMMARY
-            echo "$COST_WARNING" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "💡 **Tip**: Check self-hosted runner status at: https://github.com/${{ github.repository }}/settings/actions/runners" >> $GITHUB_STEP_SUMMARY
-          fi
+          echo "| Cost Impact | $0/min (self-hosted) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Using Self-Hosted Runner" >> $GITHUB_STEP_SUMMARY
+          echo "All builds will use the self-hosted runner. No fallback to expensive GitHub-hosted runners." >> $GITHUB_STEP_SUMMARY
 
       - name: Verify Runner Requirements
         if: steps.selection.outputs.runner_type == 'self-hosted'

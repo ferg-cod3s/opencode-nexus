@@ -62,17 +62,20 @@ alert() {
 
 # Get system metrics
 get_cpu_usage() {
-    if command -v top >/dev/null 2>&1; then
-        # macOS
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS - use top command
         CPU_USAGE=$(top -l 1 | grep "CPU usage" | awk '{print $3}' | sed 's/%//')
-    elif command -v vmstat >/dev/null 2>&1; then
-        # Alternative macOS method
-        CPU_USAGE=$(vm_stat 2>/dev/null | grep "Pages free" | awk '{print $3}' | sed 's/\.//')
-        # Convert to percentage (simplified)
-        CPU_USAGE=$((100 - CPU_USAGE * 4096 / 1024 / 1024 / 1024))
+        if [ -z "$CPU_USAGE" ]; then
+            # Fallback: use ps to sum all CPU usage
+            CPU_USAGE=$(ps -A -o %cpu | awk '{s+=$1} END {print s}')
+        fi
     else
-        # Linux
+        # Linux - use top command
         CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//')
+        if [ -z "$CPU_USAGE" ]; then
+            # Fallback: use ps to sum all CPU usage
+            CPU_USAGE=$(ps -A -o %cpu | awk '{s+=$1} END {print s}')
+        fi
     fi
     echo "${CPU_USAGE:-0}"
 }
@@ -317,12 +320,16 @@ handle_input() {
                 ;;
             r|R)
                 info "Restarting runner..."
-                "$RUNNER_DIR/../scripts/runner-restart.sh"
+                # Find the script in the repository
+                SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+                "$SCRIPT_DIR/runner-restart.sh"
                 return 1
                 ;;
             h|H)
                 info "Running health check..."
-                "$RUNNER_DIR/../scripts/runner-health-check.sh" || true
+                # Find the script in the repository
+                SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+                "$SCRIPT_DIR/runner-health-check.sh" || true
                 ;;
         esac
     done
@@ -339,13 +346,16 @@ main() {
     echo ""
     
     # Handle command line arguments
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     case "${1:-monitor}" in
         "health")
-            "$RUNNER_DIR/../scripts/runner-health-check.sh"
+            "$SCRIPT_DIR/runner-health-check.sh"
             exit $?
+            ;;
         "restart")
-            "$RUNNER_DIR/../scripts/runner-restart.sh"
+            "$SCRIPT_DIR/runner-restart.sh"
             exit $?
+            ;;
         "status")
             echo "Runner Status: $(get_runner_status)"
             echo "Network Status: $(get_network_status)"
