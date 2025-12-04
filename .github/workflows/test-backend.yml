@@ -139,20 +139,9 @@ jobs:
           name: backend-coverage
           fail_ci_if_error: false
 
-  detect-runner:
-    name: Detect Runner for Backend Tests
-    uses: ./.github/workflows/runner-detection.yml
-    with:
-      preferred_runner: 'self-hosted'
-      fallback_runner: 'macos-14'
-      require_macos: false
-      check_disk_space: 5
-
   build-test:
     name: Build Test
     runs-on: ${{ matrix.os }}
-    needs: detect-runner
-    if: always() && needs.detect-runner.result == 'success'
     
     strategy:
       matrix:
@@ -167,12 +156,6 @@ jobs:
             target: x86_64-pc-windows-msvc
     
     steps:
-      - name: Verify Self-Hosted Runner
-        if: matrix.os == 'self-hosted'
-        run: |
-          echo "✅ Running on self-hosted runner (cost: $0/min)"
-          echo "Runner: $(uname -s) $(uname -m)"
-
       - name: Checkout repository
         uses: actions/checkout@v4
       
