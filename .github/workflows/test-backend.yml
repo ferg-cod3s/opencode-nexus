@@ -181,7 +181,7 @@ jobs:
           echo ""
           echo "🔧 **To fix this**:"
           echo "1. Check self-hosted runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
-          echo "2. Restart runner: cd ~/github-runner && ./svc.restart"
+          echo "2. Restart runner: cd ~/github-runner && ./svc.sh restart"
 
       - name: Checkout repository
         uses: actions/checkout@v4
