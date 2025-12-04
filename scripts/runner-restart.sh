@@ -226,7 +226,7 @@ generate_report() {
     echo "📋 Next Steps:"
     echo "- Check runner status: cd $RUNNER_DIR && ./svc.sh status"
     echo "- View logs: cd $RUNNER_DIR && tail -f _diag/Runner_*.log"
-    echo "- Verify in GitHub: https://github.com/$(git config --get remote.origin.url | sed 's/.*://.*@//;s/\.git$//' | sed 's/.*\///')/settings/actions/runners"
+    echo "- Verify in GitHub: https://github.com/$(git config --get remote.origin.url | sed -e 's/\.git$//' -e 's#.*/##')/settings/actions/runners"
 }
 
 # Main execution
