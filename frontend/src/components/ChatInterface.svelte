@@ -87,17 +87,16 @@
   // Update virtual scrolling when messages change
   $: updateVirtualScroll(currentMessages);
 
-  function updateVirtualScroll(messages: ChatMessage[]) {
-    if (!messagesContainer) return;
+   function updateVirtualScroll(messages: ChatMessage[]) {
+     if (!messagesContainer) return;
 
-    const totalHeight = messages.length * itemHeight;
-    const visibleCount = Math.ceil(containerHeight / itemHeight) + 5; // Add buffer
+     const visibleCount = Math.ceil(containerHeight / itemHeight) + 5; // Add buffer
 
-    startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - 2);
-    endIndex = Math.min(messages.length, startIndex + visibleCount);
+     startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - 2);
+     endIndex = Math.min(messages.length, startIndex + visibleCount);
 
-    visibleMessages = messages.slice(startIndex, endIndex);
-  }
+     visibleMessages = messages.slice(startIndex, endIndex);
+   }
 
   function handleSendMessage(content: string) {
     // Get selected model config from store
@@ -166,9 +165,9 @@
     }
   }
 
-  function handleTouchEnd(event: TouchEvent) {
-    const deltaY = touchEndY - touchStartY;
-    const deltaX = touchEndX - touchStartX;
+   function handleTouchEnd(_event: TouchEvent) {
+     const deltaY = touchEndY - touchStartY;
+     const deltaX = touchEndX - touchStartX;
 
     // Handle pull-to-refresh
     if (isPulling && pullDistance >= PULL_THRESHOLD) {
@@ -216,11 +215,11 @@
     }
   }
 
-  // Long press handler for message actions
-  function handleMessageLongPress(message: ChatMessage) {
-    // Could dispatch an event for message actions menu
-    // For now, just prevent default
-  }
+   // Long press handler for message actions
+   function handleMessageLongPress(_message: ChatMessage) {
+     // Could dispatch an event for message actions menu
+     // For now, just prevent default
+   }
 
   onMount(() => {
     viewportHeight = window.innerHeight;
@@ -288,14 +287,17 @@
       <div class="virtual-spacer" style="height: {startIndex * itemHeight}px;"></div>
     {/if}
 
-    {#each visibleMessages as message (message.id)}
-      <div
-        class="message-wrapper"
-        on:contextmenu|preventDefault={handleMessageLongPress(message)}
-      >
-        <MessageBubble {message} />
-      </div>
-    {/each}
+     {#each visibleMessages as message (message.id)}
+       <div
+         class="message-wrapper"
+         on:contextmenu|preventDefault={handleMessageLongPress(message)}
+         role="menuitem"
+         tabindex="0"
+         aria-label="Message with context menu"
+       >
+         <MessageBubble {message} />
+       </div>
+     {/each}
 
     {#if isLoading}
       <div class="loading-indicator" data-testid="typing-indicator" aria-live="polite">
