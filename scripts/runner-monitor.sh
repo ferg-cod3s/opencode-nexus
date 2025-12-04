@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -322,7 +325,7 @@ handle_input() {
                 ;;
             h|H)
                 info "Running health check..."
-                "$RUNNER_DIR/../scripts/runner-health-check.sh" || true
+                "$SCRIPT_DIR/runner-health-check.sh" || true
                 ;;
         esac
     done
@@ -341,10 +344,10 @@ main() {
     # Handle command line arguments
     case "${1:-monitor}" in
         "health")
-            exec "$RUNNER_DIR/../scripts/runner-health-check.sh"
+            exec "$SCRIPT_DIR/runner-health-check.sh"
             ;;
         "restart")
-            exec "$RUNNER_DIR/../scripts/runner-restart.sh"
+            exec "$SCRIPT_DIR/runner-restart.sh"
             ;;
         "status")
             echo "Runner Status: $(get_runner_status)"
