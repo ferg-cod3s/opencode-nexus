@@ -317,7 +317,7 @@ handle_input() {
                 ;;
             r|R)
                 info "Restarting runner..."
-                "$0" restart
+                "$RUNNER_DIR/../scripts/runner-restart.sh"
                 return 1
                 ;;
             h|H)
