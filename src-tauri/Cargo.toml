@@ -56,8 +56,13 @@ urlencoding = "2.1"
 futures-util = "0.3"
 futures = "0.3"
 sysinfo = "0.30"
- reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
+reqwest = { version = "0.11", features = ["json", "rustls-tls"] }
  # Note: Frontend now uses @opencode-ai/sdk directly for all chat operations
+
+# Development dependencies for better debugging
+[dev-dependencies]
+tempfile = "3"
+tracing-test = "0.2"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
@@ -66,11 +71,18 @@ libc = "0.2"
 winapi = { version = "0.3", features = ["fileapi", "winbase"] }
 
 [target.'cfg(target_os = "ios")'.dependencies]
-# iOS-specific dependencies
-objc2 = "0.6"
-objc2-ui-kit = "0.3"
-objc2-foundation = "0.3"
+# Core iOS support for Tauri 2.x
+# Note: iOS-specific plugins will be added as they become available
+mobile-entry-point = "0.1"
 
-[dev-dependencies]
+# Objective-C bindings for iOS compatibility (when available)
+# objc2 = "0.5"  # Commented out until needed
+# objc2-ui-kit = "0.2"  # Commented out until needed
+# objc2-foundation = "0.2"  # Commented out until needed
+
+# iOS logging and debugging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tempfile = "3"
+tracing-test = "0.2"
 

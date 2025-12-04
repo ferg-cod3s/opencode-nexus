@@ -22,61 +22,10 @@
  * SOFTWARE.
  */
 
+import { createOpencodeClient, type OpencodeClient } from '@opencode-ai/sdk/client';
 import { invoke } from '../utils/tauri-api';
 
-// OpenCode SDK client interface based on actual SDK API
-export interface OpencodeClient {
-  config: {
-    get(): Promise<{ data: any }>;
-    providers(): Promise<{ data: { providers: any[]; default: { [key: string]: string } } }>;
-  };
-  session: {
-    list(): Promise<{ data: any[] }>;
-    get(params: { path: { id: string } }): Promise<{ data: any }>;
-    create(params: { body: any }): Promise<{ data: any }>;
-    delete(params: { path: { id: string } }): Promise<boolean>;
-    messages(params: { path: { id: string } }): Promise<{ data: any[] }>;
-    prompt(params: { path: { id: string }; body: any }): Promise<any>;
-  };
-  event: {
-    subscribe(): Promise<{ stream: AsyncIterable<any> }>;
-  };
-}
-
-// Real OpenCode client for Tauri builds
-export function createOpencodeClient(options: { baseUrl: string }): OpencodeClient {
-  // Set server URL via Tauri command first
-  invoke('set_server_url', { serverUrl: options.baseUrl }).catch(err => {
-    console.warn('Failed to set server URL:', err);
-  });
-
-  return {
-    config: {
-      get: () => invoke('get_config'),
-      providers: () => invoke('get_providers'),
-    },
-    session: {
-      list: () => invoke('list_sessions'),
-      get: (params) => invoke('get_session', { sessionId: params.path.id }),
-      create: (params) => invoke('create_session', { body: params.body }),
-      delete: (params) => invoke('delete_session', { sessionId: params.path.id }),
-      messages: (params) => invoke('get_session_messages', { sessionId: params.path.id }),
-      prompt: (params) => invoke('send_prompt', { sessionId: params.path.id, body: params.body }),
-    },
-    event: {
-      subscribe: async () => {
-        // Return a mock stream for now - real implementation would use SSE
-        const stream = {
-          async *[Symbol.asyncIterator]() {
-            // Mock event stream - real implementation needed
-            yield { type: 'mock', data: {} };
-          }
-        };
-        return { stream };
-      },
-    },
-  };
-}
+export type { OpencodeClient };
 
 export interface ServerConnection {
   name: string;
@@ -87,8 +36,8 @@ export interface ServerConnection {
 }
 
 /**
- * OpencodeClientManager - Manages SDK client lifecycle and connection
- * Provides a singleton interface for connecting to OpenCode servers
+ * OpencodeClientManager - Manages real SDK client lifecycle and connection
+ * Provides a singleton interface for connecting to OpenCode servers using official SDK
  */
 export class OpencodeClientManager {
   private client: OpencodeClient | null = null;
@@ -96,7 +45,7 @@ export class OpencodeClientManager {
   private connecting = false;
 
   /**
-   * Connect to an OpenCode server using the SDK
+   * Connect to an OpenCode server using real SDK
    */
   async connect(connection: ServerConnection): Promise<void> {
     if (this.connecting) {
@@ -116,14 +65,17 @@ export class OpencodeClientManager {
 
       console.log(`🔗 [SDK] Connecting to server: ${baseUrl}`);
 
-      const client = await createOpencodeClient({ baseUrl });
-      this.client = client;
+      // Use REAL SDK client
+      this.client = createOpencodeClient({ 
+        baseUrl
+        // Note: logLevel not supported in current SDK version
+      });
       this.currentConnection = {
         ...connection,
         lastConnected: new Date().toISOString()
       };
 
-      // Persist connection to Tauri backend
+      // Persist connection to Tauri backend for storage
       try {
         await invoke('save_connection', { connection: this.currentConnection });
         console.log('💾 [SDK] Connection saved to persistent storage');
@@ -138,7 +90,7 @@ export class OpencodeClientManager {
   }
 
   /**
-   * Disconnect from the current server
+   * Disconnect from current server
    */
   async disconnect(): Promise<void> {
     console.log('🔌 [SDK] Disconnecting from server');
@@ -147,7 +99,7 @@ export class OpencodeClientManager {
   }
 
   /**
-   * Get the current SDK client instance
+   * Get current SDK client instance
    */
   getClient(): OpencodeClient {
     if (!this.client) {
@@ -164,7 +116,7 @@ export class OpencodeClientManager {
   }
 
   /**
-   * Get the current connection details
+   * Get current connection details
    */
   getCurrentConnection(): ServerConnection | null {
     return this.currentConnection;
@@ -184,7 +136,7 @@ export class OpencodeClientManager {
   }
 
   /**
-   * Get the last used connection from persistent storage
+   * Get last used connection from persistent storage
    */
   async getLastUsedConnection(): Promise<ServerConnection | null> {
     try {
