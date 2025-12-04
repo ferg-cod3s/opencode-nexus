@@ -61,6 +61,12 @@ pub enum AppError {
     },
     /// Data parsing or serialization errors
     DataError { message: String, details: String },
+    /// JSON parsing errors
+    ParseError { message: String, details: String },
+    /// I/O operation errors (file, network)
+    IoError { message: String, details: String },
+    /// Connection establishment errors
+    ConnectionError { message: String, details: String },
     /// Server is not connected
     NotConnectedError { message: String },
     /// Operation timed out
@@ -125,6 +131,15 @@ impl AppError {
             AppError::DataError { message, .. } => {
                 format!("Data error: {}", message)
             }
+            AppError::ParseError { message, .. } => {
+                format!("Parse error: {}", message)
+            }
+            AppError::IoError { message, .. } => {
+                format!("I/O error: {}", message)
+            }
+            AppError::ConnectionError { message, .. } => {
+                format!("Connection error: {}", message)
+            }
             AppError::NotConnectedError { message } => {
                 format!("Not connected: {}", message)
             }
@@ -166,6 +181,9 @@ impl AppError {
                 format!("Path: {}, Details: {}", path, details)
             }
             AppError::DataError { details, .. } => details.clone(),
+            AppError::ParseError { details, .. } => details.clone(),
+            AppError::IoError { details, .. } => details.clone(),
+            AppError::ConnectionError { details, .. } => details.clone(),
             AppError::NotConnectedError { message } => message.clone(),
             AppError::TimeoutError {
                 operation,
@@ -184,6 +202,7 @@ impl AppError {
     pub fn is_retryable(&self) -> bool {
         match self {
             AppError::NetworkError { .. } => true,
+            AppError::ConnectionError { .. } => true,
             AppError::ServerError { status_code, .. } => {
                 // Retry on 429 (rate limit), 500-599 (server errors)
                 *status_code == 429 || (*status_code >= 500 && *status_code < 600)
@@ -200,6 +219,7 @@ impl AppError {
     pub fn retry_delay_secs(&self) -> Option<u64> {
         match self {
             AppError::NetworkError { retry_after, .. } => *retry_after,
+            AppError::ConnectionError { .. } => Some(2), // Connection errors - wait 2 seconds
             AppError::ServerError { status_code, .. } => {
                 if *status_code == 429 {
                     Some(60) // Rate limited - wait 1 minute
