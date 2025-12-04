@@ -62,17 +62,26 @@ alert() {
 
 # Get system metrics
 get_cpu_usage() {
-    if command -v top >/dev/null 2>&1; then
-        # macOS
-        CPU_USAGE=$(top -l 1 | grep "CPU usage" | awk '{print $3}' | sed 's/%//')
-    elif command -v vmstat >/dev/null 2>&1; then
-        # Alternative macOS method
-        CPU_USAGE=$(vm_stat 2>/dev/null | grep "Pages free" | awk '{print $3}' | sed 's/\.//')
-        # Convert to percentage (simplified)
-        CPU_USAGE=$((100 - CPU_USAGE * 4096 / 1024 / 1024 / 1024))
+    local CPU_USAGE=""
+    
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS - try top first
+        if command -v top >/dev/null 2>&1; then
+            CPU_USAGE=$(top -l 1 | grep "CPU usage" | awk '{print $3}' | sed 's/%//')
+        fi
+        
+        # If top didn't work or returned empty, use ps as fallback
+        if [ -z "${CPU_USAGE}" ] && command -v ps >/dev/null 2>&1; then
+            CPU_USAGE=$(ps -A -o %cpu | awk '{s+=$1} END {printf "%.0f", s}')
+        fi
     else
         # Linux
-        CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//')
+        if command -v top >/dev/null 2>&1; then
+            CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | sed 's/%us,//')
+        elif command -v ps >/dev/null 2>&1; then
+            # Fallback to ps for Linux as well
+            CPU_USAGE=$(ps -A -o %cpu | awk '{s+=$1} END {printf "%.0f", s}')
+        fi
     fi
     echo "${CPU_USAGE:-0}"
 }
@@ -343,9 +352,11 @@ main() {
         "health")
             "$RUNNER_DIR/../scripts/runner-health-check.sh"
             exit $?
+            ;;
         "restart")
             "$RUNNER_DIR/../scripts/runner-restart.sh"
             exit $?
+            ;;
         "status")
             echo "Runner Status: $(get_runner_status)"
             echo "Network Status: $(get_network_status)"
