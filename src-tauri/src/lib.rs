@@ -239,7 +239,9 @@ async fn get_connection_status(app_handle: tauri::AppHandle) -> Result<Connectio
 }
 
 #[tauri::command]
-async fn get_current_connection(app_handle: tauri::AppHandle) -> Result<Option<ServerConnection>, String> {
+async fn get_current_connection(
+    app_handle: tauri::AppHandle,
+) -> Result<Option<ServerConnection>, String> {
     let config_dir = dirs::config_dir()
         .ok_or("Could not determine config directory")?
         .join("opencode-nexus");
@@ -370,7 +372,7 @@ async fn get_chat_client<'a>(
     state: &'a tauri::State<'a, ChatClientState>,
 ) -> Result<tokio::sync::MutexGuard<'a, Option<ChatClient>>, String> {
     let mut guard = state.0.lock().await;
-    
+
     // Initialize client if not already created
     if guard.is_none() {
         let config_dir = get_config_dir()?;
@@ -378,7 +380,7 @@ async fn get_chat_client<'a>(
             .map_err(|e| format!("Failed to create chat client: {}", e))?;
         *guard = Some(client);
     }
-    
+
     Ok(guard)
 }
 
@@ -387,14 +389,14 @@ async fn list_sessions(
     state: tauri::State<'_, ChatClientState>,
 ) -> Result<Vec<serde_json::Value>, String> {
     log_info!("📥 [CHAT] Listing sessions");
-    
+
     let guard = get_chat_client(&state).await?;
-    let client = guard.as_ref()
+    let client = guard
+        .as_ref()
         .ok_or_else(|| "Chat client not initialized".to_string())?;
-    
-    let sessions = client.list_sessions().await
-        .map_err(|e| e.to_string())?;
-    
+
+    let sessions = client.list_sessions().await.map_err(|e| e.to_string())?;
+
     let sessions_json = serde_json::to_value(&sessions)
         .map_err(|e| format!("Failed to serialize sessions: {}", e))?;
     Ok(sessions_json.as_array().cloned().unwrap_or_default())
@@ -406,14 +408,17 @@ async fn create_session(
     title: Option<String>,
 ) -> Result<serde_json::Value, String> {
     log_info!("📝 [CHAT] Creating session: {:?}", title);
-    
+
     let guard = get_chat_client(&state).await?;
-    let client = guard.as_ref()
+    let client = guard
+        .as_ref()
         .ok_or_else(|| "Chat client not initialized".to_string())?;
-    
-    let session = client.create_session(title).await
+
+    let session = client
+        .create_session(title)
+        .await
         .map_err(|e| e.to_string())?;
-    
+
     let session_json = serde_json::to_value(&session)
         .map_err(|e| format!("Failed to serialize session: {}", e))?;
     Ok(session_json)
@@ -426,7 +431,7 @@ async fn send_message(
     content: String,
 ) -> Result<serde_json::Value, String> {
     log_info!("💬 [CHAT] Sending message to session: {}", session_id);
-    
+
     // Input validation
     if session_id.trim().is_empty() {
         return Err("Session ID cannot be empty".to_string());
@@ -438,14 +443,17 @@ async fn send_message(
     if content.len() > 100_000 {
         return Err("Message content exceeds maximum length (100KB)".to_string());
     }
-    
+
     let guard = get_chat_client(&state).await?;
-    let client = guard.as_ref()
+    let client = guard
+        .as_ref()
         .ok_or_else(|| "Chat client not initialized".to_string())?;
-    
-    let message = client.send_message(&session_id, trimmed_content).await
+
+    let message = client
+        .send_message(&session_id, trimmed_content)
+        .await
         .map_err(|e| e.to_string())?;
-    
+
     let message_json = serde_json::to_value(&message)
         .map_err(|e| format!("Failed to serialize message: {}", e))?;
     Ok(message_json)
@@ -457,15 +465,19 @@ async fn get_session_messages(
     session_id: String,
 ) -> Result<Vec<serde_json::Value>, String> {
     log_info!("📜 [CHAT] Getting messages for session: {}", session_id);
-    
+
     let guard = get_chat_client(&state).await?;
-    let client = guard.as_ref()
+    let client = guard
+        .as_ref()
         .ok_or_else(|| "Chat client not initialized".to_string())?;
-    
-    let messages = client.get_session_messages(&session_id).await
+
+    let messages = client
+        .get_session_messages(&session_id)
+        .await
         .map_err(|e| e.to_string())?;
-    
-    let messages_json: Vec<serde_json::Value> = messages.into_iter()
+
+    let messages_json: Vec<serde_json::Value> = messages
+        .into_iter()
         .filter_map(|m| serde_json::to_value(&m).ok())
         .collect();
     Ok(messages_json)
@@ -476,10 +488,10 @@ async fn subscribe_to_chat_events(
     state: tauri::State<'_, ChatClientState>,
 ) -> Result<String, String> {
     log_info!("🎧 [CHAT] Subscribing to chat events");
-    
+
     // Ensure client is initialized
     let _guard = get_chat_client(&state).await?;
-    
+
     // Return subscription channel identifier
     Ok("chat_events".to_string())
 }
@@ -506,7 +518,7 @@ async fn clear_application_logs() -> Result<(), String> {
 pub fn run() {
     // Initialize ChatClient managed state (singleton)
     let chat_client_state = ChatClientState(Arc::new(AsyncMutex::new(None)));
-    
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .manage(chat_client_state)
@@ -522,13 +534,14 @@ pub fn run() {
                     }
                 };
 
-                let mut connection_manager = match ConnectionManager::new(config_dir, Some(app_handle)) {
-                    Ok(cm) => cm,
-                    Err(e) => {
-                        log_warn!("Failed to create connection manager: {}", e);
-                        return;
-                    }
-                };
+                let mut connection_manager =
+                    match ConnectionManager::new(config_dir, Some(app_handle)) {
+                        Ok(cm) => cm,
+                        Err(e) => {
+                            log_warn!("Failed to create connection manager: {}", e);
+                            return;
+                        }
+                    };
 
                 // Attempt to restore the last connection
                 if let Err(e) = connection_manager.restore_connection().await {
@@ -729,14 +742,13 @@ mod tests {
             model_id: "claude-3-5-sonnet-20241022".to_string(),
         };
 
-        let json = serde_json::to_string(&config)
-            .expect("Should serialize ModelConfig to JSON");
+        let json = serde_json::to_string(&config).expect("Should serialize ModelConfig to JSON");
 
         assert!(json.contains("anthropic"));
         assert!(json.contains("claude-3-5-sonnet-20241022"));
 
-        let deserialized: ModelConfig = serde_json::from_str(&json)
-            .expect("Should deserialize ModelConfig from JSON");
+        let deserialized: ModelConfig =
+            serde_json::from_str(&json).expect("Should deserialize ModelConfig from JSON");
 
         assert_eq!(deserialized.provider_id, "anthropic");
         assert_eq!(deserialized.model_id, "claude-3-5-sonnet-20241022");
