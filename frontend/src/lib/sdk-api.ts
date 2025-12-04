@@ -23,9 +23,9 @@
  */
 
 import { opcodeClient, type ServerConnection } from './opencode-client';
-import type { OpencodeClient } from './opencode-client';
-import { handleError, ErrorType } from './error-handler';
-import { withRetry, isRetryable } from './retry-handler';
+
+import { handleError } from './error-handler';
+import { withRetry } from './retry-handler';
 
 /**
  * SDK-based chat API - Uses @opencode-ai/sdk instead of Tauri backend
@@ -212,7 +212,7 @@ export async function subscribeToEvents(onEvent: (event: any) => Promise<void>) 
 
   try {
     const client = opcodeClient.getClient();
-    const eventStream = await client.event.subscribe({});
+    const eventStream = await client.event.subscribe();
 
     // Start listening to events in the background
     (async () => {
@@ -247,14 +247,6 @@ export async function getAvailableModels() {
   console.log('📋 [SDK API] Fetching available models');
 
   try {
-    const config = await withRetry(
-      async () => {
-        const client = opcodeClient.getClient();
-        return await client.config.get();
-      },
-      { maxRetries: 2, initialDelayMs: 500 },
-      'Fetch available models'
-    );
     const providersConfig = await withRetry(
       async () => {
         const client = opcodeClient.getClient();

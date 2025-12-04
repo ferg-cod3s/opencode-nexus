@@ -152,3 +152,7 @@ _*.svelte
 _*.astro
 _*.rs
 .credentials
+
+# Local testing secrets
+.secrets.local
+.actrc.local

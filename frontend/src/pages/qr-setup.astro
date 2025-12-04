@@ -125,20 +125,43 @@ import Layout from '../layouts/Layout.astro';
   
   <script>
     // QR Code Scanner Implementation
+    declare const QrScanner: any; // Type declaration for QR scanner library
+
     class QRCodeSetup {
+      scanner: any;
+      isScanning: boolean;
+      video: HTMLVideoElement | null;
+      canvas: HTMLCanvasElement | null;
+      startBtn: HTMLButtonElement | null;
+      fileInput: HTMLInputElement | null;
+      manualForm: HTMLFormElement | null;
+      statusSection: HTMLElement | null;
+      statusDot: HTMLElement | null;
+      statusText: HTMLElement | null;
+      statusDetails: HTMLElement | null;
+
       constructor() {
         this.scanner = null;
         this.isScanning = false;
+        this.video = null;
+        this.canvas = null;
+        this.startBtn = null;
+        this.fileInput = null;
+        this.manualForm = null;
+        this.statusSection = null;
+        this.statusDot = null;
+        this.statusText = null;
+        this.statusDetails = null;
         this.initializeElements();
         this.attachEventListeners();
       }
 
       initializeElements() {
-        this.video = document.getElementById('qr-video');
-        this.canvas = document.getElementById('qr-canvas');
-        this.startBtn = document.getElementById('start-scanner');
-        this.fileInput = document.getElementById('config-file');
-        this.manualForm = document.getElementById('manual-form');
+        this.video = document.getElementById('qr-video') as HTMLVideoElement;
+        this.canvas = document.getElementById('qr-canvas') as HTMLCanvasElement;
+        this.startBtn = document.getElementById('start-scanner') as HTMLButtonElement;
+        this.fileInput = document.getElementById('config-file') as HTMLInputElement;
+        this.manualForm = document.getElementById('manual-form') as HTMLFormElement;
         this.statusSection = document.getElementById('connection-status');
         this.statusDot = document.getElementById('status-dot');
         this.statusText = document.getElementById('status-text');
@@ -147,33 +170,35 @@ import Layout from '../layouts/Layout.astro';
 
       attachEventListeners() {
         // QR Scanner
-        this.startBtn.addEventListener('click', () => this.toggleScanner());
-        
+        if (this.startBtn) this.startBtn.addEventListener('click', () => this.toggleScanner());
+
         // File Upload
-        this.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
-        
+        if (this.fileInput) this.fileInput.addEventListener('change', (e) => this.handleFileUpload(e));
+
         // Drag and Drop
-        const uploadContainer = this.fileInput.parentElement;
-        uploadContainer.addEventListener('dragover', (e) => {
-          e.preventDefault();
-          uploadContainer.classList.add('drag-over');
-        });
-        
-        uploadContainer.addEventListener('dragleave', () => {
-          uploadContainer.classList.remove('drag-over');
-        });
-        
-        uploadContainer.addEventListener('drop', (e) => {
-          e.preventDefault();
-          uploadContainer.classList.remove('drag-over');
-          const files = e.dataTransfer.files;
-          if (files.length > 0) {
-            this.processConfigFile(files[0]);
-          }
-        });
-        
+        const uploadContainer = this.fileInput?.parentElement;
+        if (uploadContainer) {
+          uploadContainer.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadContainer.classList.add('drag-over');
+          });
+
+          uploadContainer.addEventListener('dragleave', () => {
+            uploadContainer.classList.remove('drag-over');
+          });
+
+          uploadContainer.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadContainer.classList.remove('drag-over');
+            const files = (e as DragEvent).dataTransfer?.files;
+            if (files && files.length > 0) {
+              this.processConfigFile(files[0]);
+            }
+          });
+        }
+
         // Manual Form
-        this.manualForm.addEventListener('submit', (e) => this.handleManualSubmit(e));
+        if (this.manualForm) this.manualForm.addEventListener('submit', (e) => this.handleManualSubmit(e));
       }
 
       async toggleScanner() {
@@ -186,9 +211,10 @@ import Layout from '../layouts/Layout.astro';
 
       async startScanner() {
         try {
+          if (!this.video) throw new Error('Video element not found');
           this.scanner = new QrScanner(
             this.video,
-            result => this.handleQRResult(result),
+            (result: any) => this.handleQRResult(result),
             {
               highlightScanRegion: false,
               highlightCodeOutline: false,
@@ -197,9 +223,11 @@ import Layout from '../layouts/Layout.astro';
 
           await this.scanner.start();
           this.isScanning = true;
-          this.startBtn.textContent = '🛑 Stop Scanner';
-          this.startBtn.classList.add('scanning');
-          this.video.hidden = false;
+          if (this.startBtn) {
+            this.startBtn.textContent = '🛑 Stop Scanner';
+            this.startBtn.classList.add('scanning');
+          }
+          if (this.video) this.video.hidden = false;
         } catch (error) {
           console.error('Failed to start QR scanner:', error);
           this.updateStatus('error', 'Camera access denied or not available');
@@ -212,12 +240,14 @@ import Layout from '../layouts/Layout.astro';
           this.scanner = null;
         }
         this.isScanning = false;
-        this.startBtn.textContent = '📷 Start Scanner';
-        this.startBtn.classList.remove('scanning');
-        this.video.hidden = true;
+        if (this.startBtn) {
+          this.startBtn.textContent = '📷 Start Scanner';
+          this.startBtn.classList.remove('scanning');
+        }
+        if (this.video) this.video.hidden = true;
       }
 
-      handleQRResult(result) {
+      handleQRResult(result: any) {
         try {
           const config = JSON.parse(result.data);
           this.applyConfiguration(config);
@@ -228,14 +258,15 @@ import Layout from '../layouts/Layout.astro';
         }
       }
 
-      handleFileUpload(event) {
-        const file = event.target.files[0];
+      handleFileUpload(event: Event) {
+        const target = event.target as HTMLInputElement;
+        const file = target.files?.[0];
         if (file) {
           this.processConfigFile(file);
         }
       }
 
-      async processConfigFile(file) {
+      async processConfigFile(file: File) {
         try {
           const text = await file.text();
           const config = JSON.parse(text);
@@ -243,22 +274,22 @@ import Layout from '../layouts/Layout.astro';
           
           // Update file preview
           const preview = document.getElementById('file-preview');
-          const fileName = preview.querySelector('.file-name');
-          fileName.textContent = `📄 ${file.name}`;
-          preview.hidden = false;
+          const fileName = preview?.querySelector('.file-name');
+          if (fileName) fileName.textContent = `📄 ${file.name}`;
+          if (preview) preview.hidden = false;
         } catch (error) {
           console.error('Invalid config file:', error);
           this.updateStatus('error', 'Invalid configuration file format');
         }
       }
 
-      handleManualSubmit(event) {
+      handleManualSubmit(event: Event) {
         event.preventDefault();
         
         const config = {
-          serverUrl: document.getElementById('server-url').value,
-          connectionMethod: document.getElementById('connection-method').value,
-          apiKey: document.getElementById('api-key').value,
+          serverUrl: (document.getElementById('server-url') as HTMLInputElement)?.value || '',
+          connectionMethod: (document.getElementById('connection-method') as HTMLInputElement)?.value || '',
+          apiKey: (document.getElementById('api-key') as HTMLInputElement)?.value || '',
           sslVerification: true,
           environment: 'development'
         };
@@ -266,7 +297,7 @@ import Layout from '../layouts/Layout.astro';
         this.applyConfiguration(config);
       }
 
-      async applyConfiguration(config) {
+      async applyConfiguration(config: any) {
         try {
           this.updateStatus('connecting', 'Connecting to server...');
           
@@ -294,20 +325,20 @@ import Layout from '../layouts/Layout.astro';
           }
         } catch (error) {
           console.error('Connection failed:', error);
-          this.updateStatus('error', `Connection failed: ${error.message}`);
+          this.updateStatus('error', `Connection failed: ${error instanceof Error ? error.message : String(error)}`);
         }
       }
 
-      updateStatus(status, message) {
-        this.statusSection.hidden = false;
-        this.statusText.textContent = message;
-        
+      updateStatus(status: string, message: string) {
+        if (this.statusSection) this.statusSection.hidden = false;
+        if (this.statusText) this.statusText.textContent = message;
+
         // Update status dot
-        this.statusDot.className = `status-dot status-${status}`;
-        
+        if (this.statusDot) this.statusDot.className = `status-dot status-${status}`;
+
         // Update details
         const timestamp = new Date().toLocaleTimeString();
-        this.statusDetails.innerHTML = `
+        if (this.statusDetails) this.statusDetails.innerHTML = `
           <div class="status-entry">
             <span class="status-time">${timestamp}</span>
             <span class="status-message">${message}</span>

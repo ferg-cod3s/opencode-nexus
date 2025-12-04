@@ -173,15 +173,9 @@ impl AppError {
             } => {
                 format!("Operation: {}, Timeout: {}s", operation, timeout_secs)
             }
-            AppError::ParseError { details, .. } => {
-                details.clone().unwrap_or_default()
-            }
-            AppError::ConnectionError { details, .. } => {
-                details.clone().unwrap_or_default()
-            }
-            AppError::IoError { details, .. } => {
-                details.clone().unwrap_or_default()
-            }
+            AppError::ParseError { details, .. } => details.clone().unwrap_or_default(),
+            AppError::ConnectionError { details, .. } => details.clone().unwrap_or_default(),
+            AppError::IoError { details, .. } => details.clone().unwrap_or_default(),
             AppError::Other { message } => message.clone(),
         }
     }

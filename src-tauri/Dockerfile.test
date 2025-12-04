@@ -1,0 +1,28 @@
+# Backend Test Dockerfile
+FROM rust:latest
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Cargo files
+COPY Cargo.toml Cargo.lock ./
+
+# Cache dependencies
+RUN cargo fetch
+
+# Copy source code
+COPY src ./src
+COPY tauri.conf.json ./
+
+# Create test user
+RUN useradd -m -u 1000 rustuser && chown -R rustuser:rustuser /app
+USER rustuser
+
+# Default command for running tests
+CMD ["cargo", "test", "--all-features", "--verbose"]

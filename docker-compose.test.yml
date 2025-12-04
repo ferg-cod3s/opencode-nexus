@@ -1,0 +1,163 @@
+version: '3.8'
+
+services:
+  # Test database for integration tests
+  postgres:
+    image: postgres:15-alpine
+    container_name: opencode-test-db
+    environment:
+      POSTGRES_DB: opencode_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+      - ./tests/integration/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d opencode_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - opencode-test-network
+
+  # Redis for caching and session tests
+  redis:
+    image: redis:7-alpine
+    container_name: opencode-test-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_test_data:/data
+    command: redis-server --appendonly yes --requirepass test_redis_password
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - opencode-test-network
+
+  # Mock OpenCode server for testing
+  mock-opencode-server:
+    build:
+      context: .
+      dockerfile: tests/integration/Dockerfile.mock-server
+    container_name: opencode-mock-server
+    ports:
+      - "4097:4096"
+    environment:
+      - NODE_ENV=test
+      - PORT=4096
+      - MOCK_MODE=true
+    volumes:
+      - ./tests/integration/mock-server-data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4096/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - opencode-test-network
+
+  # Frontend test runner
+  frontend-test:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.test
+    container_name: opencode-frontend-test
+    environment:
+      - NODE_ENV=test
+      - VITE_API_URL=http://mock-opencode-server:4096
+      - VITE_DATABASE_URL=postgresql://test_user:test_password@postgres:5432/opencode_test
+      - VITE_REDIS_URL=redis://:test_redis_password@redis:6379
+    volumes:
+      - ./frontend:/app
+      - frontend_test_node_modules:/app/node_modules
+      - frontend_test_coverage:/app/coverage
+    depends_on:
+      mock-opencode-server:
+        condition: service_healthy
+    networks:
+      - opencode-test-network
+    command: ["npm", "run", "test:integration"]
+
+  # Backend test runner
+  backend-test:
+    build:
+      context: ./src-tauri
+      dockerfile: Dockerfile.test
+    container_name: opencode-backend-test
+    environment:
+      - RUST_LOG=debug
+      - DATABASE_URL=postgresql://test_user:test_password@postgres:5432/opencode_test
+      - REDIS_URL=redis://:test_redis_password@redis:6379
+      - OPENCODE_SERVER_URL=http://mock-opencode-server:4096
+    volumes:
+      - ./src-tauri:/app
+      - cargo_registry:/usr/local/cargo/registry
+      - cargo_git:/usr/local/cargo/git
+      - rust_target:/app/target
+    depends_on:
+      mock-opencode-server:
+        condition: service_healthy
+    networks:
+      - opencode-test-network
+    command: ["cargo", "test", "--all-features"]
+
+  # E2E test runner with Playwright
+  e2e-test:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.e2e
+    container_name: opencode-e2e-test
+    environment:
+      - NODE_ENV=test
+      - BASE_URL=http://frontend-test:3000
+      - API_URL=http://mock-opencode-server:4096
+    volumes:
+      - ./frontend:/app
+      - frontend_e2e_node_modules:/app/node_modules
+      - playwright_cache:/root/.cache/ms-playwright
+    depends_on:
+      frontend-test:
+        condition: service_completed_successfully
+    networks:
+      - opencode-test-network
+    command: ["npx", "playwright", "test"]
+
+volumes:
+  postgres_test_data:
+    driver: local
+  redis_test_data:
+    driver: local
+  frontend_test_node_modules:
+    driver: local
+  frontend_test_coverage:
+    driver: local
+  frontend_e2e_node_modules:
+    driver: local
+  cargo_registry:
+    driver: local
+  cargo_git:
+    driver: local
+  rust_target:
+    driver: local
+  playwright_cache:
+    driver: local
+
+networks:
+  opencode-test-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,22 @@
+# Mock OpenCode Server for Testing
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy mock server code
+COPY mock-server/ ./
+COPY tests/integration/mock-server-data/ ./data/
+
+# Create health check endpoint
+RUN echo 'const express = require("express"); const app = express(); app.get("/health", (req, res) => res.status(200).json({status: "ok", timestamp: new Date().toISOString()})); app.get("/api/models", (req, res) => res.json([{id: "gpt-4", name: "GPT-4"}, {id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo"}])); app.listen(4096, () => console.log("Mock server running on port 4096"));' > server.js
+
+EXPOSE 4096
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:4096/health || exit 1
+
+CMD ["node", "server.js"]

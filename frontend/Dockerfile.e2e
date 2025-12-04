@@ -1,0 +1,29 @@
+# E2E Test Dockerfile with Playwright
+FROM mcr.microsoft.com/playwright:v1.48.0-focal
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json bun.lock* ./
+
+# Install Bun
+RUN curl -fsSL https://bun.sh/install | bash
+ENV BUN_INSTALL="/root/.bun"
+ENV PATH="$BUN_INSTALL/bin:$PATH"
+
+# Install dependencies
+RUN bun install --frozen-lockfile
+
+# Install Playwright browsers
+RUN bunx playwright install --with-deps chromium firefox webkit
+
+# Copy source code
+COPY . .
+
+# Create test user
+RUN useradd -m -u 1001 playwright
+RUN chown -R playwright:playwright /app
+USER playwright
+
+# Default command for running E2E tests
+CMD ["bunx", "playwright", "test"]
