@@ -21,11 +21,7 @@
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' 'inline-speculation-rules' tauri:; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: http: ws: tauri: ipc: http://ipc.localhost; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; worker-src 'self' blob:",
       "devCsp": "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' 'wasm-unsafe-eval' http: https: tauri:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' ws: http: https: tauri: ipc:; media-src 'self' data: blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'; worker-src 'self' blob:",
-      "headers": {
-        "Cross-Origin-Opener-Policy": "same-origin",
-        "Cross-Origin-Embedder-Policy": "require-corp",
-        "X-Content-Type-Options": "nosniff"
-      }
+
     }
   },
   "bundle": {
