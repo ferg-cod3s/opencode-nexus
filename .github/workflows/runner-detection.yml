@@ -8,15 +8,10 @@ on:
         required: false
         default: 'self-hosted'
         type: string
-      fallback_runner:
-        description: 'Fallback runner if preferred unavailable'
+      fail_if_unavailable:
+        description: 'Fail workflow if self-hosted runner is unavailable'
         required: false
-        default: 'macos-14'
-        type: string
-      require_macos:
-        description: 'Require macOS runner (fail if unavailable)'
-        required: false
-        default: false
+        default: true
         type: boolean
       check_disk_space:
         description: 'Check minimum disk space (GB)'
@@ -27,7 +22,7 @@ on:
 jobs:
   detect-runner:
     name: Detect Runner Availability
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     outputs:
       runner_type: ${{ steps.selection.outputs.runner_type }}
       runner_available: ${{ steps.check.outputs.available }}
@@ -98,28 +93,40 @@ jobs:
         id: selection
         run: |
           PREFERRED_RUNNER="${{ inputs.preferred_runner }}"
-          FALLBACK_RUNNER="${{ inputs.fallback_runner }}"
-          REQUIRE_MACOS="${{ inputs.require_macos }}"
+          FAIL_IF_UNAVAILABLE="${{ inputs.fail_if_unavailable }}"
           AVAILABLE="${{ steps.check.outputs.available }}"
           
           echo "🎯 Selecting runner..."
           echo "Preferred: $PREFERRED_RUNNER"
-          echo "Fallback: $FALLBACK_RUNNER"
-          echo "Require macOS: $REQUIRE_MACOS"
           echo "Self-hosted available: $AVAILABLE"
+          echo "Fail if unavailable: $FAIL_IF_UNAVAILABLE"
           
           if [ "$PREFERRED_RUNNER" = "self-hosted" ] && [ "$AVAILABLE" = "true" ]; then
             SELECTED_RUNNER="self-hosted"
             COST_WARNING=""
             echo "✅ Selected self-hosted runner (cost: $0/min)"
-          elif [ "$REQUIRE_MACOS" = "true" ]; then
-            SELECTED_RUNNER="$FALLBACK_RUNNER"
-            COST_WARNING="⚠️ WARNING: Using GitHub-hosted macOS runner ($0.08/min). Self-hosted runner was unavailable."
-            echo "⚠️ Fallback to GitHub-hosted macOS runner (cost: $0.08/min)"
+          elif [ "$FAIL_IF_UNAVAILABLE" = "true" ]; then
+            echo "::error::━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "::error::❌ SELF-HOSTED RUNNER UNAVAILABLE"
+            echo "::error::━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "::error::"
+            echo "::error::This repository requires a self-hosted runner."
+            echo "::error::Fallback runners are DISABLED."
+            echo "::error::"
+            echo "::error::🔧 To fix this:"
+            echo "::error::  1. SSH to your runner machine"
+            echo "::error::  2. cd ~/github-runner && ./svc.sh start"
+            echo "::error::  3. Or restart: ./svc.sh restart"
+            echo "::error::"
+            echo "::error::📊 Check runner status:"
+            echo "::error::  https://github.com/${{ github.repository }}/settings/actions/runners"
+            echo "::error::"
+            echo "::error::━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            exit 1
           else
-            SELECTED_RUNNER="ubuntu-latest"
-            COST_WARNING="ℹ️ INFO: Using Ubuntu runner (cost: $0.008/min). macOS not required for this job."
-            echo "ℹ️ Using Ubuntu runner (cost: $0.008/min)"
+            SELECTED_RUNNER="self-hosted"
+            COST_WARNING="⚠️ WARNING: Self-hosted runner unavailable but continuing anyway"
+            echo "⚠️ Self-hosted runner unavailable but fail_if_unavailable is false"
           fi
           
           echo "runner_type=$SELECTED_RUNNER" >> $GITHUB_OUTPUT
@@ -132,14 +139,12 @@ jobs:
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Selected Runner | $SELECTED_RUNNER |" >> $GITHUB_STEP_SUMMARY
           echo "| Self-Hosted Available | $AVAILABLE |" >> $GITHUB_STEP_SUMMARY
-          echo "| Cost Impact | $([ "$SELECTED_RUNNER" = "self-hosted" ] && echo "$0/min" || [ "$SELECTED_RUNNER" = "ubuntu-latest" ] && echo "$0.008/min" || echo "$0.08/min") |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cost Impact | $0/min |" >> $GITHUB_STEP_SUMMARY
           
           if [ -n "$COST_WARNING" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### ⚠️ Cost Warning" >> $GITHUB_STEP_SUMMARY
+            echo "### ⚠️ Warning" >> $GITHUB_STEP_SUMMARY
             echo "$COST_WARNING" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "💡 **Tip**: Check self-hosted runner status at: https://github.com/${{ github.repository }}/settings/actions/runners" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Verify Runner Requirements
@@ -216,7 +221,7 @@ jobs:
           echo "- **OS**: $(uname -s)" >> $GITHUB_STEP_SUMMARY
           echo "- **Architecture**: $(uname -m)" >> $GITHUB_STEP_SUMMARY
           echo "- **Disk Space**: $(df -h . | tail -1 | awk '{print $4}')" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build Cost**: $([ "${{ needs.detect-runner.outputs.runner_type }}" = "self-hosted" ] && echo "$0/min" || [ "${{ needs.detect-runner.outputs.runner_type }}" = "ubuntu-latest" ] && echo "$0.008/min" || echo "$0.08/min")" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build Cost**: $0/min (self-hosted)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Status" >> $GITHUB_STEP_SUMMARY
           echo "✅ Runner validated and ready for builds" >> $GITHUB_STEP_SUMMARY

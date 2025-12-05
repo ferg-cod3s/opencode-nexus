@@ -1,0 +1,18 @@
+[
+  {
+    "id": "test-1",
+    "name": "Test File 1",
+    "path": "/src/test1.js",
+    "content": "console.log('Hello from test file 1');",
+    "language": "javascript",
+    "size": 45
+  },
+  {
+    "id": "test-2",
+    "name": "Test File 2", 
+    "path": "/src/test2.py",
+    "content": "print('Hello from test file 2')",
+    "language": "python",
+    "size": 35
+  }
+]

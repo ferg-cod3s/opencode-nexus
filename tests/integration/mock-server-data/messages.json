@@ -1,0 +1,23 @@
+[
+  {
+    "id": "msg-1",
+    "session_id": "test-session-1",
+    "role": "user",
+    "content": "Hello, this is a test message",
+    "timestamp": "2025-12-05T12:00:00Z"
+  },
+  {
+    "id": "msg-2",
+    "session_id": "test-session-1", 
+    "role": "assistant",
+    "content": "Hello! I'm a test response from the mock OpenCode server.",
+    "timestamp": "2025-12-05T12:01:00Z"
+  },
+  {
+    "id": "msg-3",
+    "session_id": "test-session-2",
+    "role": "user",
+    "content": "Another test message",
+    "timestamp": "2025-12-05T11:00:00Z"
+  }
+]

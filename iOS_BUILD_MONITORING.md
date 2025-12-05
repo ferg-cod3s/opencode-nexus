@@ -62,7 +62,7 @@ When the run completes, check:
 
 ## Next Steps
 
-1. **Wait for completion** - Monitor run at: https://github.com/ferg-cod3s/opencode-nexus/actions/runs/19810850590
+1. **Wait for completion** - Monitor run at: https://github.com/v1truv1us/opencode-nexus/actions/runs/19810850590
 2. **Check logs** when available for specific error messages
 3. **If successful**, merge to main branch
 4. **If failed**, analyze logs and implement additional fixes

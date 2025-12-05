@@ -6,13 +6,13 @@
 
 ## 1. Executive Summary
 
-OpenCode Nexus is a mobile-first client application that provides seamless access to OpenCode AI servers through a beautiful, touch-optimized interface. Built with Tauri for cross-platform compatibility, the app enables developers and AI enthusiasts to interact with powerful AI coding assistants from their mobile devices while maintaining enterprise-grade security and accessibility standards.
+OpenCode Nexus is an iOS mobile app that provides seamless access to OpenCode AI servers through a beautiful, touch-optimized interface. Built with Tauri, the app enables developers and AI enthusiasts to interact with powerful AI coding assistants from their iOS devices while maintaining enterprise-grade security and accessibility standards.
 
 ## 2. Product Vision
 
 **Mission:** Democratize access to OpenCode AI capabilities by providing the most intuitive mobile client for AI-powered development assistance.
 
-**Vision:** A world where developers can interact with AI coding assistants through a mobile-first, offline-capable client that works seamlessly across iOS, Android, and desktop platforms.
+**Vision:** A world where developers can interact with AI coding assistants through a mobile-first, offline-capable iOS app that provides seamless AI-powered coding assistance on-the-go.
 
 ## 3. Business Objectives
 
@@ -23,7 +23,7 @@ OpenCode Nexus is a mobile-first client application that provides seamless acces
 ## 4. Target Users
 
 ### Primary Users
-- **Mobile Developers:** iOS/Android developers needing AI assistance on-the-go
+- **Mobile Developers:** iOS developers needing AI assistance on-the-go
 - **AI Practitioners:** Users who want AI coding help anywhere, anytime
 - **Students & Learners:** Educational users accessing AI tutoring mobile-first
 
@@ -56,9 +56,8 @@ OpenCode Nexus is a mobile-first client application that provides seamless acces
 
 ### 6.1 Platform Support
 - **iOS:** Native iOS app via TestFlight (primary platform)
-- **Android:** Tauri Android support (planned)
-- **Desktop:** macOS, Windows, Linux (secondary)
-- **Web:** PWA support for any modern mobile browser
+- **Future Platforms:** Android and desktop support possible with Tauri framework
+- **Web:** PWA support for development and testing
 
 ### 6.2 Performance Targets
 - **Startup Time:** <2 seconds cold start, <500ms warm start
@@ -121,10 +120,10 @@ Starts first AI conversation
 - Server connection management
 - Offline conversation caching
 
-### Phase 2: Android & Desktop
-- Android app release
-- Desktop app optimization
-- Cross-platform feature parity
+### Phase 2: iOS Enhancements
+- Advanced iOS features and optimizations
+- Enhanced offline capabilities
+- iOS-specific performance improvements
 
 ### Phase 3: Advanced Features
 - Voice input integration

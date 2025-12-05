@@ -26,7 +26,7 @@
 
 ### Step 1: Get Registration Token from GitHub
 
-1. Open: https://github.com/ferg-cod3s/opencode-nexus/settings/actions/runners/new
+1. Open: https://github.com/v1truv1us/opencode-nexus/settings/actions/runners/new
 2. Select **macOS** (should be default)
 3. Copy the registration token (you'll use it in Step 3)
 
@@ -54,7 +54,7 @@ tar xzf ./actions-runner-osx-arm64-2.322.0.tar.gz
 ### Step 4: Configure the Runner
 
 ```bash
-./config.sh --url https://github.com/ferg-cod3s/opencode-nexus \
+./config.sh --url https://github.com/v1truv1us/opencode-nexus \
             --token YOUR_TOKEN_HERE
 ```
 
@@ -89,7 +89,7 @@ status   : active
 
 ### Step 7: Verify in GitHub Web UI
 
-Go to: https://github.com/ferg-cod3s/opencode-nexus/settings/actions/runners
+Go to: https://github.com/v1truv1us/opencode-nexus/settings/actions/runners
 
 You should see your runner listed as **IDLE** with a green dot ✅
 
@@ -105,7 +105,7 @@ git commit -m "test: verify self-hosted runner setup"
 git push origin main
 ```
 
-Then check: https://github.com/ferg-cod3s/opencode-nexus/actions
+Then check: https://github.com/v1truv1us/opencode-nexus/actions
 
 The workflow should run on your MacBook (you'll see "macbook-air" or your runner name in the logs).
 

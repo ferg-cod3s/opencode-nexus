@@ -27,7 +27,7 @@ Thank you for your interest in contributing to OpenCode Nexus! This document pro
 ### Initial Setup
 ```bash
 # Clone repository
-git clone https://github.com/ferg-cod3s/opencode-nexus.git
+git clone https://github.com/v1truv1us/opencode-nexus.git
 cd opencode-nexus
 
 # Install dependencies

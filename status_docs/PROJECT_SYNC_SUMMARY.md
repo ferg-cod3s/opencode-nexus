@@ -69,7 +69,7 @@
 ## 🔍 Project Board Status Assessment
 
 ### Current Project Board Structure
-- **Location**: https://github.com/users/ferg-cod3s/projects/8
+- **Location**: https://github.com/users/v1truv1us/projects/8
 - **Items Count**: 13 items
 - **All Status**: "Todo"
 - **Focus**: Phase 1 Week 2-4 testing tasks only
@@ -283,7 +283,7 @@ Status: PLANNED (Post-MVP)
 - **Architecture Reference**: [docs/client/ARCHITECTURE.md](../docs/client/ARCHITECTURE.md)
 - **Security Model**: [docs/client/SECURITY.md](../docs/client/SECURITY.md)
 - **Testing Strategy**: [docs/client/TESTING.md](../docs/client/TESTING.md)
-- **GitHub Project Board**: https://github.com/users/ferg-cod3s/projects/8
+- **GitHub Project Board**: https://github.com/users/v1truv1us/projects/8
 
 ---
 
