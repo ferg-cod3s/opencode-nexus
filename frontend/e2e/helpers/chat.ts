@@ -27,9 +27,9 @@ import { Page, expect } from '@playwright/test';
 export class ChatHelper {
   constructor(private page: Page) {}
 
-  async loginAndStartServer(serverUrl: string = 'http://localhost:4096', apiKey?: string) {
-    // Set up connection for testing - simulate saved connection and navigate to chat
-    console.log(`[CHAT HELPER] Setting up connection to: ${serverUrl}`);
+  async setupMockConnection(serverUrl: string = 'http://localhost:4096', apiKey?: string) {
+    // Set up mock connection for testing - client-only architecture
+    console.log(`[CHAT HELPER] Setting up mock connection to: ${serverUrl}`);
 
     // Navigate to the app first to establish localStorage access
     await this.page.goto('/');
@@ -45,16 +45,62 @@ export class ChatHelper {
         created_at: new Date().toISOString()
       }]));
       
-      // Also set up test user session
-      sessionStorage.setItem('username', 'test-user');
-      sessionStorage.setItem('authenticated', 'true');
+      // Set active connection
+      localStorage.setItem('active_connection', JSON.stringify({
+        id: 'test-connection',
+        name: 'Test Server',
+        url: config.serverUrl,
+        status: 'connected'
+      }));
     }, { serverUrl, apiKey });
 
     // Navigate to chat (startup routing will handle connection)
     await this.page.goto('/chat');
     await this.page.waitForLoadState('networkidle');
 
-    console.log('[CHAT HELPER] Connection setup complete, on chat page');
+    console.log('[CHAT HELPER] Mock connection setup complete, on chat page');
+  }
+
+  async setupRealConnection(serverUrl: string, apiKey?: string) {
+    // Set up real connection to OpenCode server
+    console.log(`[CHAT HELPER] Setting up real connection to: ${serverUrl}`);
+
+    // Navigate to connect page
+    await this.page.goto('/connect');
+    await this.page.waitForLoadState('networkidle');
+
+    // Fill connection form
+    await this.page.getByTestId('server-url-input').fill(serverUrl);
+    if (apiKey) {
+      await this.page.getByTestId('api-key-input').fill(apiKey);
+    }
+    await this.page.getByTestId('connection-name-input').fill('Test Connection');
+
+    // Connect
+    await this.page.getByTestId('connect-button').click();
+    
+    // Wait for connection to establish
+    await this.page.waitForURL(/\/chat/, { timeout: 10000 });
+    await this.page.waitForLoadState('networkidle');
+
+    console.log('[CHAT HELPER] Real connection established');
+  }
+
+  async verifyConnectionStatus() {
+    // Verify connection status is displayed correctly
+    const statusIndicator = this.page.getByTestId('connection-status-indicator');
+    await expect(statusIndicator).toBeVisible();
+    
+    const statusText = await this.page.getByTestId('connection-status-label').textContent();
+    console.log(`[CHAT HELPER] Connection status: ${statusText}`);
+    
+    return statusText;
+  }
+
+  // Deprecated method - kept for backward compatibility
+  async loginAndStartServer(serverUrl: string = 'http://localhost:4096', apiKey?: string) {
+    console.warn('[CHAT HELPER] loginAndStartServer is deprecated. Use setupMockConnection instead.');
+    return this.setupMockConnection(serverUrl, apiKey);
   }
 
   async navigateToChat() {
@@ -182,8 +228,11 @@ export class ChatHelper {
     await expect(this.page.locator('[data-testid="file-context"]')).toBeVisible();
   }
 
+  // Deprecated: Server management is no longer part of client architecture
   async waitForServerRunning() {
-    await expect(this.page.locator('[data-testid="server-status"]')).toContainText('Running', { timeout: 15000 });
+    console.warn('[CHAT HELPER] waitForServerRunning is deprecated - client-only architecture');
+    // Instead check for connection status
+    return this.verifyConnectionStatus();
   }
 
   async verifyAccessibilityFeatures() {
