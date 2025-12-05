@@ -99,18 +99,6 @@ pub enum AppError {
         operation: String,
         timeout_secs: u64,
     },
-    /// Connection/network error
-    ConnectionError {
-        message: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        details: Option<String>,
-    },
-    /// I/O operation error
-    IoError {
-        message: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        details: Option<String>,
-    },
     /// Generic error with message
     Other { message: String },
 }

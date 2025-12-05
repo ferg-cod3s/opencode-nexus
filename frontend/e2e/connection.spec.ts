@@ -281,19 +281,6 @@ test.describe('Connection Flow', () => {
     test.skip(true, 'Requires store mocking implementation');
   });
 
-    // Reload to apply mock
-    await page.reload();
-    await page.waitForLoadState('networkidle');
-
-    // Check for red connection indicator
-    const statusIcon = page.getByTestId('connection-status-icon');
-    await expect(statusIcon).toBeVisible();
-
-    // Check for "Disconnected" label
-    const statusLabel = page.getByTestId('connection-status-label');
-    await expect(statusLabel).toContainText('Disconnected');
-  });
-
   test.skip('Connection Status Indicator - should display error message on connection error', async ({ page }) => {
     // TODO: Implement proper mocking for chatStateStore
     test.skip(true, 'Requires store mocking implementation');
