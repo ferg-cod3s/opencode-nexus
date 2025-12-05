@@ -41,16 +41,16 @@
   }
 </script>
 
-<div class="connection-status" class:error class:connected>
+<div class="connection-status" class:error class:connected data-testid="connection-status-indicator">
   <div class="status-indicator">
-    <span class="icon" style="color: {getStatusColor()}">
+    <span class="icon" style="color: {getStatusColor()}" data-testid="connection-status-icon">
       {getStatusIcon()}
     </span>
-    <span class="label">{getStatusLabel()}</span>
+    <span class="label" data-testid="connection-status-label">{getStatusLabel()}</span>
   </div>
 
   {#if error}
-    <div class="error-message" role="alert">
+    <div class="error-message" role="alert" data-testid="connection-error-message">
       {error}
     </div>
   {/if}
