@@ -153,6 +153,9 @@ jobs:
   api-integration-test:
     name: API Integration Tests
     runs-on: ubuntu-latest
+    # Temporarily disabled until mock server infrastructure is ready
+    # TODO: Enable when Docker-based mock server is integrated
+    if: false
 
     steps:
       - name: Checkout repository
