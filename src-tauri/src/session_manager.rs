@@ -127,13 +127,12 @@ impl SessionManager {
             return Ok(());
         }
 
-        let sessions_json = std::fs::read_to_string(&sessions_file).map_err(|e| {
-            AppError::FileSystemError {
+        let sessions_json =
+            std::fs::read_to_string(&sessions_file).map_err(|e| AppError::FileSystemError {
                 path: sessions_file.to_string_lossy().to_string(),
                 message: "Failed to read sessions file".to_string(),
                 details: e.to_string(),
-            }
-        })?;
+            })?;
 
         let loaded_sessions: HashMap<String, ChatSession> = serde_json::from_str(&sessions_json)
             .map_err(|e| AppError::ParseError {
@@ -150,12 +149,11 @@ impl SessionManager {
     /// Save sessions to disk
     pub async fn save_sessions(&self) -> Result<(), Box<dyn std::error::Error>> {
         let sessions = self.sessions.read().await;
-        let sessions_json = serde_json::to_string_pretty(&*sessions).map_err(|e| {
-            AppError::ParseError {
+        let sessions_json =
+            serde_json::to_string_pretty(&*sessions).map_err(|e| AppError::ParseError {
                 message: "Failed to serialize sessions".to_string(),
                 details: e.to_string(),
-            }
-        })?;
+            })?;
 
         std::fs::write(self.get_sessions_file_path(), sessions_json).map_err(|e| {
             AppError::FileSystemError {
@@ -172,21 +170,27 @@ impl SessionManager {
     pub async fn list_sessions(&self) -> Result<Vec<ChatSession>, Box<dyn std::error::Error>> {
         let sessions = self.sessions.read().await;
         let mut session_list: Vec<ChatSession> = sessions.values().cloned().collect();
-        
+
         // Sort by updated_at (most recent first)
         session_list.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
-        
+
         Ok(session_list)
     }
 
     /// Get a session by ID
-    pub async fn get_session(&self, session_id: &str) -> Result<Option<ChatSession>, Box<dyn std::error::Error>> {
+    pub async fn get_session(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<ChatSession>, Box<dyn std::error::Error>> {
         let sessions = self.sessions.read().await;
         Ok(sessions.get(session_id).cloned())
     }
 
     /// Create a new session
-    pub async fn create_session(&self, request: CreateSessionRequest) -> Result<ChatSession, Box<dyn std::error::Error>> {
+    pub async fn create_session(
+        &self,
+        request: CreateSessionRequest,
+    ) -> Result<ChatSession, Box<dyn std::error::Error>> {
         let session_id = Uuid::new_v4().to_string();
         let now = Utc::now();
 
@@ -210,7 +214,10 @@ impl SessionManager {
             model_config: request.model_config,
             metadata: request.system_prompt.map(|prompt| {
                 let mut meta = HashMap::new();
-                meta.insert("system_prompt".to_string(), serde_json::Value::String(prompt));
+                meta.insert(
+                    "system_prompt".to_string(),
+                    serde_json::Value::String(prompt),
+                );
                 meta
             }),
         };
@@ -227,7 +234,11 @@ impl SessionManager {
     }
 
     /// Send a message in a session
-    pub async fn send_message(&self, session_id: &str, request: SendMessageRequest) -> Result<ChatMessage, Box<dyn std::error::Error>> {
+    pub async fn send_message(
+        &self,
+        session_id: &str,
+        request: SendMessageRequest,
+    ) -> Result<ChatMessage, Box<dyn std::error::Error>> {
         // Validate session exists
         let mut sessions = self.sessions.write().await;
         if !sessions.contains_key(session_id) {
@@ -289,9 +300,12 @@ impl SessionManager {
     }
 
     /// Get messages for a session
-    pub async fn get_session_messages(&self, session_id: &str) -> Result<Vec<ChatMessage>, Box<dyn std::error::Error>> {
+    pub async fn get_session_messages(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<ChatMessage>, Box<dyn std::error::Error>> {
         let sessions = self.sessions.read().await;
-        
+
         match sessions.get(session_id) {
             Some(session) => Ok(session.messages.clone()),
             None => Err(AppError::SessionError {
@@ -305,7 +319,7 @@ impl SessionManager {
     /// Delete a session
     pub async fn delete_session(&self, session_id: &str) -> Result<(), Box<dyn std::error::Error>> {
         let mut sessions = self.sessions.write().await;
-        
+
         if sessions.remove(session_id).is_none() {
             return Err(AppError::SessionError {
                 session_id: session_id.to_string(),
@@ -336,9 +350,11 @@ impl SessionManager {
     }
 
     /// Get the current active session
-    pub async fn get_current_session(&self) -> Result<Option<ChatSession>, Box<dyn std::error::Error>> {
+    pub async fn get_current_session(
+        &self,
+    ) -> Result<Option<ChatSession>, Box<dyn std::error::Error>> {
         let current_id = self.current_session_id.read().await;
-        
+
         match current_id.as_ref() {
             Some(session_id) => {
                 let sessions = self.sessions.read().await;
@@ -354,14 +370,18 @@ impl SessionManager {
     }
 
     /// Update session title
-    pub async fn update_session_title(&self, session_id: &str, title: String) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn update_session_title(
+        &self,
+        session_id: &str,
+        title: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut sessions = self.sessions.write().await;
-        
+
         if let Some(session) = sessions.get_mut(session_id) {
             session.title = Some(title);
             session.updated_at = Utc::now();
             drop(sessions);
-            
+
             // Save to disk
             self.save_sessions().await?;
             Ok(())
@@ -375,20 +395,25 @@ impl SessionManager {
     }
 
     /// Get session statistics
-    pub async fn get_session_stats(&self, session_id: &str) -> Result<SessionStats, Box<dyn std::error::Error>> {
+    pub async fn get_session_stats(
+        &self,
+        session_id: &str,
+    ) -> Result<SessionStats, Box<dyn std::error::Error>> {
         let sessions = self.sessions.read().await;
-        
+
         match sessions.get(session_id) {
             Some(session) => {
-                let user_messages = session.messages.iter()
+                let user_messages = session
+                    .messages
+                    .iter()
                     .filter(|m| matches!(m.role, MessageRole::User))
                     .count();
-                let assistant_messages = session.messages.iter()
+                let assistant_messages = session
+                    .messages
+                    .iter()
                     .filter(|m| matches!(m.role, MessageRole::Assistant))
                     .count();
-                let total_chars: usize = session.messages.iter()
-                    .map(|m| m.content.len())
-                    .sum();
+                let total_chars: usize = session.messages.iter().map(|m| m.content.len()).sum();
 
                 Ok(SessionStats {
                     message_count: session.messages.len(),
@@ -443,8 +468,11 @@ mod tests {
             system_prompt: None,
         };
 
-        let session = manager.create_session(request).await.expect("Should create session");
-        
+        let session = manager
+            .create_session(request)
+            .await
+            .expect("Should create session");
+
         assert!(!session.id.is_empty());
         assert_eq!(session.title, Some("Test Session".to_string()));
         assert!(session.messages.is_empty());
@@ -460,7 +488,10 @@ mod tests {
             model_config: None,
             system_prompt: None,
         };
-        let session = manager.create_session(create_request).await.expect("Should create session");
+        let session = manager
+            .create_session(create_request)
+            .await
+            .expect("Should create session");
 
         // Send message
         let send_request = SendMessageRequest {
@@ -469,8 +500,11 @@ mod tests {
             stream: None,
         };
 
-        let response = manager.send_message(&session.id, send_request).await.expect("Should send message");
-        
+        let response = manager
+            .send_message(&session.id, send_request)
+            .await
+            .expect("Should send message");
+
         assert_eq!(response.role, MessageRole::Assistant);
         assert!(response.content.contains("Hello, world!"));
     }
@@ -486,7 +520,10 @@ mod tests {
                 model_config: None,
                 system_prompt: None,
             };
-            manager.create_session(request).await.expect("Should create session");
+            manager
+                .create_session(request)
+                .await
+                .expect("Should create session");
         }
 
         let sessions = manager.list_sessions().await.expect("Should list sessions");
@@ -503,17 +540,29 @@ mod tests {
             model_config: None,
             system_prompt: None,
         };
-        let session = manager.create_session(request).await.expect("Should create session");
+        let session = manager
+            .create_session(request)
+            .await
+            .expect("Should create session");
 
         // Verify it exists
-        let found = manager.get_session(&session.id).await.expect("Should get session");
+        let found = manager
+            .get_session(&session.id)
+            .await
+            .expect("Should get session");
         assert!(found.is_some());
 
         // Delete it
-        manager.delete_session(&session.id).await.expect("Should delete session");
+        manager
+            .delete_session(&session.id)
+            .await
+            .expect("Should delete session");
 
         // Verify it's gone
-        let found = manager.get_session(&session.id).await.expect("Should get session");
+        let found = manager
+            .get_session(&session.id)
+            .await
+            .expect("Should get session");
         assert!(found.is_none());
     }
 
@@ -522,7 +571,10 @@ mod tests {
         let (manager, _temp) = create_test_session_manager();
 
         // Initially no current session
-        let current = manager.get_current_session().await.expect("Should get current session");
+        let current = manager
+            .get_current_session()
+            .await
+            .expect("Should get current session");
         assert!(current.is_none());
 
         // Create session
@@ -531,13 +583,19 @@ mod tests {
             model_config: None,
             system_prompt: None,
         };
-        let session = manager.create_session(request).await.expect("Should create session");
+        let session = manager
+            .create_session(request)
+            .await
+            .expect("Should create session");
 
         // Set as current
         manager.set_current_session(Some(session.id.clone())).await;
 
         // Verify it's current
-        let current = manager.get_current_session().await.expect("Should get current session");
+        let current = manager
+            .get_current_session()
+            .await
+            .expect("Should get current session");
         assert!(current.is_some());
         assert_eq!(current.unwrap().id, session.id);
 
@@ -545,7 +603,10 @@ mod tests {
         manager.set_current_session(None).await;
 
         // Verify no current session
-        let current = manager.get_current_session().await.expect("Should get current session");
+        let current = manager
+            .get_current_session()
+            .await
+            .expect("Should get current session");
         assert!(current.is_none());
     }
 
@@ -559,7 +620,10 @@ mod tests {
             model_config: None,
             system_prompt: None,
         };
-        let session = manager.create_session(request).await.expect("Should create session");
+        let session = manager
+            .create_session(request)
+            .await
+            .expect("Should create session");
 
         // Send a message
         let send_request = SendMessageRequest {
@@ -567,11 +631,17 @@ mod tests {
             model_config: None,
             stream: None,
         };
-        manager.send_message(&session.id, send_request).await.expect("Should send message");
+        manager
+            .send_message(&session.id, send_request)
+            .await
+            .expect("Should send message");
 
         // Get stats
-        let stats = manager.get_session_stats(&session.id).await.expect("Should get stats");
-        
+        let stats = manager
+            .get_session_stats(&session.id)
+            .await
+            .expect("Should get stats");
+
         assert_eq!(stats.message_count, 2); // User + Assistant
         assert_eq!(stats.user_message_count, 1);
         assert_eq!(stats.assistant_message_count, 1);
@@ -584,7 +654,8 @@ mod tests {
         let json = serde_json::to_string(&role).expect("Should serialize role");
         assert!(json.contains("User"));
 
-        let deserialized: MessageRole = serde_json::from_str(&json).expect("Should deserialize role");
+        let deserialized: MessageRole =
+            serde_json::from_str(&json).expect("Should deserialize role");
         assert_eq!(deserialized, MessageRole::User);
     }
 

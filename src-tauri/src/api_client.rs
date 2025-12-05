@@ -104,17 +104,13 @@ impl ApiClient {
 
     /// Get the current server URL
     async fn get_server_url(&self) -> Result<String, Box<dyn std::error::Error>> {
-        self.server_url
-            .read()
-            .await
-            .clone()
-            .ok_or_else(|| {
-                AppError::ConnectionError {
-                    message: "No server URL configured".to_string(),
-                    details: "Server URL has not been set".to_string(),
-                }
-                .into()
-            })
+        self.server_url.read().await.clone().ok_or_else(|| {
+            AppError::ConnectionError {
+                message: "No server URL configured".to_string(),
+                details: "Server URL has not been set".to_string(),
+            }
+            .into()
+        })
     }
 
     /// Get the current API key
@@ -129,7 +125,11 @@ impl ApiClient {
         path: &str,
     ) -> Result<reqwest::RequestBuilder, Box<dyn std::error::Error>> {
         let base_url = self.get_server_url().await?;
-        let url = format!("{}/{}", base_url.trim_end_matches('/'), path.trim_start_matches('/'));
+        let url = format!(
+            "{}/{}",
+            base_url.trim_end_matches('/'),
+            path.trim_start_matches('/')
+        );
 
         let mut request = self.client.request(method, &url);
 
@@ -147,14 +147,11 @@ impl ApiClient {
             .build_request(reqwest::Method::GET, "config/providers")
             .await?;
 
-        let response = request
-            .send()
-            .await
-            .map_err(|e| AppError::NetworkError {
-                message: "Failed to fetch providers".to_string(),
-                details: e.to_string(),
-                retry_after: Some(2),
-            })?;
+        let response = request.send().await.map_err(|e| AppError::NetworkError {
+            message: "Failed to fetch providers".to_string(),
+            details: e.to_string(),
+            retry_after: Some(2),
+        })?;
 
         if !response.status().is_success() {
             return Err(AppError::ServerError {
@@ -194,14 +191,11 @@ impl ApiClient {
     pub async fn get_health(&self) -> Result<ServerHealth, Box<dyn std::error::Error>> {
         let request = self.build_request(reqwest::Method::GET, "health").await?;
 
-        let response = request
-            .send()
-            .await
-            .map_err(|e| AppError::NetworkError {
-                message: "Failed to fetch health status".to_string(),
-                details: e.to_string(),
-                retry_after: Some(2),
-            })?;
+        let response = request.send().await.map_err(|e| AppError::NetworkError {
+            message: "Failed to fetch health status".to_string(),
+            details: e.to_string(),
+            retry_after: Some(2),
+        })?;
 
         if !response.status().is_success() {
             return Err(AppError::ServerError {
@@ -235,14 +229,11 @@ impl ApiClient {
     pub async fn get_server_info(&self) -> Result<ServerInfo, Box<dyn std::error::Error>> {
         let request = self.build_request(reqwest::Method::GET, "info").await?;
 
-        let response = request
-            .send()
-            .await
-            .map_err(|e| AppError::NetworkError {
-                message: "Failed to fetch server info".to_string(),
-                details: e.to_string(),
-                retry_after: Some(2),
-            })?;
+        let response = request.send().await.map_err(|e| AppError::NetworkError {
+            message: "Failed to fetch server info".to_string(),
+            details: e.to_string(),
+            retry_after: Some(2),
+        })?;
 
         if !response.status().is_success() {
             return Err(AppError::ServerError {
@@ -335,7 +326,9 @@ mod tests {
         let client = ApiClient::new().expect("Should create client");
 
         // Valid URL should work
-        let result = client.set_server_url("https://example.com".to_string()).await;
+        let result = client
+            .set_server_url("https://example.com".to_string())
+            .await;
         assert!(result.is_ok(), "Valid URL should be accepted");
 
         // Invalid URL should fail

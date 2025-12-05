@@ -118,7 +118,8 @@ pub struct StreamingClient {
     api_client: Arc<ApiClient>,
     config: StreamConfig,
     event_sender: broadcast::Sender<StreamEvent>,
-    active_streams: Arc<tokio::sync::RwLock<std::collections::HashMap<String, tokio::task::JoinHandle<()>>>>,
+    active_streams:
+        Arc<tokio::sync::RwLock<std::collections::HashMap<String, tokio::task::JoinHandle<()>>>>,
 }
 
 impl StreamingClient {
@@ -128,7 +129,10 @@ impl StreamingClient {
     }
 
     /// Create a streaming client with custom configuration
-    pub fn with_config(api_client: Arc<ApiClient>, config: StreamConfig) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn with_config(
+        api_client: Arc<ApiClient>,
+        config: StreamConfig,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let (event_sender, _) = broadcast::channel(config.buffer_size);
 
         Ok(Self {
@@ -145,7 +149,10 @@ impl StreamingClient {
     }
 
     /// Start a streaming message session
-    pub async fn start_stream(&self, request: StreamRequest) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn start_stream(
+        &self,
+        request: StreamRequest,
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let stream_id = uuid::Uuid::new_v4().to_string();
         let session_id = request.session_id.clone();
         let message_id = uuid::Uuid::new_v4().to_string();
@@ -159,7 +166,9 @@ impl StreamingClient {
         let _ = self.event_sender.send(start_event);
 
         // Start the streaming task
-        let task_handle = self.spawn_streaming_task(stream_id.clone(), request, message_id).await?;
+        let task_handle = self
+            .spawn_streaming_task(stream_id.clone(), request, message_id)
+            .await?;
 
         // Store the active stream
         let mut active_streams = self.active_streams.write().await;
@@ -171,7 +180,7 @@ impl StreamingClient {
     /// Stop an active stream
     pub async fn stop_stream(&self, stream_id: &str) -> Result<(), Box<dyn std::error::Error>> {
         let mut active_streams = self.active_streams.write().await;
-        
+
         if let Some(handle) = active_streams.remove(stream_id) {
             handle.abort();
         }
@@ -219,7 +228,8 @@ impl StreamingClient {
                     }
                     Err(e) => {
                         let error_msg = e.to_string();
-                        let is_retryable = matches!(e.downcast_ref::<AppError>(), Some(err) if err.is_retryable());
+                        let is_retryable =
+                            matches!(e.downcast_ref::<AppError>(), Some(err) if err.is_retryable());
 
                         // Send error event
                         let error_event = StreamEvent::Error {
@@ -266,14 +276,10 @@ impl StreamingClient {
         // Build the streaming URL
         let server_url = {
             let url_guard = api_client.server_url.read().await;
-            url_guard
-                .clone()
-                .ok_or_else(|| {
-                    AppError::ConnectionError {
-                        message: "No server URL configured".to_string(),
-                        details: "Server URL has not been set".to_string(),
-                    }
-                })?
+            url_guard.clone().ok_or_else(|| AppError::ConnectionError {
+                message: "No server URL configured".to_string(),
+                details: "Server URL has not been set".to_string(),
+            })?
         };
 
         let stream_url = format!("{}/session/{}/stream", server_url, request.session_id);
@@ -300,22 +306,28 @@ impl StreamingClient {
 
         let mut chunk_index = 0;
 
-        while let Some(event_result) = timeout(Duration::from_secs(config.chunk_timeout_secs), event_stream.next())
-            .await
-            .map_err(|_| AppError::TimeoutError {
-                operation: "Waiting for stream chunk".to_string(),
-                timeout_secs: config.chunk_timeout_secs,
-            })?
-        {
+        while let Some(event_result) = timeout(
+            Duration::from_secs(config.chunk_timeout_secs),
+            event_stream.next(),
+        )
+        .await
+        .map_err(|_| AppError::TimeoutError {
+            operation: "Waiting for stream chunk".to_string(),
+            timeout_secs: config.chunk_timeout_secs,
+        })? {
             match event_result {
                 Ok(event) => {
                     match event {
                         reqwest::sse::Event::Message(message) => {
                             // Parse the chunk
-                            if let Ok(chunk_data) = serde_json::from_str::<serde_json::Value>(&message.data) {
-                                if let Some(content) = chunk_data.get("content").and_then(|v| v.as_str()) {
+                            if let Ok(chunk_data) =
+                                serde_json::from_str::<serde_json::Value>(&message.data)
+                            {
+                                if let Some(content) =
+                                    chunk_data.get("content").and_then(|v| v.as_str())
+                                {
                                     accumulated_content.push_str(content);
-                                    
+
                                     // Send chunk event
                                     let chunk_event = StreamEvent::Chunk {
                                         session_id: session_id.to_string(),
@@ -328,7 +340,8 @@ impl StreamingClient {
                                 }
 
                                 // Check for completion
-                                if let Some(done) = chunk_data.get("done").and_then(|v| v.as_bool()) {
+                                if let Some(done) = chunk_data.get("done").and_then(|v| v.as_bool())
+                                {
                                     if done {
                                         // Send completion event
                                         let complete_event = StreamEvent::Complete {
@@ -387,7 +400,7 @@ impl StreamingClient {
     /// Stop all active streams
     pub async fn stop_all_streams(&self) {
         let mut active_streams = self.active_streams.write().await;
-        
+
         for (stream_id, handle) in active_streams.drain() {
             handle.abort();
         }
@@ -434,7 +447,7 @@ mod tests {
     #[test]
     fn test_streaming_client_creation() {
         let (client, _temp) = create_test_streaming_client();
-        
+
         // Should have no active streams initially
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
@@ -457,7 +470,8 @@ mod tests {
         assert!(json.contains("Chunk"));
         assert!(json.contains("Hello"));
 
-        let deserialized: StreamEvent = serde_json::from_str(&json).expect("Should deserialize StreamEvent");
+        let deserialized: StreamEvent =
+            serde_json::from_str(&json).expect("Should deserialize StreamEvent");
         match deserialized {
             StreamEvent::Chunk { content, .. } => {
                 assert_eq!(content, "Hello");
@@ -511,8 +525,10 @@ mod tests {
         // Receive the event
         let received = tokio::time::timeout(Duration::from_secs(1), receiver.recv()).await;
         assert!(received.is_ok(), "Should receive event");
-        
-        let event = received.unwrap().expect("Should successfully receive event");
+
+        let event = received
+            .unwrap()
+            .expect("Should successfully receive event");
         match event {
             StreamEvent::Start { session_id, .. } => {
                 assert_eq!(session_id, "test");
@@ -545,7 +561,10 @@ mod tests {
         assert!(active.contains(&stream_id));
 
         // Stop the stream
-        client.stop_stream(&stream_id).await.expect("Should stop stream");
+        client
+            .stop_stream(&stream_id)
+            .await
+            .expect("Should stop stream");
 
         // Should have no active streams
         let active = client.get_active_streams().await;
@@ -559,7 +578,7 @@ mod tests {
         // Add a completed task
         let stream_id = "completed-stream".to_string();
         let handle = tokio::spawn(async {});
-        
+
         // Wait for task to complete
         tokio::time::sleep(Duration::from_millis(10)).await;
 

@@ -353,20 +353,34 @@ impl EventBridge {
                 stream_id: uuid::Uuid::new_v4().to_string(),
                 message_id,
             },
-            StreamEvent::Chunk { message_id, content, index, .. } => StreamEventData::Chunk {
+            StreamEvent::Chunk {
+                message_id,
+                content,
+                index,
+                ..
+            } => StreamEventData::Chunk {
                 session_id: session_id.clone(),
                 stream_id: uuid::Uuid::new_v4().to_string(),
                 message_id,
                 content,
                 index,
             },
-            StreamEvent::Complete { message_id, final_content, .. } => StreamEventData::Completed {
+            StreamEvent::Complete {
+                message_id,
+                final_content,
+                ..
+            } => StreamEventData::Completed {
                 session_id: session_id.clone(),
                 stream_id: uuid::Uuid::new_v4().to_string(),
                 message_id,
                 final_content,
             },
-            StreamEvent::Error { message_id, error, retryable, .. } => StreamEventData::Error {
+            StreamEvent::Error {
+                message_id,
+                error,
+                retryable,
+                ..
+            } => StreamEventData::Error {
                 session_id: session_id.clone(),
                 stream_id: uuid::Uuid::new_v4().to_string(),
                 error,
@@ -387,13 +401,19 @@ impl EventBridge {
     }
 
     /// Emit connection event
-    pub async fn emit_connection_event(&self, connection_event: ConnectionEvent) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn emit_connection_event(
+        &self,
+        connection_event: ConnectionEvent,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let app_event = self.connection_to_app_event(connection_event);
         self.emit(app_event).await
     }
 
     /// Emit session created event
-    pub async fn emit_session_created(&self, session: ChatSession) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn emit_session_created(
+        &self,
+        session: ChatSession,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let event = AppEvent::Session {
             event_id: uuid::Uuid::new_v4().to_string(),
             timestamp: chrono::Utc::now(),
@@ -403,7 +423,10 @@ impl EventBridge {
     }
 
     /// Emit session selected event
-    pub async fn emit_session_selected(&self, session_id: String) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn emit_session_selected(
+        &self,
+        session_id: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let event = AppEvent::Session {
             event_id: uuid::Uuid::new_v4().to_string(),
             timestamp: chrono::Utc::now(),
@@ -413,23 +436,37 @@ impl EventBridge {
     }
 
     /// Emit message received event
-    pub async fn emit_message_received(&self, session_id: String, message: ChatMessage) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn emit_message_received(
+        &self,
+        session_id: String,
+        message: ChatMessage,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let event = AppEvent::Message {
             event_id: uuid::Uuid::new_v4().to_string(),
             timestamp: chrono::Utc::now(),
-            data: MessageEventData::Received { session_id, message },
+            data: MessageEventData::Received {
+                session_id,
+                message,
+            },
         };
         self.emit(event).await
     }
 
     /// Emit stream event
-    pub async fn emit_stream_event(&self, stream_event: StreamEvent, session_id: String) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn emit_stream_event(
+        &self,
+        stream_event: StreamEvent,
+        session_id: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let app_event = self.stream_to_app_event(stream_event, session_id);
         self.emit(app_event).await
     }
 
     /// Emit error event
-    pub async fn emit_error(&self, error_data: ErrorEventData) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn emit_error(
+        &self,
+        error_data: ErrorEventData,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let event = AppEvent::Error {
             event_id: uuid::Uuid::new_v4().to_string(),
             timestamp: chrono::Utc::now(),
@@ -439,7 +476,10 @@ impl EventBridge {
     }
 
     /// Emit application ready event
-    pub async fn emit_application_ready(&self, features: Vec<String>) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn emit_application_ready(
+        &self,
+        features: Vec<String>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let event = AppEvent::Application {
             event_id: uuid::Uuid::new_v4().to_string(),
             timestamp: chrono::Utc::now(),
@@ -505,16 +545,15 @@ mod tests {
         assert!(json.contains("Connection"));
         assert!(json.contains("https://example.com"));
 
-        let deserialized: AppEvent = serde_json::from_str(&json).expect("Should deserialize AppEvent");
+        let deserialized: AppEvent =
+            serde_json::from_str(&json).expect("Should deserialize AppEvent");
         match deserialized {
-            AppEvent::Connection { data, .. } => {
-                match data {
-                    ConnectionEventData::Connected { server_url, .. } => {
-                        assert_eq!(server_url, "https://example.com");
-                    }
-                    _ => panic!("Expected Connected event data"),
+            AppEvent::Connection { data, .. } => match data {
+                ConnectionEventData::Connected { server_url, .. } => {
+                    assert_eq!(server_url, "https://example.com");
                 }
-            }
+                _ => panic!("Expected Connected event data"),
+            },
             _ => panic!("Expected Connection event"),
         }
     }
@@ -522,7 +561,7 @@ mod tests {
     #[test]
     fn test_connection_event_conversion() {
         let bridge = EventBridge::new();
-        
+
         let connection_event = ConnectionEvent {
             timestamp: SystemTime::now(),
             event_type: ConnectionEventType::Connected,
@@ -530,16 +569,14 @@ mod tests {
         };
 
         let app_event = bridge.connection_to_app_event(connection_event);
-        
+
         match app_event {
-            AppEvent::Connection { data, .. } => {
-                match data {
-                    ConnectionEventData::Connected { server_url, .. } => {
-                        assert_eq!(server_url, "Unknown");
-                    }
-                    _ => panic!("Expected Connected data"),
+            AppEvent::Connection { data, .. } => match data {
+                ConnectionEventData::Connected { server_url, .. } => {
+                    assert_eq!(server_url, "Unknown");
                 }
-            }
+                _ => panic!("Expected Connected data"),
+            },
             _ => panic!("Expected Connection event"),
         }
     }
@@ -547,7 +584,7 @@ mod tests {
     #[test]
     fn test_stream_event_conversion() {
         let bridge = EventBridge::new();
-        
+
         let stream_event = StreamEvent::Chunk {
             session_id: "session-123".to_string(),
             message_id: "message-456".to_string(),
@@ -556,17 +593,15 @@ mod tests {
         };
 
         let app_event = bridge.stream_to_app_event(stream_event, "session-123".to_string());
-        
+
         match app_event {
-            AppEvent::Stream { data, .. } => {
-                match data {
-                    StreamEventData::Chunk { content, index, .. } => {
-                        assert_eq!(content, "Hello");
-                        assert_eq!(index, 0);
-                    }
-                    _ => panic!("Expected Chunk data"),
+            AppEvent::Stream { data, .. } => match data {
+                StreamEventData::Chunk { content, index, .. } => {
+                    assert_eq!(content, "Hello");
+                    assert_eq!(index, 0);
                 }
-            }
+                _ => panic!("Expected Chunk data"),
+            },
             _ => panic!("Expected Stream event"),
         }
     }
@@ -590,17 +625,17 @@ mod tests {
         // Receive event
         let received = tokio::time::timeout(Duration::from_secs(1), receiver.recv()).await;
         assert!(received.is_ok(), "Should receive event");
-        
-        let event = received.unwrap().expect("Should successfully receive event");
+
+        let event = received
+            .unwrap()
+            .expect("Should successfully receive event");
         match event {
-            AppEvent::Application { data, .. } => {
-                match data {
-                    ApplicationEventData::Started { version } => {
-                        assert_eq!(version, "1.0.0");
-                    }
-                    _ => panic!("Expected Started data"),
+            AppEvent::Application { data, .. } => match data {
+                ApplicationEventData::Started { version } => {
+                    assert_eq!(version, "1.0.0");
                 }
-            }
+                _ => panic!("Expected Started data"),
+            },
             _ => panic!("Expected Application event"),
         }
     }
@@ -624,17 +659,17 @@ mod tests {
         // Receive event
         let received = tokio::time::timeout(Duration::from_secs(1), receiver.recv()).await;
         assert!(received.is_ok(), "Should receive type-specific event");
-        
-        let event = received.unwrap().expect("Should successfully receive event");
+
+        let event = received
+            .unwrap()
+            .expect("Should successfully receive event");
         match event {
-            AppEvent::Connection { data, .. } => {
-                match data {
-                    ConnectionEventData::Disconnected { reason } => {
-                        assert_eq!(reason, Some("Test disconnect".to_string()));
-                    }
-                    _ => panic!("Expected Disconnected data"),
+            AppEvent::Connection { data, .. } => match data {
+                ConnectionEventData::Disconnected { reason } => {
+                    assert_eq!(reason, Some("Test disconnect".to_string()));
                 }
-            }
+                _ => panic!("Expected Disconnected data"),
+            },
             _ => panic!("Expected Connection event"),
         }
     }
@@ -642,14 +677,14 @@ mod tests {
     #[tokio::test]
     async fn test_subscriber_count() {
         let bridge = EventBridge::new();
-        
+
         // Initially no subscribers
         assert_eq!(bridge.subscriber_count().await, 0);
 
         // Add subscribers
         let _receiver1 = bridge.subscribe();
         let _receiver2 = bridge.subscribe_to_type("connection").await;
-        
+
         // Should have 2 subscribers
         assert_eq!(bridge.subscriber_count().await, 2);
     }
@@ -657,7 +692,7 @@ mod tests {
     #[tokio::test]
     async fn test_cleanup_subscribers() {
         let bridge = EventBridge::new();
-        
+
         // Add subscriber
         {
             let _receiver = bridge.subscribe();
@@ -681,9 +716,14 @@ mod tests {
         assert!(json.contains("Network"));
         assert!(json.contains("Connection failed"));
 
-        let deserialized: ErrorEventData = serde_json::from_str(&json).expect("Should deserialize ErrorEventData");
+        let deserialized: ErrorEventData =
+            serde_json::from_str(&json).expect("Should deserialize ErrorEventData");
         match deserialized {
-            ErrorEventData::Network { error, context, retryable } => {
+            ErrorEventData::Network {
+                error,
+                context,
+                retryable,
+            } => {
                 assert_eq!(error, "Connection failed");
                 assert_eq!(context, "Sending message");
                 assert!(retryable);

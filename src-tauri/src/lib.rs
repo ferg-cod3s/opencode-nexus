@@ -32,10 +32,12 @@ mod streaming_client;
 use api_client::{ApiClient, ModelConfig};
 use chat_client::{ChatClient, ChatEvent};
 use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection};
-use event_bridge::{EventBridge, AppEvent};
+use event_bridge::{AppEvent, EventBridge};
 use model_manager::{ModelManager, ModelPreferences};
-use session_manager::{SessionManager, ChatSession, ChatMessage, CreateSessionRequest, SendMessageRequest};
-use streaming_client::{StreamingClient, StreamRequest, StreamEvent};
+use session_manager::{
+    ChatMessage, ChatSession, CreateSessionRequest, SendMessageRequest, SessionManager,
+};
+use streaming_client::{StreamEvent, StreamRequest, StreamingClient};
 
 use chrono::Utc;
 use serde::Deserialize;
@@ -548,7 +550,10 @@ async fn get_available_models() -> Result<Vec<serde_json::Value>, String> {
                 .into_iter()
                 .map(|m| serde_json::to_value(m).unwrap_or_default())
                 .collect();
-            log_info!("✅ [MODELS] Retrieved {} models from server", models_json.len());
+            log_info!(
+                "✅ [MODELS] Retrieved {} models from server",
+                models_json.len()
+            );
             Ok(models_json)
         }
         Err(e) => {
@@ -580,12 +585,14 @@ async fn get_model_preferences() -> Result<serde_json::Value, String> {
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let model_manager = ModelManager::new(api_client, config_dir);
 
-    model_manager.load_preferences().map_err(|e| e.to_string())?;
+    model_manager
+        .load_preferences()
+        .map_err(|e| e.to_string())?;
     let preferences = model_manager.get_preferences();
-    
+
     let preferences_json = serde_json::to_value(&preferences)
         .map_err(|e| format!("Failed to serialize preferences: {}", e))?;
-    
+
     log_info!("✅ [MODELS] Retrieved model preferences");
     Ok(preferences_json)
 }
@@ -601,22 +608,30 @@ async fn set_model_preferences(preferences: serde_json::Value) -> Result<(), Str
     let model_preferences: ModelPreferences = serde_json::from_value(preferences)
         .map_err(|e| format!("Failed to parse preferences: {}", e))?;
 
-    model_manager.update_preferences(model_preferences).map_err(|e| e.to_string())?;
-    
+    model_manager
+        .update_preferences(model_preferences)
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [MODELS] Updated model preferences");
     Ok(())
 }
 
 #[tauri::command]
 async fn set_default_model(provider_id: String, model_id: String) -> Result<(), String> {
-    log_info!("🎯 [MODELS] Setting default model: {}/{}", provider_id, model_id);
+    log_info!(
+        "🎯 [MODELS] Setting default model: {}/{}",
+        provider_id,
+        model_id
+    );
 
     let config_dir = get_config_dir()?;
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let model_manager = ModelManager::new(api_client, config_dir);
 
-    model_manager.set_default_model(provider_id, model_id).map_err(|e| e.to_string())?;
-    
+    model_manager
+        .set_default_model(provider_id, model_id)
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [MODELS] Updated default model");
     Ok(())
 }
@@ -630,22 +645,32 @@ async fn delete_session(session_id: String) -> Result<(), String> {
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let session_manager = SessionManager::new(api_client, config_dir);
 
-    session_manager.delete_session(&session_id).await.map_err(|e| e.to_string())?;
-    
+    session_manager
+        .delete_session(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [SESSION] Deleted session: {}", session_id);
     Ok(())
 }
 
 #[tauri::command]
 async fn update_session_title(session_id: String, title: String) -> Result<(), String> {
-    log_info!("✏️ [SESSION] Updating session title: {} -> {}", session_id, title);
+    log_info!(
+        "✏️ [SESSION] Updating session title: {} -> {}",
+        session_id,
+        title
+    );
 
     let config_dir = get_config_dir()?;
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let session_manager = SessionManager::new(api_client, config_dir);
 
-    session_manager.update_session_title(&session_id, title).await.map_err(|e| e.to_string())?;
-    
+    session_manager
+        .update_session_title(&session_id, title)
+        .await
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [SESSION] Updated session title");
     Ok(())
 }
@@ -658,11 +683,14 @@ async fn get_session_stats(session_id: String) -> Result<serde_json::Value, Stri
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let session_manager = SessionManager::new(api_client, config_dir);
 
-    let stats = session_manager.get_session_stats(&session_id).await.map_err(|e| e.to_string())?;
-    
-    let stats_json = serde_json::to_value(&stats)
-        .map_err(|e| format!("Failed to serialize stats: {}", e))?;
-    
+    let stats = session_manager
+        .get_session_stats(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let stats_json =
+        serde_json::to_value(&stats).map_err(|e| format!("Failed to serialize stats: {}", e))?;
+
     log_info!("✅ [SESSION] Retrieved session stats");
     Ok(stats_json)
 }
@@ -675,7 +703,10 @@ async fn start_message_stream(
     content: String,
     model_config: Option<ModelConfig>,
 ) -> Result<String, String> {
-    log_info!("🌊 [STREAM] Starting message stream for session: {}", session_id);
+    log_info!(
+        "🌊 [STREAM] Starting message stream for session: {}",
+        session_id
+    );
 
     // Validate inputs
     if session_id.trim().is_empty() {
@@ -692,7 +723,10 @@ async fn start_message_stream(
     // Create streaming components
     let config_dir = get_config_dir()?;
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
-    api_client.set_server_url(server_url).await.map_err(|e| e.to_string())?;
+    api_client
+        .set_server_url(server_url)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let streaming_client = StreamingClient::new(api_client).map_err(|e| e.to_string())?;
     let event_bridge = EventBridge::with_app_handle(app_handle);
@@ -708,7 +742,10 @@ async fn start_message_stream(
     };
 
     // Start streaming
-    let stream_id = streaming_client.start_stream(stream_request).await.map_err(|e| e.to_string())?;
+    let stream_id = streaming_client
+        .start_stream(stream_request)
+        .await
+        .map_err(|e| e.to_string())?;
 
     // Spawn event forwarding task
     let stream_id_clone = stream_id.clone();
@@ -718,9 +755,12 @@ async fn start_message_stream(
 
     tokio::spawn(async move {
         let mut receiver = streaming_client_clone.subscribe();
-        
+
         while let Ok(stream_event) = receiver.recv().await {
-            if let Err(e) = event_bridge_clone.emit_stream_event(stream_event.clone(), session_id_clone.clone()).await {
+            if let Err(e) = event_bridge_clone
+                .emit_stream_event(stream_event.clone(), session_id_clone.clone())
+                .await
+            {
                 log_error!("❌ [STREAM] Failed to emit event: {}", e);
             }
         }
@@ -741,8 +781,11 @@ async fn stop_message_stream(stream_id: String) -> Result<(), String> {
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let streaming_client = StreamingClient::new(api_client).map_err(|e| e.to_string())?;
 
-    streaming_client.stop_stream(&stream_id).await.map_err(|e| e.to_string())?;
-    
+    streaming_client
+        .stop_stream(&stream_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [STREAM] Stopped message stream: {}", stream_id);
     Ok(())
 }
@@ -756,8 +799,11 @@ async fn get_active_streams() -> Result<Vec<String>, String> {
     let streaming_client = StreamingClient::new(api_client).map_err(|e| e.to_string())?;
 
     let active_streams = streaming_client.get_active_streams().await;
-    
-    log_info!("✅ [STREAM] Retrieved {} active streams", active_streams.len());
+
+    log_info!(
+        "✅ [STREAM] Retrieved {} active streams",
+        active_streams.len()
+    );
     Ok(active_streams)
 }
 
@@ -769,7 +815,7 @@ pub fn run() {
     let model_manager_state = ModelManagerState(Arc::new(AsyncMutex::new(None)));
     let streaming_client_state = StreamingClientState(Arc::new(AsyncMutex::new(None)));
     let event_bridge_state = EventBridgeState(Arc::new(AsyncMutex::new(None)));
-    
+
     // Legacy state for backward compatibility
     let chat_client_state = ChatClientState(Arc::new(AsyncMutex::new(None)));
 
@@ -845,12 +891,15 @@ pub fn run() {
                 }
 
                 // Emit application ready event
-                if let Err(e) = event_bridge.emit_application_ready(vec![
-                    "chat".to_string(),
-                    "streaming".to_string(),
-                    "model-management".to_string(),
-                    "session-management".to_string(),
-                ]).await {
+                if let Err(e) = event_bridge
+                    .emit_application_ready(vec![
+                        "chat".to_string(),
+                        "streaming".to_string(),
+                        "model-management".to_string(),
+                        "session-management".to_string(),
+                    ])
+                    .await
+                {
                     log_warn!("⚠️ [INIT] Failed to emit ready event: {}", e);
                 }
 
