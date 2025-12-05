@@ -145,19 +145,11 @@ jobs:
           name: backend-coverage
           fail_ci_if_error: false
 
-  detect-runner:
-    name: Detect Runner for Backend Tests
-    uses: ./.github/workflows/runner-detection.yml
-    with:
-      preferred_runner: 'self-hosted'
-      fail_if_unavailable: true
-      check_disk_space: 5
 
   build-test:
     name: Build Test
     runs-on: ${{ matrix.os }}
-    needs: detect-runner
-    if: always() && needs.detect-runner.result == 'success'
+
     
     strategy:
       matrix:
@@ -167,9 +159,9 @@ jobs:
     
     steps:
       - name: Display Cost Warning for macOS
-        if: contains(matrix.os, 'macos-14') && needs.detect-runner.outputs.runner_available != 'true'
+        if: contains(matrix.os, 'macos-14')
         run: |
-          echo "::warning::${{ needs.detect-runner.outputs.cost_warning }}"
+          echo "::warning::Running on GitHub-hosted macOS runner"
           echo ""
           echo "💡 **Cost Impact**: This macOS build is running on GitHub-hosted runner"
           echo "- **Current cost**: $0.08/minute"
