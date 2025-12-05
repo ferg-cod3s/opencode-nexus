@@ -92,6 +92,25 @@ pub enum AppError {
         #[serde(skip_serializing_if = "Option::is_none")]
         details: Option<String>,
     },
+    /// Server is not connected
+    NotConnectedError { message: String },
+    /// Operation timed out
+    TimeoutError {
+        operation: String,
+        timeout_secs: u64,
+    },
+    /// Connection/network error
+    ConnectionError {
+        message: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        details: Option<String>,
+    },
+    /// I/O operation error
+    IoError {
+        message: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        details: Option<String>,
+    },
     /// Generic error with message
     Other { message: String },
 }
@@ -134,11 +153,11 @@ impl AppError {
             AppError::ParseError { message, .. } => {
                 format!("Parse error: {}", message)
             }
-            AppError::IoError { message, .. } => {
-                format!("I/O error: {}", message)
-            }
             AppError::ConnectionError { message, .. } => {
                 format!("Connection error: {}", message)
+            }
+            AppError::IoError { message, .. } => {
+                format!("I/O error: {}", message)
             }
             AppError::NotConnectedError { message } => {
                 format!("Not connected: {}", message)
@@ -148,15 +167,6 @@ impl AppError {
                 timeout_secs,
             } => {
                 format!("{} timed out after {} seconds", operation, timeout_secs)
-            }
-            AppError::ParseError { message, .. } => {
-                format!("Parse error: {}", message)
-            }
-            AppError::ConnectionError { message, .. } => {
-                format!("Connection error: {}", message)
-            }
-            AppError::IoError { message, .. } => {
-                format!("I/O error: {}", message)
             }
             AppError::Other { message } => message.clone(),
         }
@@ -181,9 +191,9 @@ impl AppError {
                 format!("Path: {}, Details: {}", path, details)
             }
             AppError::DataError { details, .. } => details.clone(),
-            AppError::ParseError { details, .. } => details.clone(),
-            AppError::IoError { details, .. } => details.clone(),
-            AppError::ConnectionError { details, .. } => details.clone(),
+            AppError::ParseError { details, .. } => details.clone().unwrap_or_default(),
+            AppError::ConnectionError { details, .. } => details.clone().unwrap_or_default(),
+            AppError::IoError { details, .. } => details.clone().unwrap_or_default(),
             AppError::NotConnectedError { message } => message.clone(),
             AppError::TimeoutError {
                 operation,
@@ -191,9 +201,6 @@ impl AppError {
             } => {
                 format!("Operation: {}, Timeout: {}s", operation, timeout_secs)
             }
-            AppError::ParseError { details, .. } => details.clone().unwrap_or_default(),
-            AppError::ConnectionError { details, .. } => details.clone().unwrap_or_default(),
-            AppError::IoError { details, .. } => details.clone().unwrap_or_default(),
             AppError::Other { message } => message.clone(),
         }
     }
@@ -209,6 +216,7 @@ impl AppError {
             }
             AppError::TimeoutError { .. } => true,
             AppError::ConnectionError { .. } => true,
+            AppError::TimeoutError { .. } => true,
             AppError::IoError { .. } => true,
             AppError::ParseError { .. } => false,
             _ => false,
