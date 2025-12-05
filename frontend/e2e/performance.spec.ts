@@ -24,10 +24,21 @@
 
 import { test, expect } from '@playwright/test';
 import { ChatHelper } from './helpers/chat';
-import { ServerHelper } from './helpers/server-management';
 
-// Skip performance tests until chat backend integration is complete
-test.describe.skip('Performance and Real-time Features (SKIPPED - Backend integration needed)', () => {
+/**
+ * @deprecated These tests are for the OLD architecture (server management + local server).
+ * After the client pivot, server management features were removed.
+ * 
+ * TODO: Rewrite performance tests for client-only architecture:
+ * - Page load performance
+ * - Connection establishment time
+ * - Message send/receive latency
+ * - Memory usage during chat sessions
+ * - Navigation performance
+ */
+
+// Skip all performance tests - they test deprecated server management flows
+test.describe.skip('Performance Tests (DEPRECATED - Server Management)', () => {
   test.describe('Chat Performance', () => {
     test('chat message response time meets performance targets', async ({ page }) => {
       test.setTimeout(30000);
