@@ -25,10 +25,8 @@
         "Cross-Origin-Opener-Policy": "same-origin",
         "Cross-Origin-Embedder-Policy": "require-corp",
         "X-Content-Type-Options": "nosniff"
-      },
-
-      }
-    }
+       }
+    },
     "bundle": {
     "active": true,
     "targets": "all",
