@@ -21,7 +21,7 @@ concurrency:
 jobs:
   test:
     name: Rust Test Suite
-    runs-on: self-hosted
+    runs-on: macos-latest
     
     strategy:
       matrix:
@@ -118,7 +118,7 @@ jobs:
 
   coverage:
     name: Code Coverage
-    runs-on: self-hosted
+    runs-on: macos-latest
     
     steps:
       - name: Checkout repository
