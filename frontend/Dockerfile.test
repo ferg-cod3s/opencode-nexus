@@ -12,13 +12,6 @@ RUN bun install --frozen-lockfile
 # Copy source code
 COPY . .
 
-# Create test user with proper permissions
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S bun -u 1001
-
-# Change ownership of the app directory
-RUN chown -R bun:nodejs /app
-USER bun
-
 # Default command for running tests
+# Tests run as root which is acceptable for CI/CD environments
 CMD ["bun", "test", "--coverage"]
