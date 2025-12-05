@@ -1,8 +1,8 @@
 # Client Architecture Overview
 **Project:** OpenCode Nexus - Mobile Client
 **Version:** 1.0.0
-**Last Updated:** 2025-11-06
-**Status:** Client-Only Implementation
+**Last Updated:** 2025-12-05
+**Status:** SDK Integration Complete - Production Ready
 
 ## 1. System Architecture Overview
 
@@ -20,9 +20,9 @@ OpenCode Nexus is a mobile-first client application that connects to remote Open
 │  └─────────────────┘    └─────────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐    ┌─────────────────────────────────┐ │
-│  │ Connection      │    │      Session Manager           │ │
-│  │ Manager         │    │   (Chat History & Cache)       │ │
-│  │ (HTTP/WebSocket)│    │                                 │ │
+│  │ Connection      │    │      SDK Integration           │ │
+│  │ Manager         │    │   (@opencode-ai/sdk)           │ │
+│  │ (HTTP/SSE)      │    │   (Chat & Sessions)            │ │
 │  └─────────────────┘    └─────────────────────────────────┘ │
 ├─────────────────────────────────────────────────────────────┤
 │  ┌─────────────────┐    ┌─────────────────────────────────┐ │
@@ -61,20 +61,21 @@ pub async fn test_connection(&self) -> Result<ServerInfo, ConnectionError>
 pub async fn disconnect(&self) -> Result<(), ConnectionError>
 ```
 
-### 2.2 Chat Client (`src-tauri/src/chat_client.rs`)
-**Purpose:** Handles AI conversation interactions
+### 2.2 SDK Integration (`frontend/src/lib/sdk-api.ts`)
+**Purpose:** Official @opencode-ai/sdk integration for AI conversation interactions
 **Responsibilities:**
-- Message sending and receiving
+- Type-safe API communication with OpenCode servers
 - Real-time streaming via Server-Sent Events
 - Conversation session management
 - File/code context sharing
-- Error handling and recovery
+- Error handling and recovery with retry logic
 
 **Key Methods:**
-```rust
-pub async fn send_message(&self, content: &str, context: &[FileContext]) -> Result<Stream<Message>, ChatError>
-pub async fn create_session(&self) -> Result<SessionId, ChatError>
-pub async fn get_conversation_history(&self, session_id: &SessionId) -> Result<Vec<Message>, ChatError>
+```typescript
+export async function sendMessage(content: string, sessionId?: string): Promise<ReadableStream<MessageChunk>>
+export async function createSession(): Promise<Session>
+export async function getSessionHistory(sessionId: string): Promise<Message[]>
+export async function listSessions(): Promise<Session[]>
 ```
 
 ### 2.3 Offline Storage (`frontend/src/stores/offline.ts`)
@@ -110,7 +111,7 @@ pub async fn get_conversation_history(&self, session_id: &SessionId) -> Result<V
 
 ### 3.1 Message Sending Flow
 ```
-User Input → Mobile UI → Chat Client → Connection Manager → OpenCode Server
+User Input → Mobile UI → SDK API Layer → Connection Manager → OpenCode Server
                       ↓
               Offline Storage (cache) ← Background Sync ← Server Response
 ```

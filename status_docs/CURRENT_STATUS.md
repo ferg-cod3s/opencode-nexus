@@ -1,7 +1,7 @@
 # OpenCode Nexus - Current Development Status
 
 ## 📊 Project Overview
-**OpenCode Nexus** is a cross-platform **client application** for connecting to OpenCode servers started with `opencode serve`. Mobile-first design with native iOS, Android, and Desktop support.
+**OpenCode Nexus** is an **iOS mobile app** for connecting to OpenCode servers started with `opencode serve`. Built with Tauri for native iOS performance and future cross-platform potential.
 
 **Technology Stack**: Tauri 2.x (Rust) + Astro + Svelte 5 + TypeScript + Bun + @opencode-ai/sdk
 **Current Version**: 0.1.9
@@ -471,7 +471,7 @@
 - **Test-Driven Development**: TDD approach for all new features
 - **Security First**: Zero vulnerabilities, secure connections
 - **Accessibility**: WCAG 2.2 AA compliance for all UI
-- **Cross-Platform**: iOS TestFlight ready, Android prepared
+- **iOS Mobile App**: TestFlight beta deployment successful
 - **Code Quality**: Linting, formatting, type checking passing
 
 ### 🔄 In Progress

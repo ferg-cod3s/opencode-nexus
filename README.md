@@ -6,29 +6,30 @@
 [![codecov](https://codecov.io/gh/opencode-nexus/opencode-nexus/branch/main/graph/badge.svg)](https://codecov.io/gh/opencode-nexus/opencode-nexus)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A secure, cross-platform client application for connecting to OpenCode servers started with `opencode serve`, powered by Tauri v2 (Rust), Astro + Svelte (Bun), and real-time API integration.
+A secure iOS mobile app for connecting to OpenCode servers started with `opencode serve`, built with Tauri v2 (Rust), Astro + Svelte (Bun), and the official @opencode-ai/sdk for seamless API integration.
 
 ## 🚀 Features
 
-- **Native OpenCode Client** - Connect to OpenCode servers started with `opencode serve` with a beautiful native interface
-- **Real-Time Chat Interface** - Seamless AI conversation experience with instant message streaming
-- **Cross-Platform Support** - iOS (TestFlight ready), Android (prepared), and Desktop (macOS, Windows, Linux)
-- **Secure Authentication** - Argon2 password hashing, account lockout protection, encrypted local storage
-- **Session Management** - Persistent conversation history with search and context preservation
+- **Native OpenCode Client** - Connect to any OpenCode server with a beautiful native interface
+- **Real-Time Chat Interface** - Seamless AI conversation experience with instant message streaming via Server-Sent Events
+- **iOS Mobile App** - Native iOS experience with TestFlight distribution, built with Tauri for future cross-platform expansion
+- **SDK-Powered Integration** - Uses official @opencode-ai/sdk for type-safe, reliable API communication
+- **Session Management** - Persistent conversation history with metadata-only caching for mobile optimization
 - **Accessibility First** - WCAG 2.2 AA compliant with full screen reader and keyboard navigation support
+- **Connection Management** - Support for localhost, Cloudflare Tunnel, and reverse proxy connections
 
 ## 🛠️ Tech Stack
 
-- **Backend:** Tauri v2 (Rust) for cross-platform client integration and API communication
+- **Backend:** Tauri v2 (Rust) for native iOS app development and API communication
 - **Frontend:** Astro with Svelte islands for modern, responsive chat interface
 - **Package Manager:** Bun for frontend dependencies and runtime
-- **API Integration:** RESTful API client with Server-Sent Events for real-time streaming
-- **Security:** Argon2 authentication, TLS 1.3, encrypted local storage
+- **API Integration:** Official @opencode-ai/sdk with Server-Sent Events for real-time streaming
+- **Security:** TLS 1.3 secure connections to OpenCode servers, encrypted local storage
 
 ## 📋 Prerequisites
 
 - **OpenCode Server:** Start an OpenCode server on any machine with OpenCode installed using `opencode serve` (or `opencode --server` in older versions)
-- **Operating System:** iOS 14.0+, macOS 10.15+, Windows 10+, or Ubuntu 18.04+
+- **iOS Device:** iOS 14.0+ for native mobile experience
 - **Memory:** 4GB RAM minimum, 8GB recommended
 - **Storage:** 1GB available disk space
 - **Network:** Internet connection for server communication
@@ -54,10 +55,12 @@ This will start an OpenCode server that the client can connect to. Note the serv
 3. **Accept invitation** and install OpenCode Nexus
 4. **Launch** and configure your OpenCode server connection
 
-#### Desktop
+#### Desktop (Development)
 1. **Download** the latest release for your platform from the [releases page](https://github.com/opencode-nexus/opencode-nexus/releases)
 2. **Install** the application following platform-specific instructions
 3. **Launch** OpenCode Nexus and connect to your OpenCode server
+
+*Note: Desktop builds are available for development and testing purposes. The primary experience is optimized for iOS.*
 
 ### Development Setup
 
@@ -96,10 +99,9 @@ OpenCode Nexus uses automated releases via GitHub Actions.
 
 ### For Users
 
-Download the latest release for your platform:
-- **Linux:** `.AppImage` (universal) or `.deb` (Debian/Ubuntu)
-- **macOS:** `.dmg` (Intel and Apple Silicon)
-- **Windows:** `.msi` installer or `.exe` portable
+Download the latest release:
+- **iOS:** TestFlight beta distribution (primary platform)
+- **Desktop:** `.dmg` (macOS), `.msi` (Windows), `.AppImage` (Linux) - development builds
 
 Visit the [Releases page](https://github.com/opencode-nexus/opencode-nexus/releases) to download.
 
@@ -114,9 +116,9 @@ git push origin v0.1.0
 ```
 
 This triggers the release workflow which:
-1. Builds cross-platform binaries (Linux, macOS, Windows)
+1. Builds iOS IPA for TestFlight distribution
 2. Runs all quality gates and security scans
-3. Creates a GitHub Release with all assets
+3. Creates a GitHub Release with iOS assets
 4. Generates checksums for verification
 
 See [CONTRIBUTING.md](CONTRIBUTING.md#release-process) for detailed release guidelines.
@@ -180,13 +182,13 @@ This project follows **Test-Driven Development (TDD)** as required by our develo
 
 ## 🔒 Security
 
-OpenCode Nexus is built with security by design:
+OpenCode Nexus connects securely to OpenCode servers:
 
-- **Authentication:** Argon2 password hashing with account lockout protection
-- **Encryption:** TLS 1.3 for all server communications, AES-256 for local data
-- **Session Security:** Secure session management with automatic timeout
-- **Data Privacy:** Local data storage with encryption, no data sharing without consent
-- **Audit Logging:** Comprehensive activity logging and monitoring
+- **Server Authentication:** Authentication handled by the OpenCode server (Argon2, account protection)
+- **Secure Connections:** TLS 1.3 encryption for all client-server communications
+- **Local Storage:** Encrypted session metadata storage with mobile-optimized caching
+- **Data Privacy:** No data sharing without user consent, local-first architecture
+- **Server Security:** Relies on OpenCode server's security model and audit logging
 
 ### Reporting Security Vulnerabilities
 
@@ -261,22 +263,22 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🗺️ Roadmap
 
-- **v0.1.0** - iOS client with TestFlight distribution ✅
-- **v0.2.0** - Android client release
-- **v0.3.0** - Desktop client enhancements
-- **v1.0.0** - Production-ready with enterprise features
+- **v0.1.0** - iOS mobile app with TestFlight distribution ✅
+- **v0.2.0** - Enhanced iOS features and user experience
+- **v0.3.0** - Android client (future expansion)
+- **v1.0.0** - Production-ready iOS app with enterprise features
 
 ## 🙏 Acknowledgments
 
 - **OpenCode Team** - For the amazing OpenCode AI coding assistant
-- **Tauri Team** - For the excellent cross-platform framework
+- **Tauri Team** - For the excellent framework enabling native iOS app development
 - **Astro Team** - For the modern web framework
 - **Svelte Team** - For the reactive component framework
 - **Bun Team** - For the fast JavaScript runtime
 
 ---
 
-**OpenCode Nexus** - Democratizing access to AI-powered coding assistance through beautiful, secure native clients.
+**OpenCode Nexus** - Democratizing access to AI-powered coding assistance through a beautiful, secure iOS mobile app.
 
 Made with ❤️ by the OpenCode Nexus community.
 
