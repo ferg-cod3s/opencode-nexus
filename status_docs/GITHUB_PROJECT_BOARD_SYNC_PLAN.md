@@ -320,7 +320,7 @@ Status: Planned for future sprints
 - **PROJECT_SYNC_SUMMARY.md**: Comprehensive work summary
 - **DOGFOOD.md**: Complete testing guide
 - **TODO.md**: Project status and task tracking
-- **GitHub Project Board**: https://github.com/users/ferg-cod3s/projects/8
+- **GitHub Project Board**: https://github.com/users/v1truv1us/projects/8
 
 ---
 

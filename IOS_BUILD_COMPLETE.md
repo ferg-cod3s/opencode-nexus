@@ -74,7 +74,7 @@ The original iOS build failure is now **completely resolved**. The workflow shou
 
 ## Next Steps
 
-1. **Monitor workflow completion** at: https://github.com/ferg-cod3s/opencode-nexus/actions/runs/19811484468
+1. **Monitor workflow completion** at: https://github.com/v1truv1us/opencode-nexus/actions/runs/19811484468
 2. **Verify TestFlight upload** when complete
 3. **Merge to main** if successful
 4. **Update documentation** with the fixes

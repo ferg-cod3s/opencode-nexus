@@ -50,7 +50,7 @@ When the workflow completes successfully, we should see:
 
 ### Next Steps
 
-1. **Continue monitoring** the workflow at: https://github.com/ferg-cod3s/opencode-nexus/actions/runs/19811484468
+1. **Continue monitoring** the workflow at: https://github.com/v1truv1us/opencode-nexus/actions/runs/19811484468
 2. **Check completion** - should finish within the next 5-10 minutes
 3. **Verify success** - look for "Build successful" and TestFlight upload confirmation
 4. **Merge to main** if successful
