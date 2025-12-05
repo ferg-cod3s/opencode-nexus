@@ -27,9 +27,9 @@
         "X-Content-Type-Options": "nosniff"
       },
 
-    }
-  },
-  "bundle": {
+      }
+    },
+    "bundle": {
     "active": true,
     "targets": "all",
     "category": "Utility",
