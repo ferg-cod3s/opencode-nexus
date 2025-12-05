@@ -43,6 +43,7 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
           components: rustfmt, clippy
+          targets: aarch64-apple-ios
       
       - name: Cache Cargo registry
         uses: actions/cache@v4
@@ -66,25 +67,13 @@ jobs:
             ${{ runner.os }}-cargo-build-${{ matrix.rust }}-
             ${{ runner.os }}-cargo-build-
       
-      - name: Verify system dependencies
+      - name: Install iOS targets
         run: |
-          echo "🔧 Verifying macOS system dependencies..."
-          
-          # Check for Xcode Command Line Tools
-          if ! xcode-select -p &>/dev/null; then
-            echo "❌ Xcode Command Line Tools not installed"
-            echo "Run: xcode-select --install"
-            exit 1
-          fi
-          
-          # Check for Rust targets
-          if ! rustup target list --installed | grep -q "aarch64-apple-ios"; then
-            echo "❌ iOS target not installed"
-            echo "Run: rustup target add aarch64-apple-ios"
-            exit 1
-          fi
-          
-          echo "✅ System dependencies verified"
+          echo "📦 Installing iOS targets..."
+          rustup target add aarch64-apple-ios
+          echo "✅ iOS targets installed"
+          echo "Installed targets:"
+          rustup target list --installed
       
       - name: Check formatting
         working-directory: ./src-tauri
@@ -139,6 +128,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
+          targets: aarch64-apple-ios
       
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
