@@ -21,11 +21,29 @@ on:
         type: string
 
 jobs:
+  detect-runner:
+    name: Detect Runner for iOS Build
+    uses: ./.github/workflows/runner-detection.yml
+    with:
+      preferred_runner: 'self-hosted'
+      fallback_runner: 'macos-14'
+      require_macos: true
+      check_disk_space: 10
+
   build-ios:
-    runs-on: self-hosted
+    name: iOS TestFlight Build
+    runs-on: ${{ needs.detect-runner.outputs.runner_type }}
+    needs: detect-runner
     timeout-minutes: 90
+    if: always() && needs.detect-runner.result == 'success'
 
     steps:
+      - name: Display Cost Warning
+        if: needs.detect-runner.outputs.cost_warning != ''
+        uses: ./.github/actions/display-cost-warning
+        with:
+          cost_warning: ${{ needs.detect-runner.outputs.cost_warning }}
+          repository: ${{ github.repository }}
       - name: Checkout code
         uses: actions/checkout@v4
         with:
@@ -43,6 +61,10 @@ jobs:
 
           echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
 
+      - name: Validate Runner Environment
+        uses: ./.github/actions/validate-runner
+        with:
+          runner_type: ${{ needs.detect-runner.outputs.runner_type }}
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:

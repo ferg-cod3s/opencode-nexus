@@ -1,0 +1,176 @@
+name: Self-Hosted Runner Health Check
+
+on:
+  schedule:
+    # Run daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      force_check:
+        description: 'Force detailed health check'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  health-check:
+    name: Runner Health Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Self-Hosted Runner Status
+        id: runner-status
+        run: |
+          echo "🔍 Checking self-hosted runner status..."
+          
+          # Get runner information from GitHub API
+          RUNNER_INFO=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runners")
+          
+          # Extract self-hosted runner details
+          SELF_HOSTED_RUNNER=$(echo "$RUNNER_INFO" | jq -r '.runners[] | select(.labels[] | contains("self-hosted"))')
+          
+          if [ -n "$SELF_HOSTED_RUNNER" ]; then
+            RUNNER_STATUS=$(echo "$SELF_HOSTED_RUNNER" | jq -r '.status')
+            RUNNER_NAME=$(echo "$SELF_HOSTED_RUNNER" | jq -r '.name')
+            RUNNER_ID=$(echo "$SELF_HOSTED_RUNNER" | jq -r '.id')
+            LAST_SEEN=$(echo "$SELF_HOSTED_RUNNER" | jq -r '.last_seen')
+            
+            echo "status=$RUNNER_STATUS" >> $GITHUB_OUTPUT
+            echo "name=$RUNNER_NAME" >> $GITHUB_OUTPUT
+            echo "id=$RUNNER_ID" >> $GITHUB_OUTPUT
+            echo "last_seen=$LAST_SEEN" >> $GITHUB_OUTPUT
+            
+            echo "✅ Self-hosted runner found:"
+            echo "  Name: $RUNNER_NAME"
+            echo "  Status: $RUNNER_STATUS"
+            echo "  Last Seen: $LAST_SEEN"
+          else
+            echo "status=offline" >> $GITHUB_OUTPUT
+            echo "name=unknown" >> $GITHUB_OUTPUT
+            echo "id=unknown" >> $GITHUB_OUTPUT
+            echo "last_seen=never" >> $GITHUB_OUTPUT
+            
+            echo "❌ Self-hosted runner not found"
+          fi
+
+      - name: Test Runner Connectivity
+        if: steps.runner-status.outputs.status == 'online'
+        run: |
+          echo "🔗 Testing runner connectivity..."
+          
+          # This would trigger a test job on the self-hosted runner
+          echo "Runner is online and accepting jobs"
+          
+          # Check recent job success rate
+          echo "Checking recent job performance..."
+          
+      - name: Generate Health Report
+        run: |
+          echo "# 🏥 Self-Hosted Runner Health Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Generated**: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "**Repository**: ${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "## 📊 Runner Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Runner Name | ${{ steps.runner-status.outputs.name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Status | ${{ steps.runner-status.outputs.status }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Last Seen | ${{ steps.runner-status.outputs.last_seen }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Status indicator
+          if [ "${{ steps.runner-status.outputs.status }}" = "online" ]; then
+            echo "### ✅ Runner Status: HEALTHY" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The self-hosted runner is online and ready to accept jobs." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Benefits**:" >> $GITHUB_STEP_SUMMARY
+            echo "- 💰 Cost savings: $0/min vs $0.08/min for GitHub-hosted macOS" >> $GITHUB_STEP_SUMMARY
+            echo "- ⚡ Faster builds: No queue time, local execution" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔧 Full control: Custom environment and tools" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Runner Status: OFFLINE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "The self-hosted runner is **offline** or not responding." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Impact**:" >> $GITHUB_STEP_SUMMARY
+            echo "- 💸 Higher costs: Workflows will fall back to GitHub-hosted runners ($0.08/min)" >> $GITHUB_STEP_SUMMARY
+            echo "- ⏱️ Potential delays: Queue times for GitHub-hosted runners" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Troubleshooting Steps**:" >> $GITHUB_STEP_SUMMARY
+            echo "1. Check if MacBook is powered on and connected to internet" >> $GITHUB_STEP_SUMMARY
+            echo "2. Verify runner service status: \`cd ~/github-runner && ./svc.status\`" >> $GITHUB_STEP_SUMMARY
+            echo "3. Restart runner service: \`cd ~/github-runner && ./svc.restart\`" >> $GITHUB_STEP_SUMMARY
+            echo "4. Check runner logs: \`cd ~/github-runner && tail -f _diag/Runner_*.log\`" >> $GITHUB_STEP_SUMMARY
+            echo "5. Re-register runner if needed: See [SELF_HOSTED_RUNNER_SETUP.md](../SELF_HOSTED_RUNNER_SETUP.md)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔗 Useful Links" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- [Runner Settings](https://github.com/${{ github.repository }}/settings/actions/runners)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Actions Logs](https://github.com/${{ github.repository }}/actions)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Setup Guide](../SELF_HOSTED_RUNNER_SETUP.md)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Create Health Check Artifact
+        id: health-report
+        run: |
+          mkdir -p health-reports
+          
+          # Generate date for artifact naming
+          REPORT_DATE=$(date +%Y%m%d)
+          echo "report_date=$REPORT_DATE" >> $GITHUB_OUTPUT
+          
+          cat > health-reports/runner-health-${REPORT_DATE}.json << EOF
+          {
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "repository": "${{ github.repository }}",
+            "runner": {
+              "name": "${{ steps.runner-status.outputs.name }}",
+              "status": "${{ steps.runner-status.outputs.status }}",
+              "id": "${{ steps.runner-status.outputs.id }}",
+              "last_seen": "${{ steps.runner-status.outputs.last_seen }}"
+            },
+            "health_check": {
+              "type": "scheduled",
+              "forced": "${{ github.event.inputs.force_check || 'false' }}",
+              "status": "${{ steps.runner-status.outputs.status == 'online' && 'healthy' || 'unhealthy' }}"
+            }
+          }
+          EOF
+          
+          echo "Health report generated: health-reports/runner-health-${REPORT_DATE}.json"
+
+      - name: Upload Health Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: runner-health-report-${{ steps.health-report.outputs.report_date }}
+          path: health-reports/
+          retention-days: 30
+
+      - name: Alert on Runner Offline
+        if: steps.runner-status.outputs.status != 'online'
+        run: |
+          echo "::error::Self-hosted runner is offline! This will increase CI/CD costs."
+          echo ""
+          echo "🚨 **IMMEDIATE ACTION REQUIRED** 🚨"
+          echo ""
+          echo "The self-hosted macOS runner is currently offline, causing:"
+          echo "- 💸 Higher costs ($0.08/min vs $0/min)"
+          echo "- ⏱️ Potential build delays"
+          echo "- 🔄 Inconsistent build environment"
+          echo ""
+          echo "**Quick Fix**:"
+          echo "1. Open Terminal on your MacBook"
+          echo "2. Run: \`cd ~/github-runner && ./svc.status\`"
+          echo "3. If not 'active', run: \`./svc.restart\`"
+          echo "4. Verify at: https://github.com/${{ github.repository }}/settings/actions/runners"

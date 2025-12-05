@@ -1,0 +1,351 @@
+name: CI/CD Cost Tracking and Reporting
+
+on:
+  schedule:
+    # Run monthly on the 1st at 3 AM UTC
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+    inputs:
+      report_period:
+        description: 'Report period (days)'
+        required: false
+        default: '30'
+        type: string
+      include_forecast:
+        description: 'Include cost forecast'
+        required: false
+        default: true
+        type: boolean
+
+jobs:
+  collect-metrics:
+    name: Collect CI/CD Metrics
+    runs-on: ubuntu-latest
+    
+    outputs:
+      total_jobs: ${{ steps.metrics.outputs.total_jobs }}
+      self_hosted_jobs: ${{ steps.metrics.outputs.self_hosted_jobs }}
+      github_hosted_jobs: ${{ steps.metrics.outputs.github_hosted_jobs }}
+      total_minutes: ${{ steps.metrics.outputs.total_minutes }}
+      self_hosted_minutes: ${{ steps.metrics.outputs.self_hosted_minutes }}
+      github_hosted_minutes: ${{ steps.metrics.outputs.github_hosted_minutes }}
+      estimated_cost: ${{ steps.metrics.outputs.estimated_cost }}
+      actual_cost: ${{ steps.metrics.outputs.actual_cost }}
+      savings: ${{ steps.metrics.outputs.savings }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Collect Workflow Metrics
+        id: metrics
+        run: |
+          REPORT_PERIOD="${{ github.event.inputs.report_period || '30' }}"
+          
+          echo "📊 Collecting CI/CD metrics for last $REPORT_PERIOD days..."
+          
+          # Get workflow runs from GitHub API
+          # NOTE: The following uses 'date -d', which is Linux-specific and will not work on macOS (use 'date -v' there).
+          SINCE_DATE=$(date -d "$REPORT_PERIOD days ago" -u +%Y-%m-%dT%H:%M:%SZ)
+          
+          # Fetch workflow runs
+          WORKFLOW_RUNS=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100&created=>=$SINCE_DATE")
+          
+          # Parse workflow runs
+          TOTAL_JOBS=$(echo "$WORKFLOW_RUNS" | jq '.workflow_runs | length')
+          
+          # Count jobs by runner type
+          # Initialize counters
+          SELF_HOSTED_JOBS=0
+          GITHUB_HOSTED_JOBS=0
+          SELF_HOSTED_MINUTES=0
+          GITHUB_HOSTED_MINUTES=0
+          
+          # Loop through workflow runs and fetch jobs for each
+          for run_id in $(echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[].id'); do
+            JOBS=$(curl -s \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/jobs?per_page=100")
+            
+            # For each job, check labels and sum minutes
+            SELF_HOSTED_JOB_COUNT=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? == "self-hosted")] | length')
+            GITHUB_HOSTED_JOB_COUNT=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? != "self-hosted")] | length')
+            
+            SELF_HOSTED_JOB_MINUTES=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? == "self-hosted") | ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601) | floor/60)] | add // 0')
+            GITHUB_HOSTED_JOB_MINUTES=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? != "self-hosted") | ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601) | floor/60)] | add // 0')
+            
+          TOTAL_JOBS=0
+          SELF_HOSTED_JOBS=0
+          GITHUB_HOSTED_JOBS=0
+          TOTAL_MINUTES=0
+          SELF_HOSTED_MINUTES=0
+          GITHUB_HOSTED_MINUTES=0
+          
+          # Iterate over workflow runs and fetch jobs for each run
+          for RUN_ID in $(echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[].id'); do
+            JOBS_JSON=$(curl -s \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs?per_page=100")
+            
+            # For each job, check runner type and accumulate stats
+            JOB_COUNT=$(echo "$JOBS_JSON" | jq '.jobs | length')
+            TOTAL_JOBS=$((TOTAL_JOBS + JOB_COUNT))
+            
+            for i in $(seq 0 $((JOB_COUNT - 1))); do
+              # Get job info
+              JOB=$(echo "$JOBS_JSON" | jq ".jobs[$i]")
+              # Get job duration in minutes
+              START=$(echo "$JOB" | jq -r '.started_at')
+              END=$(echo "$JOB" | jq -r '.completed_at')
+              if [[ "$START" != "null" && "$END" != "null" ]]; then
+                MINUTES=$(( ( $(date -d "$END" +%s) - $(date -d "$START" +%s) ) / 60 ))
+              else
+                MINUTES=0
+              fi
+              TOTAL_MINUTES=$((TOTAL_MINUTES + MINUTES))
+              
+              # Check if job ran on self-hosted runner
+              if echo "$JOB" | jq -r '.labels[]? // empty' | grep -q "self-hosted"; then
+                SELF_HOSTED_JOBS=$((SELF_HOSTED_JOBS + 1))
+                SELF_HOSTED_MINUTES=$((SELF_HOSTED_MINUTES + MINUTES))
+              else
+                GITHUB_HOSTED_JOBS=$((GITHUB_HOSTED_JOBS + 1))
+                GITHUB_HOSTED_MINUTES=$((GITHUB_HOSTED_MINUTES + MINUTES))
+              fi
+            done
+          done
+          
+          # Calculate costs
+          # GitHub-hosted costs: Ubuntu $0.008/min, macOS $0.08/min, Windows $0.016/min
+          # For simplicity, we'll use average of $0.03/min for mixed workloads
+          GITHUB_HOSTED_COST=$(echo "scale=2; $GITHUB_HOSTED_MINUTES * 0.03" | bc)
+          
+          # Self-hosted costs: $0/min (hardware already owned)
+          SELF_HOSTED_COST=0
+          
+          ACTUAL_COST=$GITHUB_HOSTED_COST
+          
+          # What it would cost if all jobs were on GitHub-hosted runners
+          POTENTIAL_COST=$(echo "scale=2; $TOTAL_MINUTES * 0.03" | bc)
+          
+          # Savings from self-hosted runner
+          SAVINGS=$(echo "scale=2; $POTENTIAL_COST - $ACTUAL_COST" | bc)
+          
+          # Output metrics
+          echo "total_jobs=$TOTAL_JOBS" >> $GITHUB_OUTPUT
+          echo "self_hosted_jobs=$SELF_HOSTED_JOBS" >> $GITHUB_OUTPUT
+          echo "github_hosted_jobs=$GITHUB_HOSTED_JOBS" >> $GITHUB_OUTPUT
+          echo "total_minutes=$TOTAL_MINUTES" >> $GITHUB_OUTPUT
+          echo "self_hosted_minutes=$SELF_HOSTED_MINUTES" >> $GITHUB_OUTPUT
+          echo "github_hosted_minutes=$GITHUB_HOSTED_MINUTES" >> $GITHUB_OUTPUT
+          echo "estimated_cost=$POTENTIAL_COST" >> $GITHUB_OUTPUT
+          echo "actual_cost=$ACTUAL_COST" >> $GITHUB_OUTPUT
+          echo "savings=$SAVINGS" >> $GITHUB_OUTPUT
+          
+          echo "📈 Metrics Summary:"
+          echo "  Total Jobs: $TOTAL_JOBS"
+          echo "  Self-Hosted Jobs: $SELF_HOSTED_JOBS"
+          echo "  GitHub-Hosted Jobs: $GITHUB_HOSTED_JOBS"
+          echo "  Total Minutes: $TOTAL_MINUTES"
+          echo "  Self-Hosted Minutes: $SELF_HOSTED_MINUTES"
+          echo "  GitHub-Hosted Minutes: $GITHUB_HOSTED_MINUTES"
+          echo "  Actual Cost: \$$ACTUAL_COST"
+          echo "  Potential Cost: \$$POTENTIAL_COST"
+          echo "  Savings: \$$SAVINGS"
+
+      - name: Generate Cost Report
+        run: |
+          cat > cost-report.md << 'EOF'
+          # 💰 CI/CD Cost Report
+          
+          **Report Period**: Last ${{ github.event.inputs.report_period || '30' }} days  
+          **Generated**: $(date)  
+          **Repository**: ${{ github.repository }}
+          
+          ## 📊 Executive Summary
+          
+          | Metric | Value |
+          |--------|-------|
+          | Total Workflow Runs | ${{ steps.metrics.outputs.total_jobs }} |
+          | Self-Hosted Runs | ${{ steps.metrics.outputs.self_hosted_jobs }} |
+          | GitHub-Hosted Runs | ${{ steps.metrics.outputs.github_hosted_jobs }} |
+          | Total Build Minutes | ${{ steps.metrics.outputs.total_minutes }} |
+          | Self-Hosted Minutes | ${{ steps.metrics.outputs.self_hosted_minutes }} |
+          | GitHub-Hosted Minutes | ${{ steps.metrics.outputs.github_hosted_minutes }} |
+          | **Actual Cost** | **${{ steps.metrics.outputs.actual_cost }}** |
+          | **Potential Cost** | **${{ steps.metrics.outputs.estimated_cost }}** |
+          | **💰 Total Savings** | **${{ steps.metrics.outputs.savings }}** |
+          
+          ## 🎯 Cost Analysis
+          
+          ### Self-Hosted Runner Impact
+          - **Runner Utilization**: ${{ steps.metrics.outputs.self_hosted_jobs }}/${{ steps.metrics.outputs.total_jobs }} jobs ($(echo "scale=1; ${{ steps.metrics.outputs.self_hosted_jobs }} * 100 / ${{ steps.metrics.outputs.total_jobs }}" | bc)%)  
+          - **Cost Savings**: ${{ steps.metrics.outputs.savings }} this period  
+          - **Annualized Savings**: $(echo "scale=0; ${{ steps.metrics.outputs.savings }} * 365 / ${{ github.event.inputs.report_period || '30' }}" | bc) per year  
+          
+          ### Cost Breakdown
+          - **Self-Hosted Runner**: $0 (hardware already owned)  
+          - **GitHub-Hosted Runners**: ${{ steps.metrics.outputs.actual_cost }}  
+          - **Average Cost per Job**: $(echo "scale=3; ${{ steps.metrics.outputs.actual_cost }} / ${{ steps.metrics.outputs.total_jobs }}" | bc)  
+          
+          ## 📈 Trends
+          
+          ### Runner Usage
+          - Self-hosted utilization is **$(echo "scale=1; ${{ steps.metrics.outputs.self_hosted_jobs }} * 100 / ${{ steps.metrics.outputs.total_jobs }}" | bc)%** of total jobs
+          - Target: 85%+ utilization for maximum savings
+          - Status: $([ "$(echo "scale=1; ${{ steps.metrics.outputs.self_hosted_jobs }} * 100 / ${{ steps.metrics.outputs.total_jobs }}" | bc)" -ge "85" ] && echo "✅ On Target" || echo "⚠️ Below Target")
+          
+          ### Cost Efficiency
+          - **Cost per Minute**: $(echo "scale=4; ${{ steps.metrics.outputs.actual_cost }} / ${{ steps.metrics.outputs.total_minutes }}" | bc)  
+          - **Industry Average**: $0.03/minute  
+          - **Efficiency**: $([ "$(echo "scale=4; ${{ steps.metrics.outputs.actual_cost }} / ${{ steps.metrics.outputs.total_minutes }}" | bc)" -le "0.03" ] && echo "✅ Better than Average" || echo "⚠️ Above Average")
+          
+          ## 💡 Recommendations
+          
+          EOF
+          
+          # Add recommendations based on metrics
+          SELF_HOSTED_PERCENTAGE=$(echo "scale=1; ${{ steps.metrics.outputs.self_hosted_jobs }} * 100 / ${{ steps.metrics.outputs.total_jobs }}" | bc)
+          
+          if [ "$(echo "$SELF_HOSTED_PERCENTAGE < 85" | bc)" -eq 1 ]; then
+            cat >> cost-report.md << 'EOF'
+          ### 🎯 Improve Self-Hosted Utilization
+          - Current utilization: ${SELF_HOSTED_PERCENTAGE}% (target: 85%+)
+          - **Potential Additional Savings**: $(echo "scale=2; (${{ steps.metrics.outputs.total_jobs }} - ${{ steps.metrics.outputs.self_hosted_jobs }}) * 15 * 0.03" | bc) per period
+          - **Actions**:
+            1. Check runner health: `cd ~/github-runner && ./svc.status`
+            2. Monitor runner uptime: Ensure MacBook is consistently online
+            3. Review workflow triggers: Some jobs may not need macOS
+          
+          EOF
+          fi
+          
+          if [ "${{ steps.metrics.outputs.github_hosted_jobs }}" -gt 0 ]; then
+            cat >> cost-report.md << 'EOF'
+          ### 💸 Reduce GitHub-Hosted Usage
+          - ${{ steps.metrics.outputs.github_hosted_jobs }} jobs used expensive GitHub-hosted runners
+          - **Cost Impact**: ${{ steps.metrics.outputs.actual_cost }} this period
+          - **Actions**:
+            1. Identify which workflows used GitHub-hosted runners
+            2. Add runner detection and fallback logic
+            3. Consider expanding self-hosted runner capacity
+          
+          EOF
+          fi
+          
+          cat >> cost-report.md << 'EOF'
+          ### 🔧 Maintenance Recommendations
+          - **Daily**: Check runner health with `./scripts/runner-health-check.sh`
+          - **Weekly**: Review runner logs for errors or performance issues
+          - **Monthly**: Analyze cost trends and optimize workflow triggers
+          - **Quarterly**: Review runner hardware specifications and upgrade if needed
+          
+          ## 📋 Next Steps
+          
+          1. **Monitor Runner Health**: Set up alerts for runner downtime
+          2. **Optimize Workflows**: Review which jobs truly need macOS
+          3. **Expand Coverage**: Consider adding more workflows to use self-hosted runner
+          4. **Track Trends**: Monitor cost savings over time
+          
+          ---
+          
+          *Report generated by GitHub Actions Cost Tracking Workflow*  
+          *Last updated: $(date)*
+          EOF
+
+      - name: Upload Cost Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cost-report-${{ github.run_number }}
+          path: cost-report.md
+          retention-days: 90
+
+      - name: Display Cost Summary
+        run: |
+          echo "# 💰 CI/CD Cost Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Key Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Jobs | ${{ steps.metrics.outputs.total_jobs }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Self-Hosted Jobs | ${{ steps.metrics.outputs.self_hosted_jobs }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| GitHub-Hosted Jobs | ${{ steps.metrics.outputs.github_hosted_jobs }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Actual Cost** | **${{ steps.metrics.outputs.actual_cost }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "| **💰 Savings** | **${{ steps.metrics.outputs.savings }}** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Add status indicators
+          SELF_HOSTED_PERCENTAGE=$(echo "scale=1; ${{ steps.metrics.outputs.self_hosted_jobs }} * 100 / ${{ steps.metrics.outputs.total_jobs }}" | bc)
+          
+          echo "## 🎯 Performance Indicators" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$(echo "$SELF_HOSTED_PERCENTAGE >= 85" | bc)" -eq 1 ]; then
+            echo "✅ **Self-Hosted Utilization**: ${SELF_HOSTED_PERCENTAGE}% (Target: 85%+)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Self-Hosted Utilization**: ${SELF_HOSTED_PERCENTAGE}% (Target: 85%+)" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "💰 **Monthly Savings**: ${{ steps.metrics.outputs.savings }}" >> $GITHUB_STEP_SUMMARY
+          echo "📈 **Annualized Savings**: $(echo "scale=0; ${{ steps.metrics.outputs.savings }} * 365 / ${{ github.event.inputs.report_period || '30' }}" | bc)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "📄 [View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+
+  forecast-costs:
+    name: Generate Cost Forecast
+    runs-on: ubuntu-latest
+    needs: collect-metrics
+    if: github.event.inputs.include_forecast != 'false'
+    
+    steps:
+      - name: Generate Cost Forecast
+        run: |
+          echo "# 📈 Cost Forecast" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Next Period Projections" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Calculate projections based on current trends
+          CURRENT_SAVINGS="${{ needs.collect-metrics.outputs.savings }}"
+          CURRENT_JOBS="${{ needs.collect-metrics.outputs.total_jobs }}"
+          CURRENT_PERIOD="${{ github.event.inputs.report_period || '30' }}"
+          
+          # Monthly projection
+          MONTHLY_SAVINGS=$(echo "scale=2; $CURRENT_SAVINGS * 30 / $CURRENT_PERIOD" | bc)
+          MONTHLY_JOBS=$(echo "scale=0; $CURRENT_JOBS * 30 / $CURRENT_PERIOD" | bc)
+          
+          # Annual projection
+          ANNUAL_SAVINGS=$(echo "scale=0; $CURRENT_SAVINGS * 365 / $CURRENT_PERIOD" | bc)
+          
+          echo "| Period | Projected Jobs | Projected Savings |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|---------------|------------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Next Month | $MONTHLY_JOBS | \$$MONTHLY_SAVINGS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Next Year | $(echo "scale=0; $CURRENT_JOBS * 365 / $CURRENT_PERIOD" | bc) | \$$ANNUAL_SAVINGS |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # ROI calculation (assuming MacBook cost $2000)
+          MACBOOK_COST=2000
+          PAYBACK_MONTHS=$(echo "scale=1; $MACBOOK_COST / $MONTHLY_SAVINGS" | bc)
+          
+          echo "## 💰 ROI Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Hardware Investment**: \$$MACBOOK_COST (estimated MacBook cost)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Monthly Savings**: \$$MONTHLY_SAVINGS" >> $GITHUB_STEP_SUMMARY
+          echo "- **Payback Period**: $PAYBACK_MONTHS months" >> $GITHUB_STEP_SUMMARY
+          echo "- **Annual ROI**: $(echo "scale=1; $MONTHLY_SAVINGS * 12 * 100 / $MACBOOK_COST" | bc)%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "$(echo "$PAYBACK_MONTHS <= 12" | bc)" -eq 1 ]; then
+            echo "✅ **Investment Status**: Excellent ROI (pays back within 1 year)" >> $GITHUB_STEP_SUMMARY
+          elif [ "$(echo "$PAYBACK_MONTHS <= 24" | bc)" -eq 1 ]; then
+            echo "✅ **Investment Status**: Good ROI (pays back within 2 years)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ **Investment Status**: Consider optimizing utilization for better ROI" >> $GITHUB_STEP_SUMMARY
+          fi
