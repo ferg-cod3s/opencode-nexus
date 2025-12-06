@@ -163,9 +163,25 @@ jobs:
         run: |
           cd src-tauri
           
-          # Initialize the iOS project (creates gen/apple/)
-          echo "🔧 Initializing iOS project..."
-          cargo tauri ios init
+           # Install XcodeGen directly (avoid brew dependency)
+           echo "📦 Installing XcodeGen..."
+           XCODEGEN_URL="https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen.zip"
+           curl -L "$XCODEGEN_URL" -o xcodegen.zip
+           unzip -q xcodegen.zip
+           chmod +x xcodegen
+           sudo mv xcodegen /usr/local/bin/ || mv xcodegen /usr/local/bin/
+           rm xcodegen.zip
+
+           # Verify XcodeGen installation
+           if ! command -v xcodegen &> /dev/null; then
+             echo "❌ XcodeGen installation failed"
+             exit 1
+           fi
+           echo "✅ XcodeGen installed: $(xcodegen --version)"
+
+           # Initialize the iOS project (creates gen/apple/)
+           echo "🔧 Initializing iOS project..."
+           cargo tauri ios init
           
           # Create the Externals directory structure
           echo "📁 Creating directory structure..."
