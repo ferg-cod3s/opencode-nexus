@@ -121,7 +121,7 @@ jobs:
           echo "Building Rust code for iOS (aarch64-apple-ios)..."
           
           # Build with correct library name from Cargo.toml
-          RUST_BACKTRACE=0 cargo build --target aarch64-apple-ios --release --lib
+          RUST_BACKTRACE=0 cargo build --target aarch64-apple-ios --release
           
           RUST_BUILD_TIME=$(($(date +%s) - START_TIME))
           echo "::notice::Rust build completed in ${RUST_BUILD_TIME}s"
