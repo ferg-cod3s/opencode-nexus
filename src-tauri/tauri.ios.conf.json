@@ -33,10 +33,9 @@
     "active": true,
     "targets": "all",
     "iOS": {
-      "developmentTeam": "PCJU8QD9FN",
-      "minimumSystemVersion": "14.0",
-      "capabilities": [],
-      "entitlements": "ios-config/src-tauri_iOS.entitlements",
+       "developmentTeam": "PCJU8QD9FN",
+       "minimumSystemVersion": "14.0",
+       "entitlements": "ios-config/src-tauri_iOS.entitlements",
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
