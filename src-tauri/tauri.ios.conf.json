@@ -35,8 +35,7 @@
     "iOS": {
        "developmentTeam": "PCJU8QD9FN",
        "minimumSystemVersion": "14.0",
-       "entitlements": "ios-config/src-tauri_iOS.entitlements",
-      "infoPlist": {
+       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": false,
           "NSExceptionDomains": {
