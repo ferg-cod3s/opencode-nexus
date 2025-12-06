@@ -73,7 +73,12 @@ runs:
         if [ "$OS_NAME" = "Darwin" ]; then
           if command -v xcodebuild >/dev/null 2>&1; then
             # Try to get version, but handle potential crashes
-            XCODE_VERSION=$(xcodebuild -version 2>/dev/null | head -1 | awk '{print $2}' || echo "version-error")
+            XCODE_VER_RAW=$(xcodebuild -version 2>/dev/null | head -1 | awk '{print $2}' 2>/dev/null)
+            if [ $? -eq 0 ] && [ -n "$XCODE_VER_RAW" ]; then
+              XCODE_VERSION="$XCODE_VER_RAW"
+            else
+              XCODE_VERSION="version-error"
+            fi
           else
             XCODE_VERSION="not-installed"
           fi
