@@ -153,6 +153,12 @@ _*.astro
 _*.rs
 .credentials
 
+# Apple API Keys and Certificates
+*.p8
+*.p12
+*.mobileprovision
+AuthKey_*.p8
+
 # Local testing secrets
 .secrets.local
 .actrc.local

@@ -1,0 +1,68 @@
+name: Runner Detection and Selection
+
+on:
+  workflow_call:
+    inputs:
+      preferred_runner:
+        description: 'Preferred runner type'
+        type: string
+        default: 'self-hosted'
+      require_macos:
+        description: 'Require macOS runner'
+        type: boolean
+        default: false
+      check_disk_space:
+        description: 'Minimum disk space in GB'
+        type: number
+        default: 10
+    outputs:
+      runner_type:
+        description: 'Selected runner type'
+        value: ${{ jobs.detect.outputs.runner_type }}
+      cost_warning:
+        description: 'Cost warning if using paid runner'
+        value: ${{ jobs.detect.outputs.cost_warning }}
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      runner_type: ${{ steps.select.outputs.runner_type }}
+      cost_warning: ${{ steps.select.outputs.cost_warning }}
+    steps:
+      - name: Check Self-Hosted Runner Availability
+        id: check
+        run: |
+          echo "🔍 Checking self-hosted runner availability..."
+          
+          # Check if self-hosted runner is online
+          RUNNER_INFO=$(curl -s \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/runners")
+          
+          ONLINE_RUNNER=$(echo "$RUNNER_INFO" | jq -r '.runners[] | select(.labels[].name == "self-hosted") | select(.status == "online") | .name' | head -1)
+          
+          if [ -n "$ONLINE_RUNNER" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+            echo "✅ Self-hosted runner online: $ONLINE_RUNNER"
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+            echo "❌ No self-hosted runner available"
+          fi
+
+      - name: Select Runner
+        id: select
+        run: |
+          if [ "${{ steps.check.outputs.available }}" == "true" ]; then
+            echo "runner_type=self-hosted" >> $GITHUB_OUTPUT
+            echo "cost_warning=" >> $GITHUB_OUTPUT
+            echo "✅ Using self-hosted runner"
+          else
+            echo "::error::Self-hosted runner is required but not available. Please ensure the runner is online."
+            echo "💡 To fix this:"
+            echo "1. Check runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
+            echo "2. Restart runner: cd ~/github-runner && ./svc.restart"
+            echo "3. Check runner logs: cd ~/github-runner && tail -f _diag/Runner_*.log"
+            exit 1
+          fi

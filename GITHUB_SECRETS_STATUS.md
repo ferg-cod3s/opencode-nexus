@@ -1,35 +1,43 @@
 # GitHub Secrets Setup Status - OpenCode Nexus
 
-## ✅ Successfully Configured Secrets (7/9)
+## ✅ Successfully Configured Secrets (9/9)
 
 | Secret | Status | Description |
 |--------|--------|-------------|
-| `APP_STORE_CONNECT_API_KEY_ID` | ✅ Configured | API Key ID: 78U6M64KJS |
+| `APP_STORE_CONNECT_API_KEY_ID` | ✅ Configured | API Key ID: J94Q923ZNG |
 | `APP_STORE_CONNECT_ISSUER_ID` | ✅ Configured | Issuer ID: c6f421de-3e35-4aab-b96d-4c4461c39766 |
 | `APP_STORE_CONNECT_API_PRIVATE_KEY` | ✅ Configured | Base64-encoded .p8 file |
 | `APPLE_ID` | ✅ Configured | john.ferguson@unfergettabledesigns.com |
 | `APPLE_TEAM_ID` | ✅ Configured | PCJU8QD9FN |
 | `IOS_CERTIFICATE_P12` | ✅ Configured | Base64-encoded distribution certificate |
 | `IOS_PROVISIONING_PROFILE` | ✅ Configured | Base64-encoded provisioning profile |
+| `IOS_CERTIFICATE_PASSWORD` | ✅ Configured | Certificate import password |
 
-## ❌ Still Need to Configure (2/9)
+## ❌ Still Need to Configure (0/9)
 
-| Secret | Status | How to Set |
-|--------|--------|-------------|
-| `IOS_CERTIFICATE_PASSWORD` | ❌ Missing | `gh secret set IOS_CERTIFICATE_PASSWORD --body "YOUR_CERT_PASSWORD"` |
-| `KEYCHAIN_PASSWORD` | ❌ Missing | `gh secret set KEYCHAIN_PASSWORD --body "YOUR_CERT_PASSWORD"` |
+All required secrets are now configured! 🎉
 
 ## 📁 Credential Files Location
 
-All credential files are consolidated in:
-```
-/home/vitruvius/git/opencode-nexus/.credentials/
-├── AuthKey_78U6M64KJS.p8          # App Store Connect API key
-├── distribution_cert.p12              # Distribution certificate
-├── OpenCode_Nexus_App_Store.mobileprovision  # Provisioning profile
-├── .env                            # Environment config
-└── README.md                        # Documentation
-```
+All credential files are stored in standard Apple locations:
+
+### App Store Connect API Key
+- **Standard Location**: `~/.appstoreconnect/private_keys/AuthKey_J94Q923ZNG.p8`
+- **Used by**: `altool`, `fastlane`, local builds
+- **CI/CD**: Stored in GitHub Secret `APP_STORE_CONNECT_API_PRIVATE_KEY`
+
+### Distribution Certificate
+- **GitHub Secret**: `IOS_CERTIFICATE_P12` (base64-encoded)
+- **Password**: `IOS_CERTIFICATE_PASSWORD` (GitHub Secret)
+- **Local**: No longer stored locally (exported as needed)
+
+### Provisioning Profile
+- **Local Location**: `~/Library/MobileDevice/Provisioning Profiles/OpenCode_Nexus_App_Store.mobileprovision`
+- **GitHub Secret**: `IOS_PROVISIONING_PROFILE` (base64-encoded)
+
+### Environment Variables
+- **Local**: No longer using `.env` file (removed)
+- **CI/CD**: All secrets stored in GitHub Secrets
 
 ## 🚀 Quick Setup Commands
 
