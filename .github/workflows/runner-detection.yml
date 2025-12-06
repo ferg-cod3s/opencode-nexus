@@ -1,5 +1,8 @@
 name: Runner Detection and Selection
 
+permissions:
+  actions: read  # Required to query runner status
+
 on:
   workflow_call:
     inputs:
