@@ -158,7 +158,7 @@ jobs:
 
   build-test:
     name: Build Test
-    runs-on: ${{ matrix.os }}
+    runs-on: macos-latest
 
     
     strategy:
@@ -169,7 +169,6 @@ jobs:
     
     steps:
       - name: Display Cost Warning for macOS
-        if: contains(matrix.os, 'macos-14')
         run: |
           echo "::warning::Running on GitHub-hosted macOS runner"
           echo ""
