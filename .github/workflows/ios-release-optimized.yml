@@ -131,14 +131,27 @@ jobs:
           RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
           
           echo "🔍 Checking Rust build output..."
-          echo "Target directory contents:"
-          find target/aarch64-apple-ios/release -name "*.a" -type f -exec ls -la {} \;
+          echo "All files in target directory:"
+          find target/aarch64-apple-ios/release -type f -name "*.a" -exec basename {} \; | sort
+          echo "Full file listing with details:"
+          ls -la target/aarch64-apple-ios/release/*.a 2>/dev/null || echo "No .a files found"
           
           if [ ! -f "$RUST_LIB_PATH" ]; then
             echo "❌ ERROR: Expected library not found at $RUST_LIB_PATH"
-            echo "Available files:"
-            find target/aarch64-apple-ios/release -name "*.a" -type f
-            exit 1
+            echo "Looking for alternative library names..."
+            for alt_lib in target/aarch64-apple-ios/release/*.a; do
+              if [ -f "$alt_lib" ]; then
+                echo "✅ Found alternative library: $(basename $alt_lib)"
+                LIB_NAME=$(basename "$alt_lib")
+                RUST_LIB_PATH="$alt_lib"
+                break
+              fi
+            done
+            
+            if [ ! -f "$RUST_LIB_PATH" ]; then
+              echo "❌ No suitable library found!"
+              exit 1
+            fi
           fi
           
           echo "✅ Rust library built successfully: $LIB_NAME"
