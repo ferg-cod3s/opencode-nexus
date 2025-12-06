@@ -131,7 +131,7 @@ impl ChatClient {
         let sessions: Vec<ChatSession> =
             response.json().await.map_err(|e| AppError::ParseError {
                 message: format!("Failed to parse sessions: {}", e),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         Ok(sessions)
@@ -171,7 +171,7 @@ impl ChatClient {
 
         let session: ChatSession = response.json().await.map_err(|e| AppError::ParseError {
             message: format!("Failed to parse session: {}", e),
-            details: e.to_string(),
+            details: Some(e.to_string()),
         })?;
 
         // Emit session created event
@@ -215,7 +215,7 @@ impl ChatClient {
 
         let message: ChatMessage = response.json().await.map_err(|e| AppError::ParseError {
             message: format!("Failed to parse message: {}", e),
-            details: e.to_string(),
+            details: Some(e.to_string()),
         })?;
 
         // Emit message received event
@@ -256,7 +256,7 @@ impl ChatClient {
         let messages: Vec<ChatMessage> =
             response.json().await.map_err(|e| AppError::ParseError {
                 message: format!("Failed to parse messages: {}", e),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         Ok(messages)
@@ -270,7 +270,7 @@ impl ChatClient {
         self.server_url.lock().unwrap().clone().ok_or_else(|| {
             AppError::ConnectionError {
                 message: "No server URL configured".to_string(),
-                details: "Server URL has not been set".to_string(),
+                details: Some("Server URL has not been set".to_string()),
             }
             .into()
         })
@@ -286,13 +286,13 @@ impl ChatClient {
         let sessions_json =
             std::fs::read_to_string(&sessions_file).map_err(|e| AppError::IoError {
                 message: format!("Failed to read sessions file: {}", e),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         let _sessions: Vec<ChatSession> =
             serde_json::from_str(&sessions_json).map_err(|e| AppError::ParseError {
                 message: format!("Failed to parse sessions file: {}", e),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         Ok(())
@@ -307,12 +307,12 @@ impl ChatClient {
         let sessions_json =
             serde_json::to_string_pretty(sessions).map_err(|e| AppError::ParseError {
                 message: format!("Failed to serialize sessions: {}", e),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         std::fs::write(sessions_file, sessions_json).map_err(|e| AppError::IoError {
             message: format!("Failed to write sessions file: {}", e),
-            details: e.to_string(),
+            details: Some(e.to_string()),
         })?;
 
         Ok(())

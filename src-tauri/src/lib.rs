@@ -45,7 +45,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::sync::Mutex as AsyncMutex;
 
 // Managed state for singletons
@@ -162,14 +162,14 @@ async fn get_connection_manager<'a>(
     // Initialize connection manager if not already created
     if guard.is_none() {
         let config_dir = get_config_dir()?;
-        let manager = ConnectionManager::new(config_dir, app_handle)
+        let mut manager = ConnectionManager::new(config_dir, app_handle)
             .map_err(|e| format!("Failed to create connection manager: {}", e))?;
-        
+
         // Load saved connections
         if let Err(e) = manager.load_connections() {
             log_warn!("⚠️ [INIT] Failed to load connections: {}", e);
         }
-        
+
         *guard = Some(manager);
     }
 
@@ -208,8 +208,10 @@ async fn connect_to_server(
         .unwrap_or(if url.scheme() == "https" { 443 } else { 4096 });
     let secure = url.scheme() == "https";
 
-    let mut connection_manager_guard = get_connection_manager(&state, Some(app_handle.clone())).await?;
-    let connection_manager = connection_manager_guard.as_mut()
+    let mut connection_manager_guard =
+        get_connection_manager(&state, Some(app_handle.clone())).await?;
+    let connection_manager = connection_manager_guard
+        .as_mut()
         .ok_or("Connection manager not initialized")?;
 
     // Connect to the server
@@ -249,7 +251,8 @@ async fn test_server_connection(
     let secure = url.scheme() == "https";
 
     let connection_manager_guard = get_connection_manager(&state, None).await?;
-    let connection_manager = connection_manager_guard.as_ref()
+    let connection_manager = connection_manager_guard
+        .as_ref()
         .ok_or("Connection manager not initialized")?;
 
     // Test the connection
@@ -274,7 +277,8 @@ async fn get_connection_status(
     app_handle: tauri::AppHandle,
 ) -> Result<ConnectionStatus, String> {
     let connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
-    let connection_manager = connection_manager_guard.as_ref()
+    let connection_manager = connection_manager_guard
+        .as_ref()
         .ok_or("Connection manager not initialized")?;
     Ok(connection_manager.get_connection_status())
 }
@@ -285,7 +289,8 @@ async fn get_current_connection(
     app_handle: tauri::AppHandle,
 ) -> Result<Option<ServerConnection>, String> {
     let connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
-    let connection_manager = connection_manager_guard.as_ref()
+    let connection_manager = connection_manager_guard
+        .as_ref()
         .ok_or("Connection manager not initialized")?;
     Ok(connection_manager.get_current_connection())
 }
@@ -296,7 +301,8 @@ async fn disconnect_from_server(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     let mut connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
-    let connection_manager = connection_manager_guard.as_mut()
+    let connection_manager = connection_manager_guard
+        .as_mut()
         .ok_or("Connection manager not initialized")?;
     connection_manager.disconnect_from_server().await
 }
@@ -307,7 +313,8 @@ async fn get_saved_connections(
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<ServerConnection>, String> {
     let mut connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
-    let connection_manager = connection_manager_guard.as_mut()
+    let connection_manager = connection_manager_guard
+        .as_mut()
         .ok_or("Connection manager not initialized")?;
     connection_manager
         .load_connections()
@@ -322,7 +329,8 @@ async fn save_connection(
     connection: ServerConnection,
 ) -> Result<(), String> {
     let mut connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
-    let connection_manager = connection_manager_guard.as_mut()
+    let connection_manager = connection_manager_guard
+        .as_mut()
         .ok_or("Connection manager not initialized")?;
     connection_manager
         .load_connections()
@@ -336,7 +344,8 @@ async fn get_last_used_connection(
     app_handle: tauri::AppHandle,
 ) -> Result<Option<ServerConnection>, String> {
     let mut connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
-    let connection_manager = connection_manager_guard.as_mut()
+    let connection_manager = connection_manager_guard
+        .as_mut()
         .ok_or("Connection manager not initialized")?;
     connection_manager
         .load_connections()
@@ -556,21 +565,29 @@ async fn get_available_models() -> Result<Vec<serde_json::Value>, String> {
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let model_manager = ModelManager::new(api_client, config_dir);
 
-    // Try to fetch from server first
-    match model_manager.fetch_available_models().await {
-        Ok(models) => {
-            let models_json: Vec<serde_json::Value> = models
+    // Try to fetch from server first - convert to Send-safe type immediately
+    let server_result: Result<Vec<serde_json::Value>, String> = model_manager
+        .fetch_available_models()
+        .await
+        .map(|models| {
+            models
                 .into_iter()
                 .map(|m| serde_json::to_value(m).unwrap_or_default())
-                .collect();
+                .collect()
+        })
+        .map_err(|e| e.to_string());
+
+    match server_result {
+        Ok(models_json) => {
             log_info!(
                 "✅ [MODELS] Retrieved {} models from server",
                 models_json.len()
             );
             Ok(models_json)
         }
-        Err(e) => {
-            log_warn!("⚠️ [MODELS] Failed to fetch from server: {}", e);
+        Err(server_err) => {
+            log_warn!("⚠️ [MODELS] Failed to fetch from server: {}", server_err);
+
             // Fallback to cached models
             match model_manager.get_available_models().await {
                 Ok(cached_models) => {
@@ -581,9 +598,9 @@ async fn get_available_models() -> Result<Vec<serde_json::Value>, String> {
                     log_info!("✅ [MODELS] Retrieved {} cached models", models_json.len());
                     Ok(models_json)
                 }
-                Err(e) => {
-                    log_error!("❌ [MODELS] Failed to get cached models: {}", e);
-                    Err(format!("Failed to get available models: {}", e))
+                Err(cache_err) => {
+                    log_error!("❌ [MODELS] Failed to get cached models: {}", cache_err);
+                    Err(format!("Failed to get available models: {}", cache_err))
                 }
             }
         }
@@ -828,6 +845,7 @@ pub fn run() {
     let model_manager_state = ModelManagerState(Arc::new(AsyncMutex::new(None)));
     let streaming_client_state = StreamingClientState(Arc::new(AsyncMutex::new(None)));
     let event_bridge_state = EventBridgeState(Arc::new(AsyncMutex::new(None)));
+    let connection_manager_state = ConnectionManagerState(Arc::new(AsyncMutex::new(None)));
 
     // Legacy state for backward compatibility
     let chat_client_state = ChatClientState(Arc::new(AsyncMutex::new(None)));
@@ -867,7 +885,8 @@ pub fn run() {
 
                 // Initialize connection manager in managed state
                 {
-                    let mut state_guard = app_handle.state::<ConnectionManagerState>().0.lock().await;
+                    let connection_manager_state = app_handle.state::<ConnectionManagerState>();
+                    let mut state_guard = connection_manager_state.0.lock().await;
                     if state_guard.is_none() {
                         match ConnectionManager::new(config_dir.clone(), Some(app_handle.clone())) {
                             Ok(mut cm) => {
@@ -914,8 +933,6 @@ pub fn run() {
                         return;
                     }
                 };
-
-
 
                 // Emit application ready event
                 if let Err(e) = event_bridge
