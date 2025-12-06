@@ -15,7 +15,8 @@
       {
         "title": "OpenCode Nexus",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "label": "main"
       }
     ],
     "security": {
@@ -25,7 +26,7 @@
         "Cross-Origin-Opener-Policy": "same-origin",
         "Cross-Origin-Embedder-Policy": "require-corp",
         "X-Content-Type-Options": "nosniff"
-       }
+      }
     }
   },
   "bundle": {
@@ -38,28 +39,5 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
-  }
-          }
-        },
-        "ITSAppUsesNonExemptEncryption": true,
-        "NSCameraUsageDescription": "This app may use the camera for scanning QR codes and other features.",
-        "NSMicrophoneUsageDescription": "This app may access the microphone for voice input features.",
-        "CFBundleDisplayName": "OpenCode Nexus",
-        "CFBundleName": "OpenCodeNexus",
-        "LSRequiresIPhoneOS": true,
-        "UIRequiredDeviceCapabilities": ["armv7"],
-        "UISupportedInterfaceOrientations": [
-          "UIInterfaceOrientationPortrait",
-          "UIInterfaceOrientationLandscapeLeft",
-          "UIInterfaceOrientationLandscapeRight"
-        ],
-        "UISupportedInterfaceOrientations~ipad": [
-          "UIInterfaceOrientationPortrait",
-          "UIInterfaceOrientationPortraitUpsideDown",
-          "UIInterfaceOrientationLandscapeLeft",
-          "UIInterfaceOrientationLandscapeRight"
-        ]
-      }
-    }
   }
 }
