@@ -42,7 +42,7 @@ jobs:
       - name: Validate Runner Environment
         uses: ./.github/actions/validate-runner
         with:
-          runner_type: ${{ needs.detect-runner.outputs.runner_type }}
+          runner_type: self-hosted
 
       - name: Set up environment variables
         run: |
