@@ -137,7 +137,7 @@ impl SessionManager {
         let loaded_sessions: HashMap<String, ChatSession> = serde_json::from_str(&sessions_json)
             .map_err(|e| AppError::ParseError {
                 message: "Failed to parse sessions file".to_string(),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         let mut sessions = self.sessions.write().await;
@@ -152,7 +152,7 @@ impl SessionManager {
         let sessions_json =
             serde_json::to_string_pretty(&*sessions).map_err(|e| AppError::ParseError {
                 message: "Failed to serialize sessions".to_string(),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         std::fs::write(self.get_sessions_file_path(), sessions_json).map_err(|e| {

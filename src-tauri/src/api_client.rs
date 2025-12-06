@@ -20,7 +20,7 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-use crate::error::{AppError, RetryConfig};
+use crate::error::AppError;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -39,6 +39,7 @@ pub struct ModelConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModelInfo {
     pub id: String,
+    pub model_id: String,
     pub name: String,
     pub provider_id: String,
     pub provider_name: String,
@@ -102,12 +103,17 @@ impl ApiClient {
         *self.api_key.write().await = Some(api_key);
     }
 
-    /// Get the current server URL
-    async fn get_server_url(&self) -> Result<String, Box<dyn std::error::Error>> {
+    /// Get the current server URL (public getter for other modules)
+    pub async fn get_server_url(&self) -> Option<String> {
+        self.server_url.read().await.clone()
+    }
+
+    /// Get the current server URL, or return an error if not set
+    async fn require_server_url(&self) -> Result<String, Box<dyn std::error::Error>> {
         self.server_url.read().await.clone().ok_or_else(|| {
             AppError::ConnectionError {
                 message: "No server URL configured".to_string(),
-                details: "Server URL has not been set".to_string(),
+                details: Some("Server URL has not been set".to_string()),
             }
             .into()
         })
@@ -124,7 +130,7 @@ impl ApiClient {
         method: reqwest::Method,
         path: &str,
     ) -> Result<reqwest::RequestBuilder, Box<dyn std::error::Error>> {
-        let base_url = self.get_server_url().await?;
+        let base_url = self.require_server_url().await?;
         let url = format!(
             "{}/{}",
             base_url.trim_end_matches('/'),
@@ -162,13 +168,11 @@ impl ApiClient {
             .into());
         }
 
-        let providers_response: ProvidersResponse = response.json().await.map_err(|e| {
-            AppError::ParseError {
+        let providers_response: ProvidersResponse =
+            response.json().await.map_err(|e| AppError::ParseError {
                 message: "Failed to parse providers response".to_string(),
-                details: e.to_string(),
-            }
-            .into()
-        })?;
+                details: Some(e.to_string()),
+            })?;
 
         // Convert to flat list of ModelInfo
         let mut models = Vec::new();
@@ -176,6 +180,7 @@ impl ApiClient {
             for model in provider.models {
                 let model_info = ModelInfo {
                     id: format!("{}/{}", provider.id, model.model_id),
+                    model_id: model.model_id.clone(),
                     name: model.model_id.clone(), // Use model_id as name for now
                     provider_id: provider.id.clone(),
                     provider_name: provider.id.clone(), // Use provider.id as name for now
@@ -206,12 +211,9 @@ impl ApiClient {
             .into());
         }
 
-        let health: ServerHealth = response.json().await.map_err(|e| {
-            AppError::ParseError {
-                message: "Failed to parse health response".to_string(),
-                details: e.to_string(),
-            }
-            .into()
+        let health: ServerHealth = response.json().await.map_err(|e| AppError::ParseError {
+            message: "Failed to parse health response".to_string(),
+            details: Some(e.to_string()),
         })?;
 
         Ok(health)
@@ -244,12 +246,9 @@ impl ApiClient {
             .into());
         }
 
-        let info: ServerInfo = response.json().await.map_err(|e| {
-            AppError::ParseError {
-                message: "Failed to parse server info".to_string(),
-                details: e.to_string(),
-            }
-            .into()
+        let info: ServerInfo = response.json().await.map_err(|e| AppError::ParseError {
+            message: "Failed to parse server info".to_string(),
+            details: Some(e.to_string()),
         })?;
 
         Ok(info)
@@ -311,6 +310,7 @@ mod tests {
     fn test_model_info_structure() {
         let model = ModelInfo {
             id: "anthropic/claude-3-5-sonnet-20241022".to_string(),
+            model_id: "claude-3-5-sonnet-20241022".to_string(),
             name: "Claude 3.5 Sonnet".to_string(),
             provider_id: "anthropic".to_string(),
             provider_name: "Anthropic".to_string(),

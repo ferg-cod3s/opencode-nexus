@@ -233,6 +233,7 @@ pub struct ServerInfo {
 }
 
 /// Event bridge for converting and emitting events to frontend
+#[derive(Clone)]
 pub struct EventBridge {
     app_handle: Option<Arc<AppHandle>>,
     event_sender: broadcast::Sender<AppEvent>,
@@ -389,7 +390,6 @@ impl EventBridge {
             StreamEvent::End { message_id, .. } => StreamEventData::Stopped {
                 session_id: session_id.clone(),
                 stream_id: uuid::Uuid::new_v4().to_string(),
-                message_id,
             },
         };
 
@@ -521,7 +521,8 @@ impl Default for EventBridge {
 mod tests {
     use super::*;
     use chrono::Utc;
-    use std::time::SystemTime;
+    use futures_util::FutureExt;
+    use std::time::{Duration, SystemTime};
 
     #[test]
     fn test_event_bridge_creation() {
@@ -681,9 +682,9 @@ mod tests {
         // Initially no subscribers
         assert_eq!(bridge.subscriber_count().await, 0);
 
-        // Add subscribers
-        let _receiver1 = bridge.subscribe();
-        let _receiver2 = bridge.subscribe_to_type("connection").await;
+        // Add type-specific subscribers (these are tracked in the subscribers HashMap)
+        let _receiver1 = bridge.subscribe_to_type("connection").await;
+        let _receiver2 = bridge.subscribe_to_type("session").await;
 
         // Should have 2 subscribers
         assert_eq!(bridge.subscriber_count().await, 2);
@@ -693,9 +694,9 @@ mod tests {
     async fn test_cleanup_subscribers() {
         let bridge = EventBridge::new();
 
-        // Add subscriber
+        // Add type-specific subscriber (tracked in subscribers HashMap)
         {
-            let _receiver = bridge.subscribe();
+            let _receiver = bridge.subscribe_to_type("connection").await;
             assert_eq!(bridge.subscriber_count().await, 1);
         } // Receiver goes out of scope
 

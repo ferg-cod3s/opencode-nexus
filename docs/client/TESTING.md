@@ -1,8 +1,69 @@
 # Mobile Client Testing Strategy
 **Project:** OpenCode Nexus - Mobile Client
 **Version:** 1.0.0
-**Last Updated:** 2025-11-06
+**Last Updated:** 2025-12-06
 **Status:** Mobile-First Testing Framework
+
+## 🚨 Testing Philosophy: 100% Pass Rate Required
+
+**This is a non-negotiable quality standard.** All tests must pass at all times across all branches.
+
+### Core Principles
+
+1. **Zero-Failure Tolerance:** No tests should ever be in a failing state on any branch
+2. **Test-Fix-First:** When changing logic that breaks tests, **fix the tests first** to reflect new behavior
+3. **No Test Skipping:** Never use `.skip()`, `@skip`, `#[ignore]`, or comment out tests to "fix" failures
+4. **Test Evolution:** Tests must evolve with the codebase, not accumulate as broken artifacts
+5. **Shared Responsibility:** Everyone who changes code is responsible for maintaining related tests
+
+### What To Do When Tests Fail
+
+| Situation | ❌ Wrong Approach | ✅ Correct Approach |
+|-----------|-------------------|---------------------|
+| Logic change breaks test | Skip test, add new test | Update existing test to reflect new behavior |
+| Flaky test | Add `.skip()` and move on | Fix the flakiness or refactor the test |
+| Feature removed | Leave related tests failing | Remove obsolete tests entirely |
+| Test too slow | Skip in CI | Optimize test or split into smaller tests |
+| PR has failing tests | Merge anyway | Fix all tests before merging |
+| Don't understand why test fails | Comment it out | Investigate root cause, ask for help |
+
+### Anti-Patterns to Avoid
+
+```typescript
+// ❌ NEVER DO THIS - skipping tests
+test.skip('should validate user input', () => { ... });
+
+// ❌ NEVER DO THIS - commenting out tests
+// test('should handle edge case', () => { ... });
+
+// ❌ NEVER DO THIS - empty tests to pass CI
+test('should work', () => {
+  // TODO: implement later
+  expect(true).toBe(true);
+});
+```
+
+```rust
+// ❌ NEVER DO THIS - ignoring tests
+#[ignore]
+#[test]
+fn test_connection_timeout() { ... }
+```
+
+### Proper Test Maintenance
+
+```typescript
+// ✅ CORRECT - update test when behavior changes
+// Before: function returned string
+test('should return greeting', () => {
+  expect(greet('World')).toBe('Hello, World!');
+});
+
+// After: function now returns object (update the test!)
+test('should return greeting object', () => {
+  expect(greet('World')).toEqual({ message: 'Hello, World!', timestamp: expect.any(Number) });
+});
+```
 
 ## 1. Mobile Testing Philosophy
 

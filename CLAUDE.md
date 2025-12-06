@@ -176,6 +176,34 @@ opencode-nexus/
 - Refactor while keeping tests green
 - Update status_docs/TODO.md with completed tasks immediately after completion
 
+### 2.1 Test Maintenance (100% Pass Rate Required)
+
+**All tests must pass at all times.** When changing code that breaks existing tests:
+
+1. **Understand the Test First:** Read the failing test to understand what behavior it expects
+2. **Determine Intent:** Is the test outdated, or is your change incorrect?
+3. **Update the Test:** If the change is intentional, update the test to reflect new behavior
+4. **Never Skip Tests:** Do not use `.skip()`, `#[ignore]`, or comment out tests
+5. **Remove Obsolete Tests:** If functionality is removed, delete related tests entirely
+
+**Example Workflow:**
+```bash
+# 1. Make your code change
+# 2. Run tests
+cargo test && cd frontend && bun test
+
+# 3. If tests fail, investigate:
+#    - Is the test correct and my change wrong? → Fix my change
+#    - Is the test outdated? → Update the test to reflect new behavior
+#    - Is the feature removed? → Delete the test
+
+# 4. Run tests again to confirm 100% pass
+cargo test && cd frontend && bun test
+
+# 5. Commit only when all tests pass
+git commit -m "feat: implement feature with updated tests"
+```
+
 ### 3. Quality Assurance
 - Run all tests (`cargo test` + `cd frontend && bun test`)
 - Check compilation (`cargo clippy` + `bun run typecheck`)

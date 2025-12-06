@@ -21,10 +21,10 @@
 // SOFTWARE.
 
 use crate::api_client::ApiClient;
-use crate::error::{AppError, RetryConfig};
-use crate::session_manager::{ChatMessage, MessageRole};
+use crate::error::AppError;
+use crate::session_manager::MessageRole;
 use futures_util::{Stream, StreamExt};
-use reqwest::EventSource;
+use reqwest_eventsource::{Event, EventSource};
 use serde::{Deserialize, Serialize};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -124,7 +124,9 @@ pub struct StreamingClient {
 
 impl StreamingClient {
     /// Create a new streaming client
-    pub fn new(api_client: Arc<ApiClient>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(
+        api_client: Arc<ApiClient>,
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         Self::with_config(api_client, StreamConfig::default())
     }
 
@@ -132,7 +134,7 @@ impl StreamingClient {
     pub fn with_config(
         api_client: Arc<ApiClient>,
         config: StreamConfig,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let (event_sender, _) = broadcast::channel(config.buffer_size);
 
         Ok(Self {
@@ -152,7 +154,7 @@ impl StreamingClient {
     pub async fn start_stream(
         &self,
         request: StreamRequest,
-    ) -> Result<String, Box<dyn std::error::Error>> {
+    ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         let stream_id = uuid::Uuid::new_v4().to_string();
         let session_id = request.session_id.clone();
         let message_id = uuid::Uuid::new_v4().to_string();
@@ -178,7 +180,10 @@ impl StreamingClient {
     }
 
     /// Stop an active stream
-    pub async fn stop_stream(&self, stream_id: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn stop_stream(
+        &self,
+        stream_id: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut active_streams = self.active_streams.write().await;
 
         if let Some(handle) = active_streams.remove(stream_id) {
@@ -200,7 +205,7 @@ impl StreamingClient {
         stream_id: String,
         request: StreamRequest,
         message_id: String,
-    ) -> Result<tokio::task::JoinHandle<()>, Box<dyn std::error::Error>> {
+    ) -> Result<tokio::task::JoinHandle<()>, Box<dyn std::error::Error + Send + Sync>> {
         let api_client = Arc::clone(&self.api_client);
         let event_sender = self.event_sender.clone();
         let config = self.config.clone();
@@ -272,53 +277,54 @@ impl StreamingClient {
         event_sender: &broadcast::Sender<StreamEvent>,
         config: &StreamConfig,
         accumulated_content: &mut String,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Build the streaming URL
-        let server_url = {
-            let url_guard = api_client.server_url.read().await;
-            url_guard.clone().ok_or_else(|| AppError::ConnectionError {
-                message: "No server URL configured".to_string(),
-                details: "Server URL has not been set".to_string(),
-            })?
-        };
+        let server_url =
+            api_client
+                .get_server_url()
+                .await
+                .ok_or_else(|| AppError::ConnectionError {
+                    message: "No server URL configured".to_string(),
+                    details: Some("Server URL has not been set".to_string()),
+                })?;
 
         let stream_url = format!("{}/session/{}/stream", server_url, request.session_id);
 
-        // Create EventSource connection
-        let event_source = EventSource::builder()
-            .method(reqwest::Method::POST)
+        // Create HTTP client and request
+        let client = reqwest::Client::new();
+        let req = client
+            .post(&stream_url)
             .header("Content-Type", "application/json")
-            .body(serde_json::to_string(request)?)
-            .url(&stream_url)
-            .build()
-            .map_err(|e| AppError::ConnectionError {
-                message: "Failed to create EventSource".to_string(),
-                details: e.to_string(),
-            })?;
+            .header("Accept", "text/event-stream")
+            .body(serde_json::to_string(request)?);
 
-        // Process events with timeout
-        let mut event_stream = event_source
-            .stream()
-            .map_err(|e| AppError::ConnectionError {
-                message: "Failed to create event stream".to_string(),
-                details: e.to_string(),
-            })?;
+        // Create EventSource connection
+        let mut event_source = EventSource::new(req).map_err(|e| AppError::ConnectionError {
+            message: "Failed to create EventSource".to_string(),
+            details: Some(e.to_string()),
+        })?;
 
         let mut chunk_index = 0;
 
-        while let Some(event_result) = timeout(
-            Duration::from_secs(config.chunk_timeout_secs),
-            event_stream.next(),
-        )
-        .await
-        .map_err(|_| AppError::TimeoutError {
-            operation: "Waiting for stream chunk".to_string(),
-            timeout_secs: config.chunk_timeout_secs,
-        })? {
+        // Process events with timeout
+        loop {
+            let event_result = timeout(
+                Duration::from_secs(config.chunk_timeout_secs),
+                event_source.next(),
+            )
+            .await
+            .map_err(|_| AppError::TimeoutError {
+                operation: "Waiting for stream chunk".to_string(),
+                timeout_secs: config.chunk_timeout_secs,
+            })?;
+
             match event_result {
-                Ok(event) => {
+                Some(Ok(event)) => {
                     match event {
-                        reqwest::sse::Event::Message(message) => {
+                        Event::Open => {
+                            // Connection opened - could send a status event if needed
+                        }
+                        Event::Message(message) => {
                             // Parse the chunk
                             if let Ok(chunk_data) =
                                 serde_json::from_str::<serde_json::Value>(&message.data)
@@ -356,24 +362,18 @@ impl StreamingClient {
                                 }
                             }
                         }
-                        reqwest::sse::Event::Open => {
-                            // Connection opened - could send a status event if needed
-                        }
-                        reqwest::sse::Event::Error(error) => {
-                            return Err(AppError::ConnectionError {
-                                message: "Server-sent event error".to_string(),
-                                details: error.to_string(),
-                            }
-                            .into());
-                        }
                     }
                 }
-                Err(e) => {
+                Some(Err(e)) => {
                     return Err(AppError::ConnectionError {
                         message: "Stream event error".to_string(),
-                        details: e.to_string(),
+                        details: Some(e.to_string()),
                     }
                     .into());
+                }
+                None => {
+                    // Stream ended
+                    break;
                 }
             }
         }
@@ -426,6 +426,7 @@ impl Stream for EventStream {
             Ok(event) => Poll::Ready(Some(event)),
             Err(broadcast::error::TryRecvError::Empty) => Poll::Pending,
             Err(broadcast::error::TryRecvError::Closed) => Poll::Ready(None),
+            Err(broadcast::error::TryRecvError::Lagged(_)) => Poll::Pending,
         }
     }
 }
@@ -444,17 +445,13 @@ mod tests {
         (client, temp_dir)
     }
 
-    #[test]
-    fn test_streaming_client_creation() {
+    #[tokio::test]
+    async fn test_streaming_client_creation() {
         let (client, _temp) = create_test_streaming_client();
 
         // Should have no active streams initially
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                let active = client.get_active_streams().await;
-                assert!(active.is_empty());
-            });
-        });
+        let active = client.get_active_streams().await;
+        assert!(active.is_empty());
     }
 
     #[test]

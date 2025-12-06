@@ -271,6 +271,7 @@
 
   <div
     class="messages-container"
+    data-testid="chat-messages"
     bind:this={messagesContainer}
     on:scroll={handleScroll}
     on:touchstart={handleTouchStart}

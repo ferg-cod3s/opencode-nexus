@@ -2,10 +2,16 @@
 
 # Pre-commit hook for GitHub Actions workflow validation
 # This hook runs local testing before allowing commits
+#
+# 🚨 TESTING POLICY: 100% PASS RATE REQUIRED
+# All tests must pass. No exceptions. No skipping.
+# If tests fail, fix them before committing.
 
 set -e
 
 echo "🔍 Running pre-commit checks..."
+echo "📋 Policy: 100% test pass rate required - no exceptions"
+echo ""
 
 # Colors for output
 RED='\033[0;31m'
@@ -24,6 +30,29 @@ print_warning() {
 
 print_error() {
     echo -e "${RED}❌ $1${NC}"
+}
+
+print_test_failure_help() {
+    echo ""
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${RED}🚨 TESTS FAILED - COMMIT BLOCKED${NC}"
+    echo -e "${RED}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo "100% test pass rate is required. Here's what to do:"
+    echo ""
+    echo "  1. Read the failing test to understand expected behavior"
+    echo "  2. Determine: Is the test outdated, or is your change incorrect?"
+    echo "  3. If your change is correct: UPDATE the test to reflect new behavior"
+    echo "  4. If your change is wrong: FIX your code"
+    echo "  5. Run tests again: cargo test && cd frontend && bun test"
+    echo ""
+    echo -e "${YELLOW}❌ DO NOT:${NC}"
+    echo "  - Skip tests with .skip() or #[ignore]"
+    echo "  - Comment out failing tests"
+    echo "  - Use --no-verify to bypass this hook"
+    echo ""
+    echo -e "${GREEN}See AGENTS.md for full testing policy${NC}"
+    echo ""
 }
 
 # Check if Act CLI is available
@@ -137,6 +166,7 @@ if [ "$SOURCE_CHANGED" = true ]; then
             print_status "Frontend unit tests passed"
         else
             print_error "Frontend unit tests failed"
+            print_test_failure_help
             exit 1
         fi
         
@@ -170,6 +200,7 @@ if [ "$SOURCE_CHANGED" = true ]; then
             print_status "Backend unit tests passed"
         else
             print_error "Backend unit tests failed"
+            print_test_failure_help
             exit 1
         fi
         

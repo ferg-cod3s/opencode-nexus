@@ -1,0 +1,57 @@
+name: 'Display Cost Warning'
+description: 'Displays a warning when using GitHub-hosted runners instead of self-hosted runners'
+
+inputs:
+  cost_warning:
+    description: 'The cost warning message to display'
+    required: true
+  repository:
+    description: 'The repository name (owner/repo)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Display Cost Warning Banner
+      shell: bash
+      run: |
+        echo ""
+        echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+        echo "┃  ⚠️  COST WARNING: Using GitHub-Hosted Runner               ┃"
+        echo "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
+        echo "┃                                                              ┃"
+        echo "┃  ${{ inputs.cost_warning }}"
+        echo "┃                                                              ┃"
+        echo "┃  💡 To reduce costs, ensure self-hosted runner is online:   ┃"
+        echo "┃     1. SSH to your runner machine                           ┃"
+        echo "┃     2. cd ~/github-runner && ./svc.sh start                 ┃"
+        echo "┃                                                              ┃"
+        echo "┃  📊 Check runner status:                                    ┃"
+        echo "┃     https://github.com/${{ inputs.repository }}/settings/actions/runners"
+        echo "┃                                                              ┃"
+        echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+        echo ""
+        
+        # Also add to GitHub Actions annotations
+        echo "::warning::${{ inputs.cost_warning }}"
+
+    - name: Add Cost Warning to Summary
+      shell: bash
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << 'EOF'
+        ## ⚠️ Cost Warning
+        
+        This build is using a **GitHub-hosted runner** instead of the self-hosted runner.
+        
+        **Warning:** ${{ inputs.cost_warning }}
+        
+        ### How to Fix
+        1. Check runner status at: https://github.com/${{ inputs.repository }}/settings/actions/runners
+        2. If offline, SSH to the runner machine and run:
+           ```bash
+           cd ~/github-runner && ./svc.sh start
+           ```
+        3. Re-run this workflow once the runner is online
+        
+        ---
+        EOF

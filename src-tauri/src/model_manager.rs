@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 use crate::api_client::{ApiClient, ModelConfig, ModelInfo};
-use crate::error::{AppError, RetryConfig};
+use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -156,7 +156,7 @@ impl ModelManager {
         let loaded_providers: HashMap<String, ProviderConfig> =
             serde_json::from_str(&providers_json).map_err(|e| AppError::ParseError {
                 message: "Failed to parse providers file".to_string(),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         let mut providers = self.providers.write().await;
@@ -171,7 +171,7 @@ impl ModelManager {
         let providers_json =
             serde_json::to_string_pretty(&*providers).map_err(|e| AppError::ParseError {
                 message: "Failed to serialize providers".to_string(),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         std::fs::write(self.get_providers_file_path(), providers_json).map_err(|e| {
@@ -203,7 +203,7 @@ impl ModelManager {
         let loaded_preferences: ModelPreferences = serde_json::from_str(&preferences_json)
             .map_err(|e| AppError::ParseError {
                 message: "Failed to parse preferences file".to_string(),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         let mut preferences = self.preferences.write().unwrap();
@@ -218,7 +218,7 @@ impl ModelManager {
         let preferences_json =
             serde_json::to_string_pretty(&*preferences).map_err(|e| AppError::ParseError {
                 message: "Failed to serialize preferences".to_string(),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         std::fs::write(self.get_preferences_file_path(), preferences_json).map_err(|e| {
@@ -531,6 +531,19 @@ impl Default for ModelSettings {
             frequency_penalty: None,
             presence_penalty: None,
             stop_sequences: None,
+        }
+    }
+}
+
+impl Default for ModelCapabilities {
+    fn default() -> Self {
+        Self {
+            text_generation: true,
+            function_calling: false,
+            vision: false,
+            streaming: false,
+            json_mode: true,
+            parallel_tools: false,
         }
     }
 }

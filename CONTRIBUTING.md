@@ -203,6 +203,15 @@ Test with:
 
 ## Testing Requirements
 
+### 🚨 100% Test Pass Rate Required
+
+**This is a non-negotiable quality standard.** All tests must pass at all times.
+
+- **Zero-Failure Tolerance:** No tests should ever be in a failing state
+- **Test-Fix-First:** When changing logic that breaks tests, fix the tests to reflect new behavior
+- **No Test Skipping:** Never use `.skip()`, `@skip`, `#[ignore]`, or comment out tests
+- **Shared Responsibility:** If you change code, you maintain the related tests
+
 ### Test Coverage
 - **Target:** 80-90% for critical paths
 - **Required:** All public APIs have tests
@@ -266,7 +275,8 @@ test('user flow', async ({ page }) => {
    - Testing done
    - Any breaking changes
 3. **Checklist:**
-   - [ ] Tests written and passing
+   - [ ] All tests passing (100% pass rate - no skipped or failing tests)
+   - [ ] Tests updated to reflect any logic changes
    - [ ] Code follows style guidelines
    - [ ] Documentation updated
    - [ ] No new warnings (linting)

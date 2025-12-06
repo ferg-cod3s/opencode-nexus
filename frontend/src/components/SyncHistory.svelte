@@ -242,7 +242,7 @@
             </div>
 
             {#if selectedSync.failed > 0}
-              <button class="retry-button" on:click={retryFailedMessages}>
+              <button class="retry-button" data-testid="retry-button" on:click={retryFailedMessages}>
                 Retry Failed Messages
               </button>
             {/if}

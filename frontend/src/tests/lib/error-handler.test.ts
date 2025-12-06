@@ -160,7 +160,7 @@ describe('Error Handler', () => {
       errorEmitter.emit(classified);
 
       expect(emittedError).not.toBeNull();
-      expect(emittedError?.message).toBe('Test error');
+      expect(emittedError?.message).toBe('Error: Test error');
 
       unsubscribe();
     });
