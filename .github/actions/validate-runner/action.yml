@@ -71,7 +71,7 @@ runs:
         
         # Get Xcode version if on macOS
         if [ "$OS_NAME" = "Darwin" ]; then
-          XCODE_VERSION=$(xcodebuild -version 2>/dev/null | head -1 | awk '{print $2}' || echo "not installed")
+          XCODE_VERSION=$(xcodebuild -version 2>/dev/null | head -1 | awk '{print $2}' || echo "not-installed")
         else
           XCODE_VERSION="N/A"
         fi
