@@ -37,7 +37,7 @@ jobs:
     uses: ./.github/workflows/runner-detection.yml
     with:
       preferred_runner: 'self-hosted'
-      fallback_runner: 'macos-14'
+      fail_if_unavailable: true
       require_macos: true
       check_disk_space: 15
 

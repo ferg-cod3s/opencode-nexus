@@ -16,7 +16,7 @@ on:
       fail_if_unavailable:
         description: 'Fail workflow if self-hosted runner is unavailable'
         required: false
-        default: false
+        default: true
         type: boolean
       require_macos:
         description: 'Whether macOS is required'
