@@ -121,13 +121,13 @@ jobs:
           echo "Building Rust code for iOS (aarch64-apple-ios)..."
           
           # Build with correct library name from Cargo.toml
-          RUST_BACKTRACE=0 cargo build --target aarch64-apple-ios --release
+          RUST_BACKTRACE=0 cargo build --target aarch64-apple-ios --release --lib
           
           RUST_BUILD_TIME=$(($(date +%s) - START_TIME))
           echo "::notice::Rust build completed in ${RUST_BUILD_TIME}s"
           
           # Verify library was built
-          LIB_NAME="libsrc_tauri.a"
+          LIB_NAME="libsrc_tauri_lib.a"
           RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
           
           echo "🔍 Checking Rust build output..."
@@ -174,7 +174,7 @@ jobs:
           
           # Copy the pre-built library to where Xcode expects it
           echo "📦 Copying pre-built library..."
-          LIB_NAME="libsrc_tauri.a"
+          LIB_NAME="libsrc_tauri_lib.a"
           RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
           
           cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/Release/libapp.a
