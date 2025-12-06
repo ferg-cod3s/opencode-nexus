@@ -31,32 +31,14 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "category": "Utility",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "iOS": {
-      "developmentTeam": "PCJU8QD9FN",
-      "minimumSystemVersion": "14.0",
-      "bundleVersion": "30",
-      "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": false,
-          "NSExceptionDomains": {
-            "api.opencode.ai": {
-              "NSExceptionAllowsInsecureHTTPLoads": false,
-              "NSExceptionMinimumTLSVersion": "TLSv1.2",
-              "NSExceptionRequiresForwardSecrecy": true
-            },
-            "opencode.ai": {
-              "NSExceptionAllowsInsecureHTTPLoads": false,
-              "NSExceptionMinimumTLSVersion": "TLSv1.2",
-              "NSExceptionRequiresForwardSecrecy": true
-            }
+    ]
+  }
           }
         },
         "ITSAppUsesNonExemptEncryption": true,
