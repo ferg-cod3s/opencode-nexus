@@ -163,11 +163,7 @@ jobs:
         run: |
           cd src-tauri
           
-           # Install XcodeGen via Homebrew (if not already installed)
-           if ! command -v xcodegen &> /dev/null; then
-             echo "📦 Installing XcodeGen via Homebrew..."
-             brew install xcodegen
-           fi
+           # XcodeGen is pre-installed on runner via brew
            echo "✅ XcodeGen ready: $(xcodegen --version)"
 
            # Initialize the iOS project (creates gen/apple/)
