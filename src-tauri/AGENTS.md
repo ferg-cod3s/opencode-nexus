@@ -88,6 +88,15 @@ src-tauri/
 
 ## Testing Patterns
 
+### 🚨 100% Test Pass Rate Required
+
+All tests must pass at all times. See [../AGENTS.md](../AGENTS.md) for full policy.
+
+- **Never skip tests** with `#[ignore]` or comment them out
+- **Update tests** when logic changes break them
+- **Remove obsolete tests** when features are removed
+- **Run tests before committing:** `cargo test`
+
 ```rust
 #[cfg(test)]
 mod tests {

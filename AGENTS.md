@@ -274,6 +274,51 @@ async fn my_command(
 - **No Comments:** Code should be self-documenting. Add comments only if logic is non-obvious
 - **Testing Coverage:** Target 80-90% for critical paths
 
+## 🚨 Testing Policy: 100% Pass Rate Required
+
+**This is a non-negotiable quality standard.** All tests must pass at all times across all branches.
+
+### Core Principles
+
+1. **Zero-Failure Tolerance:** No tests should ever be in a failing state on any branch
+2. **Test-Fix-First:** When changing logic that breaks tests, **fix the tests first** to reflect new behavior
+3. **No Test Skipping:** Never use `.skip()`, `@skip`, `#[ignore]`, or comment out tests to "fix" failures
+4. **Test Evolution:** Tests must evolve with the codebase, not accumulate as broken artifacts
+5. **Shared Responsibility:** Everyone who changes code is responsible for maintaining related tests
+
+### Quick Reference: What To Do
+
+| Situation | ❌ Wrong Approach | ✅ Correct Approach |
+|-----------|-------------------|---------------------|
+| Logic change breaks test | Skip test, add new test | Update existing test to reflect new behavior |
+| Flaky test | Add `.skip()` and move on | Fix the flakiness or refactor the test |
+| Feature removed | Leave related tests failing | Remove obsolete tests entirely |
+| Test too slow | Skip in CI | Optimize test or split into smaller tests |
+| PR has failing tests | Merge anyway | Fix all tests before merging |
+| Don't understand why test fails | Comment it out | Investigate root cause, ask for help |
+
+### Enforcement Points
+
+```bash
+# Pre-commit hook - blocks commit if tests fail
+git commit  # Runs tests automatically, blocks on failure
+
+# Pre-push hook - blocks push if tests fail  
+git push    # Runs full test suite, blocks on failure
+
+# CI/CD - fails build if any test fails
+# All PRs require passing tests to merge
+```
+
+### For AI Agents
+
+When working on this codebase:
+- **Always run tests** after making changes: `cargo test && cd frontend && bun test`
+- **Never skip or ignore failing tests** - fix them or ask for clarification
+- **Update tests when logic changes** - tests document expected behavior
+- **If unsure why a test fails**, investigate the test and the code it tests before modifying either
+- **Report test failures** to the user with clear context about what's failing and why
+
 ## Project Structure & Agent Context Files
 
 ```
