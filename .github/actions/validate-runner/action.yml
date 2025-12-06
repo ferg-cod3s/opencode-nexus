@@ -1,0 +1,175 @@
+name: 'Validate Runner'
+description: 'Validates that the runner environment meets requirements for iOS builds'
+
+inputs:
+  runner_type:
+    description: 'The type of runner being used (self-hosted or macos-14)'
+    required: true
+  require_macos:
+    description: 'Whether macOS is required'
+    required: false
+    default: 'true'
+  min_disk_space_gb:
+    description: 'Minimum required disk space in GB'
+    required: false
+    default: '10'
+  check_xcode:
+    description: 'Whether to check for Xcode installation'
+    required: false
+    default: 'true'
+
+outputs:
+  os_name:
+    description: 'The operating system name'
+    value: ${{ steps.check-env.outputs.os_name }}
+  os_version:
+    description: 'The operating system version'
+    value: ${{ steps.check-env.outputs.os_version }}
+  arch:
+    description: 'The CPU architecture'
+    value: ${{ steps.check-env.outputs.arch }}
+  disk_space_gb:
+    description: 'Available disk space in GB'
+    value: ${{ steps.check-env.outputs.disk_space_gb }}
+  xcode_version:
+    description: 'Installed Xcode version'
+    value: ${{ steps.check-env.outputs.xcode_version }}
+  validation_passed:
+    description: 'Whether all validations passed'
+    value: ${{ steps.validate.outputs.passed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Check Runner Environment
+      id: check-env
+      shell: bash
+      run: |
+        echo "🔍 Checking runner environment..."
+        echo ""
+        
+        # Get OS information
+        OS_NAME=$(uname -s)
+        OS_VERSION=$(sw_vers -productVersion 2>/dev/null || echo "unknown")
+        ARCH=$(uname -m)
+        
+        echo "os_name=$OS_NAME" >> $GITHUB_OUTPUT
+        echo "os_version=$OS_VERSION" >> $GITHUB_OUTPUT
+        echo "arch=$ARCH" >> $GITHUB_OUTPUT
+        
+        # Get disk space (in GB)
+        if [ "$OS_NAME" = "Darwin" ]; then
+          # macOS - use df and convert to GB
+          DISK_AVAILABLE_KB=$(df -k . | tail -1 | awk '{print $4}')
+          DISK_SPACE_GB=$((DISK_AVAILABLE_KB / 1024 / 1024))
+        else
+          # Linux fallback
+          DISK_AVAILABLE_KB=$(df -k . | tail -1 | awk '{print $4}')
+          DISK_SPACE_GB=$((DISK_AVAILABLE_KB / 1024 / 1024))
+        fi
+        echo "disk_space_gb=$DISK_SPACE_GB" >> $GITHUB_OUTPUT
+        
+        # Get Xcode version if on macOS
+        if [ "$OS_NAME" = "Darwin" ]; then
+          XCODE_VERSION=$(xcodebuild -version 2>/dev/null | head -1 | awk '{print $2}' || echo "not installed")
+        else
+          XCODE_VERSION="N/A"
+        fi
+        echo "xcode_version=$XCODE_VERSION" >> $GITHUB_OUTPUT
+        
+        # Display environment info
+        echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+        echo "┃  🖥️  Runner Environment                    ┃"
+        echo "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
+        echo "┃  Runner Type: ${{ inputs.runner_type }}"
+        echo "┃  OS: $OS_NAME $OS_VERSION"
+        echo "┃  Architecture: $ARCH"
+        echo "┃  Disk Space: ${DISK_SPACE_GB}GB available"
+        echo "┃  Xcode: $XCODE_VERSION"
+        echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+        echo ""
+
+    - name: Validate Requirements
+      id: validate
+      shell: bash
+      run: |
+        PASSED=true
+        ERRORS=""
+        
+        echo "🔎 Validating runner requirements..."
+        echo ""
+        
+        # Check macOS requirement
+        if [ "${{ inputs.require_macos }}" = "true" ]; then
+          if [ "${{ steps.check-env.outputs.os_name }}" != "Darwin" ]; then
+            PASSED=false
+            ERRORS="${ERRORS}\n❌ macOS required but running on ${{ steps.check-env.outputs.os_name }}"
+            echo "::error::macOS is required for iOS builds but running on ${{ steps.check-env.outputs.os_name }}"
+          else
+            echo "✅ macOS requirement satisfied"
+          fi
+        fi
+        
+        # Check disk space
+        MIN_DISK=${{ inputs.min_disk_space_gb }}
+        AVAILABLE_DISK=${{ steps.check-env.outputs.disk_space_gb }}
+        if [ "$AVAILABLE_DISK" -lt "$MIN_DISK" ]; then
+          PASSED=false
+          ERRORS="${ERRORS}\n❌ Insufficient disk space: ${AVAILABLE_DISK}GB < ${MIN_DISK}GB required"
+          echo "::error::Insufficient disk space: ${AVAILABLE_DISK}GB available, ${MIN_DISK}GB required"
+        else
+          echo "✅ Disk space requirement satisfied (${AVAILABLE_DISK}GB >= ${MIN_DISK}GB)"
+        fi
+        
+        # Check Xcode installation
+        if [ "${{ inputs.check_xcode }}" = "true" ]; then
+          XCODE_VER="${{ steps.check-env.outputs.xcode_version }}"
+          if [ "$XCODE_VER" = "not installed" ] || [ "$XCODE_VER" = "N/A" ]; then
+            PASSED=false
+            ERRORS="${ERRORS}\n❌ Xcode is not installed"
+            echo "::error::Xcode is required for iOS builds but is not installed"
+          else
+            echo "✅ Xcode installed (version $XCODE_VER)"
+          fi
+        fi
+        
+        # Check for ARM64 architecture (recommended for iOS builds)
+        if [ "${{ steps.check-env.outputs.arch }}" = "arm64" ]; then
+          echo "✅ ARM64 architecture (optimal for iOS builds)"
+        else
+          echo "⚠️ x86_64 architecture (iOS builds will use Rosetta emulation)"
+        fi
+        
+        echo ""
+        echo "passed=$PASSED" >> $GITHUB_OUTPUT
+        
+        if [ "$PASSED" = "true" ]; then
+          echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+          echo "┃  ✅ All validations passed                  ┃"
+          echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+        else
+          echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
+          echo "┃  ❌ Validation failed                       ┃"
+          echo "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
+          echo -e "$ERRORS"
+          echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+          exit 1
+        fi
+
+    - name: Add Validation Summary
+      shell: bash
+      run: |
+        cat >> $GITHUB_STEP_SUMMARY << EOF
+        ## 🖥️ Runner Validation
+        
+        | Property | Value |
+        |----------|-------|
+        | **Runner Type** | ${{ inputs.runner_type }} |
+        | **OS** | ${{ steps.check-env.outputs.os_name }} ${{ steps.check-env.outputs.os_version }} |
+        | **Architecture** | ${{ steps.check-env.outputs.arch }} |
+        | **Disk Space** | ${{ steps.check-env.outputs.disk_space_gb }}GB |
+        | **Xcode** | ${{ steps.check-env.outputs.xcode_version }} |
+        | **Status** | ${{ steps.validate.outputs.passed == 'true' && '✅ Passed' || '❌ Failed' }} |
+        
+        ---
+        EOF

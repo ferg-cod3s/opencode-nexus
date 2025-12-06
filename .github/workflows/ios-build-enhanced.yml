@@ -40,7 +40,6 @@ jobs:
       fallback_runner: 'macos-14'
       require_macos: true
       check_disk_space: 15
-      validate_tools: true
 
   # Pre-build validation and setup
   validate-setup:
@@ -51,6 +50,11 @@ jobs:
     if: always() && needs.detect-runner.result == 'success'
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Display Cost Warning
         if: needs.detect-runner.outputs.cost_warning != ''
         uses: ./.github/actions/display-cost-warning
@@ -58,10 +62,10 @@ jobs:
           cost_warning: ${{ needs.detect-runner.outputs.cost_warning }}
           repository: ${{ github.repository }}
 
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Validate Runner Environment
+        uses: ./.github/actions/validate-runner
         with:
-          fetch-depth: 0
+          runner_type: ${{ needs.detect-runner.outputs.runner_type }}
 
       - name: Set up environment variables
         run: |
@@ -78,13 +82,6 @@ jobs:
 
           echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
           echo "Clean build: $CLEAN_BUILD"
-
-      - name: Validate Runner Environment
-        uses: ./.github/actions/validate-runner
-        with:
-          runner_type: ${{ needs.detect-runner.outputs.runner_type }}
-          check_disk_space: 15
-          check_memory: true
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -151,17 +148,17 @@ jobs:
     if: always() && needs.detect-runner.result == 'success' && needs.validate-setup.result == 'success'
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Display Cost Warning
         if: needs.detect-runner.outputs.cost_warning != ''
         uses: ./.github/actions/display-cost-warning
         with:
           cost_warning: ${{ needs.detect-runner.outputs.cost_warning }}
           repository: ${{ github.repository }}
-
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Restore environment variables
         run: |

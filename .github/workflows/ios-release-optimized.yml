@@ -38,16 +38,22 @@ jobs:
     if: always() && needs.detect-runner.result == 'success'
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Display Cost Warning
         if: needs.detect-runner.outputs.cost_warning != ''
         uses: ./.github/actions/display-cost-warning
         with:
           cost_warning: ${{ needs.detect-runner.outputs.cost_warning }}
           repository: ${{ github.repository }}
-      - name: Checkout code
-        uses: actions/checkout@v4
+
+      - name: Validate Runner Environment
+        uses: ./.github/actions/validate-runner
         with:
-          fetch-depth: 0
+          runner_type: ${{ needs.detect-runner.outputs.runner_type }}
 
       - name: Set up environment variables
         run: |
@@ -60,11 +66,6 @@ jobs:
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
 
           echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
-
-      - name: Validate Runner Environment
-        uses: ./.github/actions/validate-runner
-        with:
-          runner_type: ${{ needs.detect-runner.outputs.runner_type }}
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
