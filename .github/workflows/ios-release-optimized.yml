@@ -23,7 +23,7 @@ on:
 jobs:
   build-ios:
     name: iOS TestFlight Build
-    runs-on: macos-14
+    runs-on: self-hosted
     timeout-minutes: 90
 
     steps:
