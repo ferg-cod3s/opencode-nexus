@@ -119,7 +119,7 @@ jobs:
           echo "::notice::Rust build completed in ${RUST_BUILD_TIME}s"
           
           # Verify library was built
-          LIB_NAME="libsrc_tauri_lib.a"
+          LIB_NAME="libsrc_tauri.a"
           RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
           
           if [ ! -f "$RUST_LIB_PATH" ]; then
@@ -149,7 +149,7 @@ jobs:
           
           # Copy the pre-built library to where Xcode expects it
           echo "📦 Copying pre-built library..."
-          LIB_NAME="libsrc_tauri_lib.a"
+          LIB_NAME="libsrc_tauri.a"
           RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
           
           cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/Release/libapp.a
