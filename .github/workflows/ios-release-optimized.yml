@@ -47,12 +47,19 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '15.4'
+          xcode-version: '26.0'
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: aarch64-apple-ios
+
+      - name: Verify Rust Installation
+        run: |
+          echo "🔍 Verifying Rust installation..."
+          rustc --version
+          cargo --version
+          echo "✅ Rust verified as installed"
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v1
