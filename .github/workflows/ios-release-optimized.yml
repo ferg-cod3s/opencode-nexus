@@ -21,21 +21,10 @@ on:
         type: string
 
 jobs:
-  detect-runner:
-    name: Detect Runner for iOS Build
-    uses: ./.github/workflows/runner-detection.yml
-    with:
-      preferred_runner: 'self-hosted'
-      fail_if_unavailable: false
-      require_macos: true
-      check_disk_space: 10
-
   build-ios:
     name: iOS TestFlight Build
-    runs-on: ${{ needs.detect-runner.outputs.runner_type }}
-    needs: detect-runner
+    runs-on: macos-14
     timeout-minutes: 90
-    if: always() && needs.detect-runner.result == 'success'
 
     steps:
       - name: Checkout code
