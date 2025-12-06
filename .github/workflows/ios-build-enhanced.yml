@@ -308,21 +308,12 @@ jobs:
             rm -rf gen/apple
           fi
           
-           # Install XcodeGen directly (avoid brew dependency)
-           echo "📦 Installing XcodeGen..."
-           XCODEGEN_URL="https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen.zip"
-           curl -L "$XCODEGEN_URL" -o xcodegen.zip
-           unzip -q xcodegen.zip
-           chmod +x xcodegen
-           sudo mv xcodegen /usr/local/bin/ || mv xcodegen /usr/local/bin/
-           rm xcodegen.zip
-
-           # Verify XcodeGen installation
+           # Install XcodeGen via Homebrew (if not already installed)
            if ! command -v xcodegen &> /dev/null; then
-             echo "❌ XcodeGen installation failed"
-             exit 1
+             echo "📦 Installing XcodeGen via Homebrew..."
+             brew install xcodegen
            fi
-           echo "✅ XcodeGen installed: $(xcodegen --version)"
+           echo "✅ XcodeGen ready: $(xcodegen --version)"
 
            # Initialize iOS project
            echo "Initializing iOS project..."
