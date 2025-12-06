@@ -99,9 +99,17 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Install Tauri CLI
+      - name: Verify Tauri CLI
         run: |
-          cargo install tauri-cli --version "^2" --locked
+          echo "🔍 Checking Tauri CLI installation..."
+          if command -v cargo-tauri >/dev/null 2>&1; then
+            TAURI_VERSION=$(cargo tauri --version 2>/dev/null || echo "Unknown")
+            echo "✅ Tauri CLI already installed: $TAURI_VERSION"
+          else
+            echo "📦 Installing Tauri CLI..."
+            cargo install tauri-cli --version "^2" --locked
+            echo "✅ Tauri CLI installed successfully"
+          fi
 
       - name: Pre-build Rust library for iOS
         id: prebuild
@@ -121,6 +129,10 @@ jobs:
           # Verify library was built
           LIB_NAME="libsrc_tauri.a"
           RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
+          
+          echo "🔍 Checking Rust build output..."
+          echo "Target directory contents:"
+          find target/aarch64-apple-ios/release -name "*.a" -type f -exec ls -la {} \;
           
           if [ ! -f "$RUST_LIB_PATH" ]; then
             echo "❌ ERROR: Expected library not found at $RUST_LIB_PATH"
