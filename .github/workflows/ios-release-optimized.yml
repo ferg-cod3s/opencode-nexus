@@ -102,12 +102,7 @@ jobs:
       - name: Verify Tauri CLI
         run: |
           echo "🔍 Checking Tauri CLI installation..."
-          if command -v cargo-tauri >/dev/null 2>&1; then
-            echo "✅ Tauri CLI is available"
-          else
-            echo "❌ Tauri CLI not found - this should not happen on self-hosted runner"
-            exit 1
-          fi
+          cargo-tauri --version
 
       - name: Pre-build Rust library for iOS
         id: prebuild
