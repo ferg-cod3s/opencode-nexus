@@ -99,11 +99,6 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Verify Tauri CLI
-        run: |
-          echo "🔍 Checking Tauri CLI installation..."
-          cargo-tauri --version
-
       - name: Pre-build Rust library for iOS
         id: prebuild
         run: |
