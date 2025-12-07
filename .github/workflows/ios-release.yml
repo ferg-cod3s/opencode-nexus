@@ -78,7 +78,8 @@ jobs:
       - name: Build iOS app
         run: |
           cd src-tauri
-          cargo tauri ios build --release
+          # Tauri 2.x ios build is release mode by default
+          cargo tauri ios build --ci
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
