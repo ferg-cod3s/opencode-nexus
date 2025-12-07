@@ -51,8 +51,34 @@ jobs:
       - name: Install frontend dependencies
         run: cd frontend && bun install --frozen-lockfile
 
+      - name: Setup Homebrew and dependencies
+        run: |
+          # Ensure homebrew is in PATH for self-hosted runner
+          eval "$(/opt/homebrew/bin/brew shellenv)" || eval "$(/usr/local/bin/brew shellenv)" || true
+          echo "$(brew --prefix)/bin" >> $GITHUB_PATH
+          
+          # Install xcodegen if not present
+          if ! command -v xcodegen &> /dev/null; then
+            echo "Installing xcodegen..."
+            brew install xcodegen
+          fi
+          
+          # Install cocoapods if not present
+          if ! command -v pod &> /dev/null; then
+            echo "Installing cocoapods..."
+            brew install cocoapods
+          fi
+
+      - name: Install Tauri CLI
+        run: |
+          if ! command -v cargo-tauri &> /dev/null; then
+            cargo install tauri-cli --version "^2.0.0" --locked
+          fi
+
       - name: Build iOS app
-        run: npm run ios:build:release
+        run: |
+          cd src-tauri
+          cargo tauri ios build --release
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 

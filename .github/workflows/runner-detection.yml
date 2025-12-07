@@ -28,6 +28,19 @@ on:
         required: false
         default: 10
         type: number
+    outputs:
+      runner_type:
+        description: 'The selected runner type to use'
+        value: ${{ jobs.detect-runner.outputs.runner_type }}
+      cost_warning:
+        description: 'Cost warning message if using GitHub-hosted runner'
+        value: ${{ jobs.detect-runner.outputs.cost_warning }}
+      runner_available:
+        description: 'Whether a suitable runner is available'
+        value: ${{ jobs.detect-runner.outputs.runner_available }}
+      disk_space_gb:
+        description: 'Minimum disk space requirement'
+        value: ${{ jobs.detect-runner.outputs.disk_space_gb }}
 
 jobs:
   detect-runner:
