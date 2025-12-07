@@ -32,10 +32,14 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runners")
           
-          # Extract self-hosted runner details
-          SELF_HOSTED_RUNNER=$(echo "$RUNNER_INFO" | jq -r '.runners[] | select(.labels[] | contains("self-hosted"))')
+          # Check if any runners exist
+          RUNNER_COUNT=$(echo "$RUNNER_INFO" | jq '.runners | length' 2>/dev/null || echo "0")
           
-          if [ -n "$SELF_HOSTED_RUNNER" ]; then
+          if [ "$RUNNER_COUNT" -gt 0 ]; then
+            # Extract self-hosted runner details safely
+            SELF_HOSTED_RUNNER=$(echo "$RUNNER_INFO" | jq -r '.runners[] | select(.labels[]? // [] | contains("self-hosted"))' 2>/dev/null || echo "")
+            
+            if [ -n "$SELF_HOSTED_RUNNER" ]; then
             RUNNER_STATUS=$(echo "$SELF_HOSTED_RUNNER" | jq -r '.status')
             RUNNER_NAME=$(echo "$SELF_HOSTED_RUNNER" | jq -r '.name')
             RUNNER_ID=$(echo "$SELF_HOSTED_RUNNER" | jq -r '.id')

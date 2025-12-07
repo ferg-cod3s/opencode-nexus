@@ -36,7 +36,8 @@ describe('determineStartupRoute', () => {
     const route = determineStartupRoute({
       environment: 'tauri',
       httpBackendUrl: undefined,
-      hasSavedConnections: true
+      hasSavedConnections: true,
+      isConnected: true
     });
 
     expect(route).toBe('/chat');
@@ -56,7 +57,8 @@ describe('determineStartupRoute', () => {
     const route = determineStartupRoute({
       environment: 'test',
       httpBackendUrl: undefined,
-      hasSavedConnections: true
+      hasSavedConnections: true,
+      isConnected: true
     });
 
     expect(route).toBe('/chat');

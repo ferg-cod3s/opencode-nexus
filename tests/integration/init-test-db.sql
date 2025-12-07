@@ -1,4 +1,4 @@
-# Initialize test database for integration tests
+-- Initialize test database for integration tests
 -- This script runs when the PostgreSQL test container starts
 
 -- Create test schemas

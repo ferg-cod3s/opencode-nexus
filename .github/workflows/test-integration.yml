@@ -61,6 +61,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Clean up disk space
+        run: |
+          echo "🧹 Cleaning up disk space before Docker build..."
+          # Remove old Docker images and containers
+          docker system prune -af --volumes
+          # Clean package manager cache
+          rm -rf ~/.npm ~/.cache ~/.cargo/registry/cache
+          # Remove large temporary files
+          find /tmp -name "*.tmp" -o -name "*.log" -mtime +7 -delete
+          # Show available space
+          df -h
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
@@ -128,6 +140,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Clean up before Docker build
+        run: |
+          echo "🧹 Cleaning up Docker environment..."
+          docker system prune -af --volumes
+          # Remove large cache directories
+          rm -rf ~/.npm ~/.cache ~/.cargo/registry/cache
+          # Clean tmp
+          find /tmp -name "*.tmp" -o -name "*.log" -mtime +1 -delete
+          df -h
+
       - name: Build test images
         run: |
           docker compose -f docker-compose.test.yml build frontend-test backend-test mock-opencode-server
@@ -153,41 +175,3 @@ jobs:
         if: always()
         run: |
           docker compose -f docker-compose.test.yml down -v --remove-orphans
-
-  api-integration-test:
-    name: API Integration Tests
-    runs-on: ubuntu-latest
-    # Temporarily disabled until mock server infrastructure is ready
-    # TODO: Enable when Docker-based mock server is integrated
-    if: false
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-      
-      - name: Install dependencies
-        working-directory: ./frontend
-        run: bun install --frozen-lockfile
-      
-      - name: Start mock OpenCode server
-        working-directory: ./frontend
-        run: |
-          bun run opencode:start
-          sleep 5
-      
-      - name: Run API integration tests
-        working-directory: ./frontend
-        env:
-          NODE_ENV: test
-          OPENCODE_API_URL: http://localhost:4096
-        run: bun test src/tests/api/
-      
-      - name: Stop mock server
-        if: always()
-        working-directory: ./frontend
-        run: bun run opencode:stop

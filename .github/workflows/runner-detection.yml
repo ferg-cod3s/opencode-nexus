@@ -1,0 +1,134 @@
+name: Detect and Validate Runner
+
+on:
+  workflow_call:
+    inputs:
+      preferred_runner:
+        description: 'Preferred runner type'
+        required: false
+        default: 'self-hosted'
+        type: string
+      fail_if_unavailable:
+        description: 'Fail if preferred runner is unavailable'
+        required: false
+        default: false
+        type: boolean
+      require_macos:
+        description: 'Require macOS runner'
+        required: false
+        default: false
+        type: boolean
+      check_disk_space:
+        description: 'Minimum disk space in GB'
+        required: false
+        default: 10
+        type: number
+
+jobs:
+  detect-runner:
+    name: Runner Detection
+    runs-on: ubuntu-latest
+    outputs:
+      runner_type: ${{ steps.detection.outputs.runner_type }}
+      cost_warning: ${{ steps.detection.outputs.cost_warning }}
+      runner_available: ${{ steps.detection.outputs.runner_available }}
+      disk_space_gb: ${{ steps.detection.outputs.disk_space_gb }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Detect Runner Type
+        id: detection
+        run: |
+          PREFERRED_RUNNER="${{ inputs.preferred_runner }}"
+          FAIL_IF_UNAVAILABLE="${{ inputs.fail_if_unavailable }}"
+          REQUIRE_MACOS="${{ inputs.require_macos }}"
+          MIN_DISK_SPACE="${{ inputs.check_disk_space }}"
+          
+          echo "🔍 Detecting optimal runner for build requirements..."
+          echo "Preferred runner: $PREFERRED_RUNNER"
+          echo "Require macOS: $REQUIRE_MACOS"
+          echo "Minimum disk space: ${MIN_DISK_SPACE}GB"
+          
+          # Check if self-hosted runner is available
+          SELF_HOSTED_AVAILABLE=false
+          COST_WARNING=""
+          
+          if [ "$PREFERRED_RUNNER" = "self-hosted" ]; then
+            echo "Checking for self-hosted runners..."
+            
+            # Get runner information from GitHub API
+            RUNNER_INFO=$(curl -s \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runners" 2>/dev/null || echo '{"runners": []}')
+            
+            # Check for self-hosted runners safely
+            SELF_HOSTED_COUNT=$(echo "$RUNNER_INFO" | jq '.runners | length' 2>/dev/null || echo "0")
+            
+            if [ "$SELF_HOSTED_COUNT" -gt 0 ]; then
+              # Check if any self-hosted runner is online
+              ONLINE_RUNNERS=$(echo "$RUNNER_INFO" | jq -r '.runners[] | select(.status == "online") | .name' 2>/dev/null || echo "")
+              
+              if [ -n "$ONLINE_RUNNERS" ]; then
+                SELF_HOSTED_AVAILABLE=true
+                echo "✅ Self-hosted runner(s) available: $ONLINE_RUNNERS"
+                
+                # Check if macOS runner is available
+                if [ "$REQUIRE_MACOS" = "true" ]; then
+                  MACOS_RUNNER=$(echo "$RUNNER_INFO" | jq -r '.runners[] | select(.status == "online" and (.os // "" | contains("macos"))) | .name' 2>/dev/null || echo "")
+                  if [ -z "$MACOS_RUNNER" ]; then
+                    SELF_HOSTED_AVAILABLE=false
+                    echo "⚠️ No macOS self-hosted runner available"
+                  else
+                    echo "✅ macOS self-hosted runner available: $MACOS_RUNNER"
+                  fi
+                fi
+              else
+                echo "⚠️ Self-hosted runners found but none online"
+                SELF_HOSTED_AVAILABLE=false
+              fi
+            else
+              echo "ℹ️ No self-hosted runners configured"
+            fi
+          fi
+          
+          # Determine final runner type
+          if [ "$SELF_HOSTED_AVAILABLE" = "true" ]; then
+            RUNNER_TYPE="self-hosted"
+            echo "✅ Using self-hosted runner"
+          else
+            RUNNER_TYPE="ubuntu-latest"
+            COST_WARNING="⚠️ Using GitHub-hosted runner (higher cost) - self-hosted runner unavailable"
+            echo "ℹ️ Falling back to GitHub-hosted runner: $RUNNER_TYPE"
+            
+            if [ "$FAIL_IF_UNAVAILABLE" = "true" ]; then
+              echo "❌ Preferred runner required but unavailable"
+              echo "runner_available=false" >> $GITHUB_OUTPUT
+              exit 1
+            fi
+          fi
+          
+          # Output results
+          echo "runner_type=$RUNNER_TYPE" >> $GITHUB_OUTPUT
+          echo "runner_available=true" >> $GITHUB_OUTPUT
+          
+          if [ -n "$COST_WARNING" ]; then
+            echo "cost_warning=$COST_WARNING" >> $GITHUB_OUTPUT
+          fi
+          
+          # Check disk space (placeholder for actual implementation)
+          echo "disk_space_gb=$MIN_DISK_SPACE" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "# 🏃 Runner Detection Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Selected Runner**: ${{ steps.detection.outputs.runner_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Available**: ${{ steps.detection.outputs.runner_available }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Disk Space Check**: ${{ steps.detection.outputs.disk_space_gb }}GB minimum" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.detection.outputs.cost_warning }}" != "" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ ${{ steps.detection.outputs.cost_warning }}" >> $GITHUB_STEP_SUMMARY
+          fi

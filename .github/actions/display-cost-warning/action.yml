@@ -1,57 +1,33 @@
-name: 'Display Cost Warning'
-description: 'Displays a warning when using GitHub-hosted runners instead of self-hosted runners'
+name: Display Cost Warning
+
+description: 'Display cost warning for using GitHub-hosted runners'
 
 inputs:
   cost_warning:
-    description: 'The cost warning message to display'
+    description: 'Cost warning message'
     required: true
+    type: string
   repository:
-    description: 'The repository name (owner/repo)'
+    description: 'Repository name'
     required: true
+    type: string
 
 runs:
   using: 'composite'
   steps:
-    - name: Display Cost Warning Banner
+    - name: Display Cost Warning
       shell: bash
       run: |
+        echo "💰 Cost Warning Display"
+        echo "Repository: ${{ inputs.repository }}"
+        echo "Warning: ${{ inputs.cost_warning }}"
         echo ""
-        echo "┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓"
-        echo "┃  ⚠️  COST WARNING: Using GitHub-Hosted Runner               ┃"
-        echo "┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫"
-        echo "┃                                                              ┃"
-        echo "┃  ${{ inputs.cost_warning }}"
-        echo "┃                                                              ┃"
-        echo "┃  💡 To reduce costs, ensure self-hosted runner is online:   ┃"
-        echo "┃     1. SSH to your runner machine                           ┃"
-        echo "┃     2. cd ~/github-runner && ./svc.sh start                 ┃"
-        echo "┃                                                              ┃"
-        echo "┃  📊 Check runner status:                                    ┃"
-        echo "┃     https://github.com/${{ inputs.repository }}/settings/actions/runners"
-        echo "┃                                                              ┃"
-        echo "┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛"
+        echo "💡 Tip: Consider setting up a self-hosted runner to reduce costs for frequent builds."
         echo ""
-        
-        # Also add to GitHub Actions annotations
-        echo "::warning::${{ inputs.cost_warning }}"
-
-    - name: Add Cost Warning to Summary
-      shell: bash
-      run: |
-        cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-        ## ⚠️ Cost Warning
-        
-        This build is using a **GitHub-hosted runner** instead of the self-hosted runner.
-        
-        **Warning:** ${{ inputs.cost_warning }}
-        
-        ### How to Fix
-        1. Check runner status at: https://github.com/${{ inputs.repository }}/settings/actions/runners
-        2. If offline, SSH to the runner machine and run:
-           ```bash
-           cd ~/github-runner && ./svc.sh start
-           ```
-        3. Re-run this workflow once the runner is online
-        
-        ---
-        EOF
+        echo "# 💰 Cost Warning" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Repository**: ${{ inputs.repository }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "⚠️ ${{ inputs.cost_warning }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "💡 **Tip**: Consider setting up a self-hosted runner to reduce costs for frequent builds." >> $GITHUB_STEP_SUMMARY
