@@ -55,6 +55,15 @@ src/
 
 ## Testing Patterns
 
+### 🚨 100% Test Pass Rate Required
+
+All tests must pass at all times. See [../AGENTS.md](../AGENTS.md) for full policy.
+
+- **Never skip tests** with `.skip()` or comment them out
+- **Update tests** when logic changes break them
+- **Remove obsolete tests** when features are removed
+- **Run tests before committing:** `bun test`
+
 **Unit Tests (Bun):**
 ```typescript
 import { describe, test, expect } from 'bun:test';

@@ -3,8 +3,9 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install only express (needed for mock server)
-RUN npm init -y && npm install express
+# Install express and curl (for health checks)
+RUN npm init -y && npm install express && \
+    apk add --no-cache curl
 
 # Copy mock data files
 COPY tests/integration/mock-server-data/ ./data/

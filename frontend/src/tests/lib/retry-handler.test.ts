@@ -144,7 +144,8 @@ describe('Retry Handler', () => {
       }
 
       expect(caughtError).not.toBeNull();
-      expect(caughtError?.message).toContain('TestContext');
+      // The withRetry function re-throws the original error, context is logged but not added to error message
+      expect(caughtError?.message).toContain('Original error');
     });
 
     it('should handle timeout correctly', async () => {

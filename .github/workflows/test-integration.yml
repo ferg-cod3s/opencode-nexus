@@ -1,5 +1,9 @@
 name: Integration Tests
 
+# 🚨 TESTING POLICY: 100% PASS RATE REQUIRED
+# All tests must pass. This workflow will fail the build on any test failure.
+# Do not add continue-on-error: true to test steps.
+
 on:
   push:
     branches: [ main, develop ]
