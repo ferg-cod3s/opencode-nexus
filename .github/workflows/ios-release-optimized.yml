@@ -106,9 +106,8 @@ jobs:
             TAURI_VERSION=$(cargo tauri --version 2>/dev/null || echo "Unknown")
             echo "✅ Tauri CLI already installed: $TAURI_VERSION"
           else
-            echo "📦 Installing Tauri CLI..."
-            cargo install tauri-cli --version "^2" --locked
-            echo "✅ Tauri CLI installed successfully"
+            echo "❌ Tauri CLI not found - this should not happen on self-hosted runner"
+            exit 1
           fi
 
       - name: Pre-build Rust library for iOS
