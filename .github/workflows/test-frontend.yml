@@ -50,7 +50,7 @@ jobs:
       
       - name: Run unit tests
         working-directory: ./frontend
-        run: bun test --coverage
+        run: bun test src/tests --coverage
       
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3

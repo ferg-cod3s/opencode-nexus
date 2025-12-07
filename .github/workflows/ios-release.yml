@@ -33,7 +33,9 @@ jobs:
         uses: oven-sh/setup-bun@v2
 
       - name: Setup Rust
-        run: rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios, aarch64-apple-ios-sim
 
       - name: Cache dependencies
         uses: actions/cache@v4

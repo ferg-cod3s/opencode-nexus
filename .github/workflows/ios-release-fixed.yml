@@ -1,13 +1,13 @@
 name: iOS TestFlight Release (Fixed)
 
+# DISABLED: Use ios-build-enhanced.yml instead
+# To re-enable, change 'never-trigger' back to 'main'
 on:
   push:
     tags:
       - 'ios-v*'
     branches:
-      - 'main'
-      - 'test-ios-build'
-      - 'release'
+      - 'never-trigger'
   workflow_dispatch:
     inputs:
       upload_to_testflight:
@@ -27,6 +27,7 @@ jobs:
     with:
       preferred_runner: 'self-hosted'
       fallback_runner: 'macos-14'
+      fail_if_unavailable: false
       require_macos: true
       check_disk_space: 10
 

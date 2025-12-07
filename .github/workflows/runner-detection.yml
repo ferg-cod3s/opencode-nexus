@@ -8,6 +8,11 @@ on:
         required: false
         default: 'self-hosted'
         type: string
+      fallback_runner:
+        description: 'Fallback runner if preferred is unavailable'
+        required: false
+        default: 'ubuntu-latest'
+        type: string
       fail_if_unavailable:
         description: 'Fail if preferred runner is unavailable'
         required: false
@@ -95,12 +100,20 @@ jobs:
           fi
           
           # Determine final runner type
+          FALLBACK_RUNNER="${{ inputs.fallback_runner }}"
+          
           if [ "$SELF_HOSTED_AVAILABLE" = "true" ]; then
             RUNNER_TYPE="self-hosted"
             echo "✅ Using self-hosted runner"
           else
-            RUNNER_TYPE="ubuntu-latest"
-            COST_WARNING="⚠️ Using GitHub-hosted runner (higher cost) - self-hosted runner unavailable"
+            # Use macOS fallback if macOS is required, otherwise use the specified fallback
+            if [ "$REQUIRE_MACOS" = "true" ]; then
+              RUNNER_TYPE="macos-14"
+              COST_WARNING="⚠️ Using GitHub-hosted macOS runner (higher cost at \$0.08/min) - self-hosted runner unavailable"
+            else
+              RUNNER_TYPE="$FALLBACK_RUNNER"
+              COST_WARNING="⚠️ Using GitHub-hosted runner (higher cost) - self-hosted runner unavailable"
+            fi
             echo "ℹ️ Falling back to GitHub-hosted runner: $RUNNER_TYPE"
             
             if [ "$FAIL_IF_UNAVAILABLE" = "true" ]; then
