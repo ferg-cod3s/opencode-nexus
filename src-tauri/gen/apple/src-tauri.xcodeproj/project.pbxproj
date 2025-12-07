@@ -7,15 +7,18 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		2710C695AA2A983ABEF7F130 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 53EEBFBFEBFC8F1B17A8A6D2 /* libapp.a */; };
 		47E63197CCCA9BBD0D33C438 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 62FB63092FE920050345DFC7 /* QuartzCore.framework */; };
 		62E86871ED5C510C94080892 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8353BA8FAE79F1C0AE605FF6 /* Security.framework */; };
 		6B75E98049548D6E03A78DC9 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 79A25E0B1DC9C7E06D52DC65 /* LaunchScreen.storyboard */; };
 		6F3CA82408CBBBFAA7941881 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A603BCABA1553CD550AB01FF /* MetalKit.framework */; };
 		8AA2D19F02156497B5000FD3 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F9301B777BACE59DC2977CFC /* Assets.xcassets */; };
 		8BAE58FC874E17A897B24CA7 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C4DBBD4E3DBB6727DA351C93 /* UIKit.framework */; };
+		987E8F97F8670DF08F5B2E92 /* libapp.a in Resources */ = {isa = PBXBuildFile; fileRef = 9845C7C670B79B86DFD74F8B /* libapp.a */; };
 		C6D8222776443B70F8A800AE /* libapp.a in Frameworks */ = {isa = PBXBuildFile; fileRef = DA940F5654ABABF5DD67205F /* libapp.a */; };
 		D26E98997DD2446A171E18ED /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B21F52C49F82666C6AD1CC3 /* WebKit.framework */; };
 		D4A12628A18800C44CCABC63 /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8CF145E9FA8BF544D259F2A3 /* assets */; };
+		E62883265D530E81FC9EBD66 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 2F2098DB04FCEAA5169BE536 /* PrivacyInfo.xcprivacy */; };
 		EBAFCF0753AE1DF4B3887532 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EB132CD251817B7C847CFF59 /* CoreGraphics.framework */; };
 		F7D2863638B34FDD575FD6EF /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 7E5EBFF9E91CDC85E8B1B3B3 /* main.mm */; };
 		FDF62037FCC8300827FF5D59 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9F035DDAFF9F17CBB6A7DB34 /* Metal.framework */; };
@@ -23,6 +26,10 @@
 
 /* Begin PBXFileReference section */
 		0C5D7940F7C4BFDEA6173651 /* src-tauri_iOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "src-tauri_iOS.entitlements"; sourceTree = "<group>"; };
+		2F2098DB04FCEAA5169BE536 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		48A02F417E4F2DCF1C176E31 /* session_manager.rs */ = {isa = PBXFileReference; path = session_manager.rs; sourceTree = "<group>"; };
+		4BBCA57472D425E263181F42 /* model_manager.rs */ = {isa = PBXFileReference; path = model_manager.rs; sourceTree = "<group>"; };
+		53EEBFBFEBFC8F1B17A8A6D2 /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		5EB51F7405559BC3DA0616EC /* error.rs */ = {isa = PBXFileReference; path = error.rs; sourceTree = "<group>"; };
 		62FB63092FE920050345DFC7 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
 		7369C5076461095C9CC58D27 /* bindings.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bindings.h; sourceTree = "<group>"; };
@@ -31,19 +38,21 @@
 		8353BA8FAE79F1C0AE605FF6 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		8B21F52C49F82666C6AD1CC3 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		8CF145E9FA8BF544D259F2A3 /* assets */ = {isa = PBXFileReference; lastKnownFileType = folder; path = assets; sourceTree = SOURCE_ROOT; };
+		9845C7C670B79B86DFD74F8B /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		9F035DDAFF9F17CBB6A7DB34 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
 		A33008845728E13DCCE96134 /* chat_client.rs */ = {isa = PBXFileReference; path = chat_client.rs; sourceTree = "<group>"; };
 		A4114D3C0AAA6BF58A32C7BC /* lib.rs */ = {isa = PBXFileReference; path = lib.rs; sourceTree = "<group>"; };
 		A603BCABA1553CD550AB01FF /* MetalKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MetalKit.framework; path = System/Library/Frameworks/MetalKit.framework; sourceTree = SDKROOT; };
 		A79E35F4DA1A9D0BAF1BD585 /* api_client.rs */ = {isa = PBXFileReference; path = api_client.rs; sourceTree = "<group>"; };
 		C4DBBD4E3DBB6727DA351C93 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
-		C7F47B185BC866CD1E02D365 /* message_stream.rs */ = {isa = PBXFileReference; path = message_stream.rs; sourceTree = "<group>"; };
 		CF96B9DFC8E0F1987E583FD5 /* main.rs */ = {isa = PBXFileReference; path = main.rs; sourceTree = "<group>"; };
 		DA940F5654ABABF5DD67205F /* libapp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libapp.a; sourceTree = "<group>"; };
 		DF9408128890E50F1D1A288B /* connection_manager.rs */ = {isa = PBXFileReference; path = connection_manager.rs; sourceTree = "<group>"; };
+		E3294B219817C8C035C01224 /* event_bridge.rs */ = {isa = PBXFileReference; path = event_bridge.rs; sourceTree = "<group>"; };
 		E57129D792938A147AD30ECD /* src-tauri_iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "src-tauri_iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E98EF978E593A1A0CBA4CFD5 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		EB132CD251817B7C847CFF59 /* CoreGraphics.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreGraphics.framework; path = System/Library/Frameworks/CoreGraphics.framework; sourceTree = SDKROOT; };
+		ED6D1A32D579BABF258EB532 /* streaming_client.rs */ = {isa = PBXFileReference; path = streaming_client.rs; sourceTree = "<group>"; };
 		F2F552E9B47001DBF1BD2654 /* chat_client_example.rs */ = {isa = PBXFileReference; path = chat_client_example.rs; sourceTree = "<group>"; };
 		F9301B777BACE59DC2977CFC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -91,6 +100,22 @@
 			path = bindings;
 			sourceTree = "<group>";
 		};
+		174A33B6B34B4CEE8EE6F5B0 /* release */ = {
+			isa = PBXGroup;
+			children = (
+				9845C7C670B79B86DFD74F8B /* libapp.a */,
+			);
+			path = release;
+			sourceTree = "<group>";
+		};
+		38DD0635D7DC9E60AC5CE45D /* debug */ = {
+			isa = PBXGroup;
+			children = (
+				53EEBFBFEBFC8F1B17A8A6D2 /* libapp.a */,
+			);
+			path = debug;
+			sourceTree = "<group>";
+		};
 		407DC60B14B595CDFA50CC1F = {
 			isa = PBXGroup;
 			children = (
@@ -104,6 +129,15 @@
 				8019F09973A31D32C666C8CA /* Frameworks */,
 				0588D61153560935A5638653 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		5F068B5C454BF62E103F9766 /* arm64 */ = {
+			isa = PBXGroup;
+			children = (
+				38DD0635D7DC9E60AC5CE45D /* debug */,
+				174A33B6B34B4CEE8EE6F5B0 /* release */,
+			);
+			path = arm64;
 			sourceTree = "<group>";
 		};
 		8019F09973A31D32C666C8CA /* Frameworks */ = {
@@ -124,6 +158,7 @@
 		8ECE4D5CD5581CA6A6A80E13 /* Externals */ = {
 			isa = PBXGroup;
 			children = (
+				5F068B5C454BF62E103F9766 /* arm64 */,
 			);
 			path = Externals;
 			sourceTree = "<group>";
@@ -136,9 +171,12 @@
 				A33008845728E13DCCE96134 /* chat_client.rs */,
 				DF9408128890E50F1D1A288B /* connection_manager.rs */,
 				5EB51F7405559BC3DA0616EC /* error.rs */,
+				E3294B219817C8C035C01224 /* event_bridge.rs */,
 				A4114D3C0AAA6BF58A32C7BC /* lib.rs */,
 				CF96B9DFC8E0F1987E583FD5 /* main.rs */,
-				C7F47B185BC866CD1E02D365 /* message_stream.rs */,
+				4BBCA57472D425E263181F42 /* model_manager.rs */,
+				48A02F417E4F2DCF1C176E31 /* session_manager.rs */,
+				ED6D1A32D579BABF258EB532 /* streaming_client.rs */,
 			);
 			name = src;
 			path = ../../src;
@@ -157,9 +195,17 @@
 			isa = PBXGroup;
 			children = (
 				E98EF978E593A1A0CBA4CFD5 /* Info.plist */,
+				2F2098DB04FCEAA5169BE536 /* PrivacyInfo.xcprivacy */,
 				0C5D7940F7C4BFDEA6173651 /* src-tauri_iOS.entitlements */,
 			);
 			path = "src-tauri_iOS";
+			sourceTree = "<group>";
+		};
+		"TEMP_4CBFFA9A-60F4-484C-92B4-60F906CC3576" /* x86_64 */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = x86_64;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -225,7 +271,10 @@
 			files = (
 				8AA2D19F02156497B5000FD3 /* Assets.xcassets in Resources */,
 				6B75E98049548D6E03A78DC9 /* LaunchScreen.storyboard in Resources */,
+				E62883265D530E81FC9EBD66 /* PrivacyInfo.xcprivacy in Resources */,
 				D4A12628A18800C44CCABC63 /* assets in Resources */,
+				987E8F97F8670DF08F5B2E92 /* libapp.a in Resources */,
+				2710C695AA2A983ABEF7F130 /* libapp.a in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -395,9 +444,8 @@
 				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "src-tauri_iOS/src-tauri_iOS.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Distribution";
-				PROVISIONING_PROFILE_SPECIFIER = "OpenCode Nexus App Store";
-				DEVELOPMENT_TEAM = "PCJU8QD9FN";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = PCJU8QD9FN;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -411,7 +459,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.agentic-codeflow.opencode-nexus;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.agentic-codeflow.opencode-nexus";
 				PRODUCT_NAME = "OpenCode Nexus";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -428,9 +476,8 @@
 				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = "src-tauri_iOS/src-tauri_iOS.entitlements";
-				CODE_SIGN_IDENTITY = "iPhone Distribution";
-				PROVISIONING_PROFILE_SPECIFIER = "OpenCode Nexus App Store";
-				DEVELOPMENT_TEAM = "PCJU8QD9FN";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = PCJU8QD9FN;
 				ENABLE_BITCODE = NO;
 				"EXCLUDED_ARCHS[sdk=iphoneos*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
@@ -444,7 +491,7 @@
 				);
 				"LIBRARY_SEARCH_PATHS[arch=arm64]" = "$(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
 				"LIBRARY_SEARCH_PATHS[arch=x86_64]" = "$(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(TOOLCHAIN_DIR)/usr/lib/swift/$(PLATFORM_NAME) $(TOOLCHAIN_DIR)/usr/lib/swift-5.0/$(PLATFORM_NAME)";
-				PRODUCT_BUNDLE_IDENTIFIER = com.agentic-codeflow.opencode-nexus;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.agentic-codeflow.opencode-nexus";
 				PRODUCT_NAME = "OpenCode Nexus";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
