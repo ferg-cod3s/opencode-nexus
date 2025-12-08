@@ -172,6 +172,10 @@ jobs:
           echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
           echo "CLEAN_BUILD=$CLEAN_BUILD" >> $GITHUB_ENV
+          echo "BUILD_TIMESTAMP=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+
+          echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
+          echo "Clean build: $CLEAN_BUILD"
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -187,6 +191,12 @@ jobs:
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
+
+      - name: Install Tauri CLI
+        run: |
+          echo "📦 Installing Tauri CLI..."
+          cargo install tauri-cli --version "^2.0.0" --locked
+          echo "✅ Tauri CLI installed"
 
       - name: Restore Dependencies Cache
         uses: actions/cache@v4
