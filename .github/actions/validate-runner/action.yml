@@ -1,0 +1,83 @@
+name: Validate Runner
+
+description: 'Validates the runner environment meets build requirements'
+
+inputs:
+  runner_type:
+    description: 'Type of runner being used'
+    required: true
+    type: string
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Validate Runner Environment
+      shell: bash
+      run: |
+        RUNNER_TYPE="${{ inputs.runner_type }}"
+        echo "🔍 Validating runner environment..."
+        echo "Runner type: $RUNNER_TYPE"
+        
+        # Check OS
+        if [ "$RUNNER_TYPE" = "self-hosted" ]; then
+          echo "✅ Self-hosted runner detected"
+          
+          # Check if we're on macOS (required for iOS builds)
+          if [[ "$RUNNER_OS" == *"macos"* ]] || [[ "$RUNNER_OS" == *"darwin"* ]]; then
+            echo "✅ macOS environment confirmed"
+          else
+            echo "❌ ERROR: iOS builds require macOS runner"
+            echo "Current OS: $RUNNER_OS"
+            exit 1
+          fi
+          
+          # Check for Xcode
+          if command -v xcodebuild >/dev/null 2>&1; then
+            XCODE_VERSION=$(xcodebuild -version | head -1 | sed 's/.*://.*\([0-9.]*\).*/\1/')
+            echo "✅ Xcode available: $XCODE_VERSION"
+          else
+            echo "❌ ERROR: Xcode not found"
+            echo "Install Xcode from App Store or run: xcode-select --install"
+            exit 1
+          fi
+          
+          # Check for Rust
+          if command -v cargo >/dev/null 2>&1; then
+            RUST_VERSION=$(rustc --version)
+            echo "✅ Rust available: $RUST_VERSION"
+          else
+            echo "❌ ERROR: Rust not found"
+            exit 1
+          fi
+          
+          # Check for Bun
+          if command -v bun >/dev/null 2>&1; then
+            BUN_VERSION=$(bun --version)
+            echo "✅ Bun available: $BUN_VERSION"
+          else
+            echo "❌ ERROR: Bun not found"
+            exit 1
+          fi
+          
+        elif [ "$RUNNER_TYPE" = "ubuntu-latest" ]; then
+          echo "✅ GitHub-hosted runner detected"
+          echo "ℹ️ Note: iOS builds cannot run on ubuntu-latest"
+          echo "ℹ️ This runner can only be used for testing, linting, and non-iOS builds"
+          
+        else
+          echo "⚠️ Unknown runner type: $RUNNER_TYPE"
+        fi
+        
+        # Check disk space
+        if command -v df >/dev/null 2>&1; then
+          DISK_AVAILABLE=$(df / | awk 'NR==2 {print $4}')
+          DISK_GB=$((DISK_AVAILABLE / 1024 / 1024))
+          echo "💾 Available disk space: ${DISK_GB}GB"
+          
+          if [ "$DISK_GB" -lt 10 ]; then
+            echo "⚠️ WARNING: Low disk space (${DISK_GB}GB < 10GB)"
+            echo "Consider cleaning up old builds and artifacts"
+          fi
+        fi
+        
+        echo "✅ Runner validation completed"

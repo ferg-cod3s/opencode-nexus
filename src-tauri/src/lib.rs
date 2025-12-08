@@ -32,10 +32,12 @@ mod streaming_client;
 use api_client::{ApiClient, ModelConfig};
 use chat_client::{ChatClient, ChatEvent};
 use connection_manager::{ConnectionManager, ConnectionStatus, ServerConnection};
-use event_bridge::{EventBridge, AppEvent};
+use event_bridge::{AppEvent, EventBridge};
 use model_manager::{ModelManager, ModelPreferences};
-use session_manager::{SessionManager, ChatSession, ChatMessage, CreateSessionRequest, SendMessageRequest};
-use streaming_client::{StreamingClient, StreamRequest, StreamEvent};
+use session_manager::{
+    ChatMessage, ChatSession, CreateSessionRequest, SendMessageRequest, SessionManager,
+};
+use streaming_client::{StreamEvent, StreamRequest, StreamingClient};
 
 use chrono::Utc;
 use serde::Deserialize;
@@ -43,7 +45,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::Emitter;
+use tauri::{Emitter, Manager};
 use tokio::sync::Mutex as AsyncMutex;
 
 // Managed state for singletons
@@ -52,6 +54,7 @@ pub struct SessionManagerState(pub Arc<AsyncMutex<Option<SessionManager>>>);
 pub struct ModelManagerState(pub Arc<AsyncMutex<Option<ModelManager>>>);
 pub struct StreamingClientState(pub Arc<AsyncMutex<Option<StreamingClient>>>);
 pub struct EventBridgeState(pub Arc<AsyncMutex<Option<EventBridge>>>);
+pub struct ConnectionManagerState(pub Arc<AsyncMutex<Option<ConnectionManager>>>);
 
 // Legacy state for backward compatibility
 pub struct ChatClientState(pub Arc<AsyncMutex<Option<ChatClient>>>);
@@ -149,6 +152,30 @@ fn get_server_url() -> Result<String, String> {
         .ok_or_else(|| "No server URL available".to_string())
 }
 
+/// Helper to get or create the ConnectionManager from managed state
+async fn get_connection_manager<'a>(
+    state: &'a tauri::State<'a, ConnectionManagerState>,
+    app_handle: Option<tauri::AppHandle>,
+) -> Result<tokio::sync::MutexGuard<'a, Option<ConnectionManager>>, String> {
+    let mut guard = state.0.lock().await;
+
+    // Initialize connection manager if not already created
+    if guard.is_none() {
+        let config_dir = get_config_dir()?;
+        let mut manager = ConnectionManager::new(config_dir, app_handle)
+            .map_err(|e| format!("Failed to create connection manager: {}", e))?;
+
+        // Load saved connections
+        if let Err(e) = manager.load_connections() {
+            log_warn!("⚠️ [INIT] Failed to load connections: {}", e);
+        }
+
+        *guard = Some(manager);
+    }
+
+    Ok(guard)
+}
+
 /// Ensure a server connection exists before executing chat commands
 /// Returns a user-friendly error message if no connection is available
 fn ensure_server_connected() -> Result<String, String> {
@@ -161,6 +188,7 @@ fn ensure_server_connected() -> Result<String, String> {
 #[tauri::command]
 async fn connect_to_server(
     app_handle: tauri::AppHandle,
+    state: tauri::State<'_, ConnectionManagerState>,
     server_url: String,
     api_key: Option<String>,
     method: String,
@@ -180,12 +208,11 @@ async fn connect_to_server(
         .unwrap_or(if url.scheme() == "https" { 443 } else { 4096 });
     let secure = url.scheme() == "https";
 
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let mut connection_manager =
-        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    let mut connection_manager_guard =
+        get_connection_manager(&state, Some(app_handle.clone())).await?;
+    let connection_manager = connection_manager_guard
+        .as_mut()
+        .ok_or("Connection manager not initialized")?;
 
     // Connect to the server
     connection_manager
@@ -208,6 +235,7 @@ async fn connect_to_server(
 
 #[tauri::command]
 async fn test_server_connection(
+    state: tauri::State<'_, ConnectionManagerState>,
     server_url: String,
     #[allow(unused_variables)] api_key: Option<String>,
 ) -> Result<bool, String> {
@@ -222,12 +250,10 @@ async fn test_server_connection(
         .unwrap_or(if url.scheme() == "https" { 443 } else { 4096 });
     let secure = url.scheme() == "https";
 
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    // Create a temporary connection manager for testing (no app_handle needed)
-    let connection_manager = ConnectionManager::new(config_dir, None).map_err(|e| e.to_string())?;
+    let connection_manager_guard = get_connection_manager(&state, None).await?;
+    let connection_manager = connection_manager_guard
+        .as_ref()
+        .ok_or("Connection manager not initialized")?;
 
     // Test the connection
     match connection_manager
@@ -246,50 +272,50 @@ async fn test_server_connection(
 }
 
 #[tauri::command]
-async fn get_connection_status(app_handle: tauri::AppHandle) -> Result<ConnectionStatus, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let connection_manager =
-        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+async fn get_connection_status(
+    state: tauri::State<'_, ConnectionManagerState>,
+    app_handle: tauri::AppHandle,
+) -> Result<ConnectionStatus, String> {
+    let connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
+    let connection_manager = connection_manager_guard
+        .as_ref()
+        .ok_or("Connection manager not initialized")?;
     Ok(connection_manager.get_connection_status())
 }
 
 #[tauri::command]
 async fn get_current_connection(
+    state: tauri::State<'_, ConnectionManagerState>,
     app_handle: tauri::AppHandle,
 ) -> Result<Option<ServerConnection>, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let connection_manager =
-        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    let connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
+    let connection_manager = connection_manager_guard
+        .as_ref()
+        .ok_or("Connection manager not initialized")?;
     Ok(connection_manager.get_current_connection())
 }
 
 #[tauri::command]
-async fn disconnect_from_server(app_handle: tauri::AppHandle) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let mut connection_manager =
-        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+async fn disconnect_from_server(
+    state: tauri::State<'_, ConnectionManagerState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let mut connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
+    let connection_manager = connection_manager_guard
+        .as_mut()
+        .ok_or("Connection manager not initialized")?;
     connection_manager.disconnect_from_server().await
 }
 
 #[tauri::command]
 async fn get_saved_connections(
+    state: tauri::State<'_, ConnectionManagerState>,
     app_handle: tauri::AppHandle,
 ) -> Result<Vec<ServerConnection>, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let mut connection_manager =
-        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    let mut connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
+    let connection_manager = connection_manager_guard
+        .as_mut()
+        .ok_or("Connection manager not initialized")?;
     connection_manager
         .load_connections()
         .map_err(|e| e.to_string())?;
@@ -298,15 +324,14 @@ async fn get_saved_connections(
 
 #[tauri::command]
 async fn save_connection(
+    state: tauri::State<'_, ConnectionManagerState>,
     app_handle: tauri::AppHandle,
     connection: ServerConnection,
 ) -> Result<(), String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let mut connection_manager =
-        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    let mut connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
+    let connection_manager = connection_manager_guard
+        .as_mut()
+        .ok_or("Connection manager not initialized")?;
     connection_manager
         .load_connections()
         .map_err(|e| e.to_string())?;
@@ -315,14 +340,13 @@ async fn save_connection(
 
 #[tauri::command]
 async fn get_last_used_connection(
+    state: tauri::State<'_, ConnectionManagerState>,
     app_handle: tauri::AppHandle,
 ) -> Result<Option<ServerConnection>, String> {
-    let config_dir = dirs::config_dir()
-        .ok_or("Could not determine config directory")?
-        .join("opencode-nexus");
-
-    let mut connection_manager =
-        ConnectionManager::new(config_dir, Some(app_handle.clone())).map_err(|e| e.to_string())?;
+    let mut connection_manager_guard = get_connection_manager(&state, Some(app_handle)).await?;
+    let connection_manager = connection_manager_guard
+        .as_mut()
+        .ok_or("Connection manager not initialized")?;
     connection_manager
         .load_connections()
         .map_err(|e| e.to_string())?;
@@ -541,18 +565,29 @@ async fn get_available_models() -> Result<Vec<serde_json::Value>, String> {
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let model_manager = ModelManager::new(api_client, config_dir);
 
-    // Try to fetch from server first
-    match model_manager.fetch_available_models().await {
-        Ok(models) => {
-            let models_json: Vec<serde_json::Value> = models
+    // Try to fetch from server first - convert to Send-safe type immediately
+    let server_result: Result<Vec<serde_json::Value>, String> = model_manager
+        .fetch_available_models()
+        .await
+        .map(|models| {
+            models
                 .into_iter()
                 .map(|m| serde_json::to_value(m).unwrap_or_default())
-                .collect();
-            log_info!("✅ [MODELS] Retrieved {} models from server", models_json.len());
+                .collect()
+        })
+        .map_err(|e| e.to_string());
+
+    match server_result {
+        Ok(models_json) => {
+            log_info!(
+                "✅ [MODELS] Retrieved {} models from server",
+                models_json.len()
+            );
             Ok(models_json)
         }
-        Err(e) => {
-            log_warn!("⚠️ [MODELS] Failed to fetch from server: {}", e);
+        Err(server_err) => {
+            log_warn!("⚠️ [MODELS] Failed to fetch from server: {}", server_err);
+
             // Fallback to cached models
             match model_manager.get_available_models().await {
                 Ok(cached_models) => {
@@ -563,9 +598,9 @@ async fn get_available_models() -> Result<Vec<serde_json::Value>, String> {
                     log_info!("✅ [MODELS] Retrieved {} cached models", models_json.len());
                     Ok(models_json)
                 }
-                Err(e) => {
-                    log_error!("❌ [MODELS] Failed to get cached models: {}", e);
-                    Err(format!("Failed to get available models: {}", e))
+                Err(cache_err) => {
+                    log_error!("❌ [MODELS] Failed to get cached models: {}", cache_err);
+                    Err(format!("Failed to get available models: {}", cache_err))
                 }
             }
         }
@@ -580,12 +615,14 @@ async fn get_model_preferences() -> Result<serde_json::Value, String> {
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let model_manager = ModelManager::new(api_client, config_dir);
 
-    model_manager.load_preferences().map_err(|e| e.to_string())?;
+    model_manager
+        .load_preferences()
+        .map_err(|e| e.to_string())?;
     let preferences = model_manager.get_preferences();
-    
+
     let preferences_json = serde_json::to_value(&preferences)
         .map_err(|e| format!("Failed to serialize preferences: {}", e))?;
-    
+
     log_info!("✅ [MODELS] Retrieved model preferences");
     Ok(preferences_json)
 }
@@ -601,22 +638,30 @@ async fn set_model_preferences(preferences: serde_json::Value) -> Result<(), Str
     let model_preferences: ModelPreferences = serde_json::from_value(preferences)
         .map_err(|e| format!("Failed to parse preferences: {}", e))?;
 
-    model_manager.update_preferences(model_preferences).map_err(|e| e.to_string())?;
-    
+    model_manager
+        .update_preferences(model_preferences)
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [MODELS] Updated model preferences");
     Ok(())
 }
 
 #[tauri::command]
 async fn set_default_model(provider_id: String, model_id: String) -> Result<(), String> {
-    log_info!("🎯 [MODELS] Setting default model: {}/{}", provider_id, model_id);
+    log_info!(
+        "🎯 [MODELS] Setting default model: {}/{}",
+        provider_id,
+        model_id
+    );
 
     let config_dir = get_config_dir()?;
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let model_manager = ModelManager::new(api_client, config_dir);
 
-    model_manager.set_default_model(provider_id, model_id).map_err(|e| e.to_string())?;
-    
+    model_manager
+        .set_default_model(provider_id, model_id)
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [MODELS] Updated default model");
     Ok(())
 }
@@ -630,22 +675,32 @@ async fn delete_session(session_id: String) -> Result<(), String> {
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let session_manager = SessionManager::new(api_client, config_dir);
 
-    session_manager.delete_session(&session_id).await.map_err(|e| e.to_string())?;
-    
+    session_manager
+        .delete_session(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [SESSION] Deleted session: {}", session_id);
     Ok(())
 }
 
 #[tauri::command]
 async fn update_session_title(session_id: String, title: String) -> Result<(), String> {
-    log_info!("✏️ [SESSION] Updating session title: {} -> {}", session_id, title);
+    log_info!(
+        "✏️ [SESSION] Updating session title: {} -> {}",
+        session_id,
+        title
+    );
 
     let config_dir = get_config_dir()?;
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let session_manager = SessionManager::new(api_client, config_dir);
 
-    session_manager.update_session_title(&session_id, title).await.map_err(|e| e.to_string())?;
-    
+    session_manager
+        .update_session_title(&session_id, title)
+        .await
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [SESSION] Updated session title");
     Ok(())
 }
@@ -658,11 +713,14 @@ async fn get_session_stats(session_id: String) -> Result<serde_json::Value, Stri
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let session_manager = SessionManager::new(api_client, config_dir);
 
-    let stats = session_manager.get_session_stats(&session_id).await.map_err(|e| e.to_string())?;
-    
-    let stats_json = serde_json::to_value(&stats)
-        .map_err(|e| format!("Failed to serialize stats: {}", e))?;
-    
+    let stats = session_manager
+        .get_session_stats(&session_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let stats_json =
+        serde_json::to_value(&stats).map_err(|e| format!("Failed to serialize stats: {}", e))?;
+
     log_info!("✅ [SESSION] Retrieved session stats");
     Ok(stats_json)
 }
@@ -675,7 +733,10 @@ async fn start_message_stream(
     content: String,
     model_config: Option<ModelConfig>,
 ) -> Result<String, String> {
-    log_info!("🌊 [STREAM] Starting message stream for session: {}", session_id);
+    log_info!(
+        "🌊 [STREAM] Starting message stream for session: {}",
+        session_id
+    );
 
     // Validate inputs
     if session_id.trim().is_empty() {
@@ -692,7 +753,10 @@ async fn start_message_stream(
     // Create streaming components
     let config_dir = get_config_dir()?;
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
-    api_client.set_server_url(server_url).await.map_err(|e| e.to_string())?;
+    api_client
+        .set_server_url(server_url)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let streaming_client = StreamingClient::new(api_client).map_err(|e| e.to_string())?;
     let event_bridge = EventBridge::with_app_handle(app_handle);
@@ -708,7 +772,10 @@ async fn start_message_stream(
     };
 
     // Start streaming
-    let stream_id = streaming_client.start_stream(stream_request).await.map_err(|e| e.to_string())?;
+    let stream_id = streaming_client
+        .start_stream(stream_request)
+        .await
+        .map_err(|e| e.to_string())?;
 
     // Spawn event forwarding task
     let stream_id_clone = stream_id.clone();
@@ -718,9 +785,12 @@ async fn start_message_stream(
 
     tokio::spawn(async move {
         let mut receiver = streaming_client_clone.subscribe();
-        
+
         while let Ok(stream_event) = receiver.recv().await {
-            if let Err(e) = event_bridge_clone.emit_stream_event(stream_event.clone(), session_id_clone.clone()).await {
+            if let Err(e) = event_bridge_clone
+                .emit_stream_event(stream_event.clone(), session_id_clone.clone())
+                .await
+            {
                 log_error!("❌ [STREAM] Failed to emit event: {}", e);
             }
         }
@@ -741,8 +811,11 @@ async fn stop_message_stream(stream_id: String) -> Result<(), String> {
     let api_client = Arc::new(ApiClient::new().map_err(|e| e.to_string())?);
     let streaming_client = StreamingClient::new(api_client).map_err(|e| e.to_string())?;
 
-    streaming_client.stop_stream(&stream_id).await.map_err(|e| e.to_string())?;
-    
+    streaming_client
+        .stop_stream(&stream_id)
+        .await
+        .map_err(|e| e.to_string())?;
+
     log_info!("✅ [STREAM] Stopped message stream: {}", stream_id);
     Ok(())
 }
@@ -756,8 +829,11 @@ async fn get_active_streams() -> Result<Vec<String>, String> {
     let streaming_client = StreamingClient::new(api_client).map_err(|e| e.to_string())?;
 
     let active_streams = streaming_client.get_active_streams().await;
-    
-    log_info!("✅ [STREAM] Retrieved {} active streams", active_streams.len());
+
+    log_info!(
+        "✅ [STREAM] Retrieved {} active streams",
+        active_streams.len()
+    );
     Ok(active_streams)
 }
 
@@ -769,7 +845,8 @@ pub fn run() {
     let model_manager_state = ModelManagerState(Arc::new(AsyncMutex::new(None)));
     let streaming_client_state = StreamingClientState(Arc::new(AsyncMutex::new(None)));
     let event_bridge_state = EventBridgeState(Arc::new(AsyncMutex::new(None)));
-    
+    let connection_manager_state = ConnectionManagerState(Arc::new(AsyncMutex::new(None)));
+
     // Legacy state for backward compatibility
     let chat_client_state = ChatClientState(Arc::new(AsyncMutex::new(None)));
 
@@ -780,6 +857,7 @@ pub fn run() {
         .manage(model_manager_state)
         .manage(streaming_client_state)
         .manage(event_bridge_state)
+        .manage(connection_manager_state)
         .manage(chat_client_state)
         .setup(|app| {
             // Initialize all components on app startup
@@ -805,15 +883,32 @@ pub fn run() {
                 // Initialize event bridge
                 let event_bridge = EventBridge::with_app_handle(app_handle.clone());
 
-                // Initialize connection manager
-                let mut connection_manager =
-                    match ConnectionManager::new(config_dir.clone(), Some(app_handle.clone())) {
-                        Ok(cm) => cm,
-                        Err(e) => {
-                            log_error!("❌ [INIT] Failed to create connection manager: {}", e);
-                            return;
+                // Initialize connection manager in managed state
+                {
+                    let connection_manager_state = app_handle.state::<ConnectionManagerState>();
+                    let mut state_guard = connection_manager_state.0.lock().await;
+                    if state_guard.is_none() {
+                        match ConnectionManager::new(config_dir.clone(), Some(app_handle.clone())) {
+                            Ok(mut cm) => {
+                                if let Err(e) = cm.load_connections() {
+                                    log_warn!("⚠️ [INIT] Failed to load connections: {}", e);
+                                }
+                                *state_guard = Some(cm);
+                            }
+                            Err(e) => {
+                                log_error!("❌ [INIT] Failed to create connection manager: {}", e);
+                                return;
+                            }
                         }
-                    };
+                    }
+
+                    // Attempt to restore the last connection
+                    if let Some(ref mut cm) = *state_guard {
+                        if let Err(e) = cm.restore_connection().await {
+                            log_warn!("⚠️ [INIT] Failed to restore connection on startup: {}", e);
+                        }
+                    }
+                }
 
                 // Initialize session manager
                 let session_manager = SessionManager::new(api_client.clone(), config_dir.clone());
@@ -839,18 +934,16 @@ pub fn run() {
                     }
                 };
 
-                // Attempt to restore the last connection
-                if let Err(e) = connection_manager.restore_connection().await {
-                    log_warn!("⚠️ [INIT] Failed to restore connection on startup: {}", e);
-                }
-
                 // Emit application ready event
-                if let Err(e) = event_bridge.emit_application_ready(vec![
-                    "chat".to_string(),
-                    "streaming".to_string(),
-                    "model-management".to_string(),
-                    "session-management".to_string(),
-                ]).await {
+                if let Err(e) = event_bridge
+                    .emit_application_ready(vec![
+                        "chat".to_string(),
+                        "streaming".to_string(),
+                        "model-management".to_string(),
+                        "session-management".to_string(),
+                    ])
+                    .await
+                {
                     log_warn!("⚠️ [INIT] Failed to emit ready event: {}", e);
                 }
 

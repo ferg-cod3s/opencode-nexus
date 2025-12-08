@@ -61,33 +61,20 @@ pub enum AppError {
     },
     /// Data parsing or serialization errors
     DataError { message: String, details: String },
-    /// JSON parsing errors
-    ParseError { message: String, details: String },
-    /// I/O operation errors (file, network)
-    IoError { message: String, details: String },
-    /// Connection establishment errors
-    ConnectionError { message: String, details: String },
-    /// Server is not connected
-    NotConnectedError { message: String },
-    /// Operation timed out
-    TimeoutError {
-        operation: String,
-        timeout_secs: u64,
-    },
-    /// Data parsing error (JSON, serialization)
+    /// JSON/data parsing errors
     ParseError {
         message: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         details: Option<String>,
     },
-    /// Connection/network error
-    ConnectionError {
+    /// I/O operation errors (file, network)
+    IoError {
         message: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         details: Option<String>,
     },
-    /// I/O operation error
-    IoError {
+    /// Connection establishment errors
+    ConnectionError {
         message: String,
         #[serde(skip_serializing_if = "Option::is_none")]
         details: Option<String>,
@@ -98,18 +85,6 @@ pub enum AppError {
     TimeoutError {
         operation: String,
         timeout_secs: u64,
-    },
-    /// Connection/network error
-    ConnectionError {
-        message: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        details: Option<String>,
-    },
-    /// I/O operation error
-    IoError {
-        message: String,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        details: Option<String>,
     },
     /// Generic error with message
     Other { message: String },
@@ -215,8 +190,6 @@ impl AppError {
                 *status_code == 429 || (*status_code >= 500 && *status_code < 600)
             }
             AppError::TimeoutError { .. } => true,
-            AppError::ConnectionError { .. } => true,
-            AppError::TimeoutError { .. } => true,
             AppError::IoError { .. } => true,
             AppError::ParseError { .. } => false,
             _ => false,
@@ -238,7 +211,6 @@ impl AppError {
                 }
             }
             AppError::TimeoutError { .. } => Some(2),
-            AppError::ConnectionError { .. } => Some(2),
             AppError::IoError { .. } => Some(1),
             AppError::ParseError { .. } => None,
             _ => None,

@@ -20,9 +20,6 @@ RUN cargo fetch
 COPY src ./src
 COPY tauri.conf.json ./
 
-# Create test user
-RUN useradd -m -u 1000 rustuser && chown -R rustuser:rustuser /app
-USER rustuser
-
 # Default command for running tests
+# Tests run as root which is acceptable for CI/CD environments
 CMD ["cargo", "test", "--all-features", "--verbose"]

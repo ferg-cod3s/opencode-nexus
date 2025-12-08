@@ -103,6 +103,7 @@ SPDX-License-Identifier: MIT
       {#if isRetryable && onRetry}
         <button
           class="retry-button"
+          data-testid="retry-button"
           on:click={handleRetry}
           aria-label="Retry operation"
         >

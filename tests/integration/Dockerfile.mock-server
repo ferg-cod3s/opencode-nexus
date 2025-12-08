@@ -3,20 +3,91 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies
-COPY package*.json ./
-RUN npm ci --only=production
+# Install express and curl (for health checks)
+RUN npm init -y && npm install express && \
+    apk add --no-cache curl
 
-# Copy mock server code
-COPY mock-server/ ./
+# Copy mock data files
 COPY tests/integration/mock-server-data/ ./data/
 
-# Create health check endpoint
-RUN echo 'const express = require("express"); const app = express(); app.get("/health", (req, res) => res.status(200).json({status: "ok", timestamp: new Date().toISOString()})); app.get("/api/models", (req, res) => res.json([{id: "gpt-4", name: "GPT-4"}, {id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo"}])); app.listen(4096, () => console.log("Mock server running on port 4096"));' > server.js
+# Create inline mock server
+RUN cat > server.js << 'SERVEREOF'
+const express = require("express");
+const fs = require("fs");
+const path = require("path");
+
+const app = express();
+app.use(express.json());
+
+// Health check
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Load mock data helper
+const loadData = (file) => {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, "data", file), "utf8"));
+  } catch (e) {
+    console.error(`Failed to load ${file}:`, e.message);
+    return [];
+  }
+};
+
+// API endpoints matching OpenCode SDK expectations
+app.get("/api/models", (req, res) => res.json(loadData("models.json")));
+app.get("/api/sessions", (req, res) => res.json(loadData("sessions.json")));
+app.get("/api/sessions/:id", (req, res) => {
+  const sessions = loadData("sessions.json");
+  const session = sessions.find(s => s.id === req.params.id);
+  if (session) {
+    res.json(session);
+  } else {
+    res.status(404).json({ error: "Session not found" });
+  }
+});
+app.get("/api/sessions/:id/messages", (req, res) => res.json(loadData("messages.json")));
+app.get("/api/files", (req, res) => res.json(loadData("files.json")));
+
+// Echo endpoint for chat testing
+app.post("/api/chat", (req, res) => {
+  res.json({
+    id: "test-response-" + Date.now(),
+    content: "Mock response to: " + (req.body?.content || "empty"),
+    role: "assistant",
+    created_at: new Date().toISOString()
+  });
+});
+
+// Streaming endpoint (SSE)
+app.post("/api/chat/stream", (req, res) => {
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  
+  const chunks = ["Hello", " from", " mock", " server", "!"];
+  let i = 0;
+  const interval = setInterval(() => {
+    if (i < chunks.length) {
+      res.write(`data: ${JSON.stringify({ content: chunks[i], done: false })}\n\n`);
+      i++;
+    } else {
+      res.write(`data: ${JSON.stringify({ content: "", done: true })}\n\n`);
+      clearInterval(interval);
+      res.end();
+    }
+  }, 100);
+});
+
+const PORT = process.env.PORT || 4096;
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Mock OpenCode server running on port ${PORT}`);
+});
+SERVEREOF
 
 EXPOSE 4096
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:4096/health || exit 1
+  CMD wget -q --spider http://localhost:4096/health || exit 1
 
 CMD ["node", "server.js"]

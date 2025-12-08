@@ -21,7 +21,7 @@
 // SOFTWARE.
 
 use crate::api_client::{ApiClient, ModelConfig, ModelInfo};
-use crate::error::{AppError, RetryConfig};
+use crate::error::AppError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -146,18 +146,17 @@ impl ModelManager {
             return Ok(());
         }
 
-        let providers_json = std::fs::read_to_string(&providers_file).map_err(|e| {
-            AppError::FileSystemError {
+        let providers_json =
+            std::fs::read_to_string(&providers_file).map_err(|e| AppError::FileSystemError {
                 path: providers_file.to_string_lossy().to_string(),
                 message: "Failed to read providers file".to_string(),
                 details: e.to_string(),
-            }
-        })?;
+            })?;
 
-        let loaded_providers: HashMap<String, ProviderConfig> = serde_json::from_str(&providers_json)
-            .map_err(|e| AppError::ParseError {
+        let loaded_providers: HashMap<String, ProviderConfig> =
+            serde_json::from_str(&providers_json).map_err(|e| AppError::ParseError {
                 message: "Failed to parse providers file".to_string(),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         let mut providers = self.providers.write().await;
@@ -169,12 +168,11 @@ impl ModelManager {
     /// Save provider configurations to disk
     pub async fn save_providers(&self) -> Result<(), Box<dyn std::error::Error>> {
         let providers = self.providers.read().await;
-        let providers_json = serde_json::to_string_pretty(&*providers).map_err(|e| {
-            AppError::ParseError {
+        let providers_json =
+            serde_json::to_string_pretty(&*providers).map_err(|e| AppError::ParseError {
                 message: "Failed to serialize providers".to_string(),
-                details: e.to_string(),
-            }
-        })?;
+                details: Some(e.to_string()),
+            })?;
 
         std::fs::write(self.get_providers_file_path(), providers_json).map_err(|e| {
             AppError::FileSystemError {
@@ -195,18 +193,17 @@ impl ModelManager {
             return Ok(()); // Use defaults
         }
 
-        let preferences_json = std::fs::read_to_string(&preferences_file).map_err(|e| {
-            AppError::FileSystemError {
+        let preferences_json =
+            std::fs::read_to_string(&preferences_file).map_err(|e| AppError::FileSystemError {
                 path: preferences_file.to_string_lossy().to_string(),
                 message: "Failed to read preferences file".to_string(),
                 details: e.to_string(),
-            }
-        })?;
+            })?;
 
         let loaded_preferences: ModelPreferences = serde_json::from_str(&preferences_json)
             .map_err(|e| AppError::ParseError {
                 message: "Failed to parse preferences file".to_string(),
-                details: e.to_string(),
+                details: Some(e.to_string()),
             })?;
 
         let mut preferences = self.preferences.write().unwrap();
@@ -218,16 +215,18 @@ impl ModelManager {
     /// Save user preferences to disk
     pub fn save_preferences(&self) -> Result<(), Box<dyn std::error::Error>> {
         let preferences = self.preferences.read().unwrap();
-        let preferences_json = serde_json::to_string_pretty(&*preferences).map_err(|e| {
-            AppError::ParseError {
+        let preferences_json =
+            serde_json::to_string_pretty(&*preferences).map_err(|e| AppError::ParseError {
                 message: "Failed to serialize preferences".to_string(),
-                details: e.to_string(),
-            }
-        })?;
+                details: Some(e.to_string()),
+            })?;
 
         std::fs::write(self.get_preferences_file_path(), preferences_json).map_err(|e| {
             AppError::FileSystemError {
-                path: self.get_preferences_file_path().to_string_lossy().to_string(),
+                path: self
+                    .get_preferences_file_path()
+                    .to_string_lossy()
+                    .to_string(),
                 message: "Failed to write preferences file".to_string(),
                 details: e.to_string(),
             }
@@ -237,18 +236,25 @@ impl ModelManager {
     }
 
     /// Fetch available models from server
-    pub async fn fetch_available_models(&self) -> Result<Vec<ModelInfo>, Box<dyn std::error::Error>> {
+    pub async fn fetch_available_models(
+        &self,
+    ) -> Result<Vec<ModelInfo>, Box<dyn std::error::Error>> {
         self.api_client.get_available_models().await
     }
 
     /// Get all available models
-    pub async fn get_available_models(&self) -> Result<Vec<ExtendedModelConfig>, Box<dyn std::error::Error>> {
+    pub async fn get_available_models(
+        &self,
+    ) -> Result<Vec<ExtendedModelConfig>, Box<dyn std::error::Error>> {
         let models = self.models.read().await;
         Ok(models.values().cloned().collect())
     }
 
     /// Get models for a specific provider
-    pub async fn get_provider_models(&self, provider_id: &str) -> Result<Vec<ExtendedModelConfig>, Box<dyn std::error::Error>> {
+    pub async fn get_provider_models(
+        &self,
+        provider_id: &str,
+    ) -> Result<Vec<ExtendedModelConfig>, Box<dyn std::error::Error>> {
         let models = self.models.read().await;
         Ok(models
             .values()
@@ -258,16 +264,23 @@ impl ModelManager {
     }
 
     /// Get model by ID
-    pub async fn get_model(&self, model_id: &str) -> Result<Option<ExtendedModelConfig>, Box<dyn std::error::Error>> {
+    pub async fn get_model(
+        &self,
+        model_id: &str,
+    ) -> Result<Option<ExtendedModelConfig>, Box<dyn std::error::Error>> {
         let models = self.models.read().await;
         Ok(models.get(model_id).cloned())
     }
 
     /// Get default model configuration
-    pub async fn get_default_model(&self) -> Result<Option<ModelConfig>, Box<dyn std::error::Error>> {
+    pub async fn get_default_model(
+        &self,
+    ) -> Result<Option<ModelConfig>, Box<dyn std::error::Error>> {
         let preferences = self.preferences.read().unwrap();
-        
-        if let (Some(provider_id), Some(model_id)) = (&preferences.default_provider, &preferences.default_model) {
+
+        if let (Some(provider_id), Some(model_id)) =
+            (&preferences.default_provider, &preferences.default_model)
+        {
             Ok(Some(ModelConfig {
                 provider_id: provider_id.clone(),
                 model_id: model_id.clone(),
@@ -287,7 +300,11 @@ impl ModelManager {
     }
 
     /// Set default model
-    pub fn set_default_model(&self, provider_id: String, model_id: String) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_default_model(
+        &self,
+        provider_id: String,
+        model_id: String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut preferences = self.preferences.write().unwrap();
         preferences.default_provider = Some(provider_id);
         preferences.default_model = Some(model_id);
@@ -307,9 +324,15 @@ impl ModelManager {
     }
 
     /// Set model settings for a specific model
-    pub fn set_model_settings(&self, model_id: String, settings: ModelSettings) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn set_model_settings(
+        &self,
+        model_id: String,
+        settings: ModelSettings,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut preferences = self.preferences.write().unwrap();
-        preferences.custom_settings.insert(model_id.clone(), settings);
+        preferences
+            .custom_settings
+            .insert(model_id.clone(), settings);
         drop(preferences);
 
         self.save_preferences()
@@ -321,7 +344,10 @@ impl ModelManager {
     }
 
     /// Update user preferences
-    pub fn update_preferences(&self, updates: ModelPreferences) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn update_preferences(
+        &self,
+        updates: ModelPreferences,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut preferences = self.preferences.write().unwrap();
         *preferences = updates;
         drop(preferences);
@@ -334,66 +360,72 @@ impl ModelManager {
         let mut providers = HashMap::new();
 
         // Anthropic provider
-        providers.insert("anthropic".to_string(), ProviderConfig {
-            id: "anthropic".to_string(),
-            name: "Anthropic".to_string(),
-            description: Some("Claude models from Anthropic".to_string()),
-            enabled: true,
-            models: vec![
-                ModelConfig {
-                    provider_id: "anthropic".to_string(),
-                    model_id: "claude-3-5-sonnet-20241022".to_string(),
+        providers.insert(
+            "anthropic".to_string(),
+            ProviderConfig {
+                id: "anthropic".to_string(),
+                name: "Anthropic".to_string(),
+                description: Some("Claude models from Anthropic".to_string()),
+                enabled: true,
+                models: vec![
+                    ModelConfig {
+                        provider_id: "anthropic".to_string(),
+                        model_id: "claude-3-5-sonnet-20241022".to_string(),
+                    },
+                    ModelConfig {
+                        provider_id: "anthropic".to_string(),
+                        model_id: "claude-3-opus-20240229".to_string(),
+                    },
+                ],
+                settings: ProviderSettings {
+                    api_base: Some("https://api.anthropic.com".to_string()),
+                    api_version: Some("2023-06-01".to_string()),
+                    supports_streaming: true,
+                    supports_functions: true,
+                    max_tokens: Some(4096),
+                    temperature_range: Some(TemperatureRange {
+                        min: 0.0,
+                        max: 1.0,
+                        default: 0.7,
+                    }),
+                    default_temperature: Some(0.7),
                 },
-                ModelConfig {
-                    provider_id: "anthropic".to_string(),
-                    model_id: "claude-3-opus-20240229".to_string(),
-                },
-            ],
-            settings: ProviderSettings {
-                api_base: Some("https://api.anthropic.com".to_string()),
-                api_version: Some("2023-06-01".to_string()),
-                supports_streaming: true,
-                supports_functions: true,
-                max_tokens: Some(4096),
-                temperature_range: Some(TemperatureRange {
-                    min: 0.0,
-                    max: 1.0,
-                    default: 0.7,
-                }),
-                default_temperature: Some(0.7),
             },
-        });
+        );
 
         // OpenAI provider
-        providers.insert("openai".to_string(), ProviderConfig {
-            id: "openai".to_string(),
-            name: "OpenAI".to_string(),
-            description: Some("GPT models from OpenAI".to_string()),
-            enabled: true,
-            models: vec![
-                ModelConfig {
-                    provider_id: "openai".to_string(),
-                    model_id: "gpt-4o".to_string(),
+        providers.insert(
+            "openai".to_string(),
+            ProviderConfig {
+                id: "openai".to_string(),
+                name: "OpenAI".to_string(),
+                description: Some("GPT models from OpenAI".to_string()),
+                enabled: true,
+                models: vec![
+                    ModelConfig {
+                        provider_id: "openai".to_string(),
+                        model_id: "gpt-4o".to_string(),
+                    },
+                    ModelConfig {
+                        provider_id: "openai".to_string(),
+                        model_id: "gpt-4-turbo".to_string(),
+                    },
+                ],
+                settings: ProviderSettings {
+                    api_base: Some("https://api.openai.com".to_string()),
+                    api_version: Some("v1".to_string()),
+                    supports_streaming: true,
+                    supports_functions: true,
+                    max_tokens: Some(4096),
+                    temperature_range: Some(TemperatureRange {
+                        min: 0.0,
+                        max: 2.0,
+                        default: 0.7,
+                    }),
+                    default_temperature: Some(0.7),
                 },
-                ModelConfig {
-                    provider_id: "openai".to_string(),
-                    model_id: "gpt-4-turbo".to_string(),
-                },
-            ],
-            settings: ProviderSettings {
-                api_base: Some("https://api.openai.com".to_string()),
-                api_version: Some("v1".to_string()),
-                supports_streaming: true,
-                supports_functions: true,
-                max_tokens: Some(4096),
-                temperature_range: Some(TemperatureRange {
-                    min: 0.0,
-                    max: 2.0,
-                    default: 0.7,
-                }),
-                default_temperature: Some(0.7),
             },
-        });
+        );
 
         let mut provider_guard = self.providers.write().await;
         *provider_guard = providers;
@@ -403,20 +435,22 @@ impl ModelManager {
     }
 
     /// Update models from server information
-    pub async fn update_models_from_server(&self, server_models: Vec<ModelInfo>) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn update_models_from_server(
+        &self,
+        server_models: Vec<ModelInfo>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut models = HashMap::new();
         let providers = self.providers.read().await;
 
         for model_info in server_models {
             let provider_config = providers.get(&model_info.provider_id);
-            
+
             let extended_model = ExtendedModelConfig {
                 provider_id: model_info.provider_id.clone(),
                 model_id: model_info.model_id.clone(),
                 name: model_info.name,
                 description: None,
-                context_length: provider_config
-                    .and_then(|p| p.settings.max_tokens),
+                context_length: provider_config.and_then(|p| p.settings.max_tokens),
                 input_cost_per_1k: None,
                 output_cost_per_1k: None,
                 capabilities: ModelCapabilities {
@@ -428,13 +462,16 @@ impl ModelManager {
                     streaming: provider_config
                         .map(|p| p.settings.supports_streaming)
                         .unwrap_or(false),
-                    json_mode: true, // Assume most models support this
+                    json_mode: true,       // Assume most models support this
                     parallel_tools: false, // Would need server info
                 },
                 settings: ModelSettings::default(),
             };
 
-            models.insert(format!("{}/{}", model_info.provider_id, model_info.model_id), extended_model);
+            models.insert(
+                format!("{}/{}", model_info.provider_id, model_info.model_id),
+                extended_model,
+            );
         }
 
         let mut model_guard = self.models.write().await;
@@ -451,13 +488,17 @@ impl ModelManager {
     }
 
     /// Enable/disable a provider
-    pub async fn set_provider_enabled(&self, provider_id: &str, enabled: bool) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn set_provider_enabled(
+        &self,
+        provider_id: &str,
+        enabled: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut providers = self.providers.write().await;
-        
+
         if let Some(provider) = providers.get_mut(provider_id) {
             provider.enabled = enabled;
             drop(providers);
-            
+
             self.save_providers().await
         } else {
             Err(AppError::ValidationError {
@@ -494,6 +535,19 @@ impl Default for ModelSettings {
     }
 }
 
+impl Default for ModelCapabilities {
+    fn default() -> Self {
+        Self {
+            text_generation: true,
+            function_calling: false,
+            vision: false,
+            streaming: false,
+            json_mode: true,
+            parallel_tools: false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -511,7 +565,7 @@ mod tests {
     #[tokio::test]
     async fn test_model_manager_creation() {
         let (manager, _temp) = create_test_model_manager();
-        
+
         // Should be able to load preferences (creates defaults if not exists)
         let result = manager.load_preferences();
         assert!(result.is_ok(), "Should load preferences");
@@ -520,14 +574,17 @@ mod tests {
     #[tokio::test]
     async fn test_default_providers_creation() {
         let (manager, _temp) = create_test_model_manager();
-        
+
         // Create default providers
-        manager.create_default_providers().await.expect("Should create default providers");
-        
+        manager
+            .create_default_providers()
+            .await
+            .expect("Should create default providers");
+
         // Check providers exist
         let providers = manager.get_providers().await.expect("Should get providers");
         assert!(providers.len() >= 2); // At least Anthropic and OpenAI
-        
+
         let provider_ids: Vec<String> = providers.iter().map(|p| p.id.clone()).collect();
         assert!(provider_ids.contains(&"anthropic".to_string()));
         assert!(provider_ids.contains(&"openai".to_string()));
@@ -561,7 +618,8 @@ mod tests {
         assert!(json.contains("anthropic"));
         assert!(json.contains("claude-3-5-sonnet-20241022"));
 
-        let deserialized: ModelPreferences = serde_json::from_str(&json).expect("Should deserialize preferences");
+        let deserialized: ModelPreferences =
+            serde_json::from_str(&json).expect("Should deserialize preferences");
         assert_eq!(deserialized.default_provider, Some("anthropic".to_string()));
         assert_eq!(deserialized.preferred_temperature, Some(0.8));
     }
@@ -573,12 +631,10 @@ mod tests {
             name: "Test Provider".to_string(),
             description: Some("A test provider".to_string()),
             enabled: true,
-            models: vec![
-                ModelConfig {
-                    provider_id: "test-provider".to_string(),
-                    model_id: "test-model".to_string(),
-                },
-            ],
+            models: vec![ModelConfig {
+                provider_id: "test-provider".to_string(),
+                model_id: "test-model".to_string(),
+            }],
             settings: ProviderSettings {
                 api_base: Some("https://api.test.com".to_string()),
                 api_version: Some("v1".to_string()),
@@ -598,7 +654,8 @@ mod tests {
         assert!(json.contains("test-provider"));
         assert!(json.contains("Test Provider"));
 
-        let deserialized: ProviderConfig = serde_json::from_str(&json).expect("Should deserialize ProviderConfig");
+        let deserialized: ProviderConfig =
+            serde_json::from_str(&json).expect("Should deserialize ProviderConfig");
         assert_eq!(deserialized.id, "test-provider");
         assert_eq!(deserialized.name, "Test Provider");
         assert!(deserialized.enabled);
@@ -607,21 +664,29 @@ mod tests {
     #[tokio::test]
     async fn test_default_model_selection() {
         let (manager, _temp) = create_test_model_manager();
-        
+
         // Initially no default model
-        let default = manager.get_default_model().await.expect("Should get default model");
+        let default = manager
+            .get_default_model()
+            .await
+            .expect("Should get default model");
         assert!(default.is_none());
 
         // Set default model
-        manager.set_default_model(
-            "anthropic".to_string(),
-            "claude-3-5-sonnet-20241022".to_string(),
-        ).expect("Should set default model");
+        manager
+            .set_default_model(
+                "anthropic".to_string(),
+                "claude-3-5-sonnet-20241022".to_string(),
+            )
+            .expect("Should set default model");
 
         // Should now have default model
-        let default = manager.get_default_model().await.expect("Should get default model");
+        let default = manager
+            .get_default_model()
+            .await
+            .expect("Should get default model");
         assert!(default.is_some());
-        
+
         let model_config = default.unwrap();
         assert_eq!(model_config.provider_id, "anthropic");
         assert_eq!(model_config.model_id, "claude-3-5-sonnet-20241022");
@@ -630,9 +695,9 @@ mod tests {
     #[tokio::test]
     async fn test_model_settings_management() {
         let (manager, _temp) = create_test_model_manager();
-        
+
         let model_id = "test-model";
-        
+
         // Initially default settings
         let settings = manager.get_model_settings(model_id);
         assert!(settings.temperature.is_none());
@@ -648,7 +713,8 @@ mod tests {
             stop_sequences: Some(vec!["</stop>".to_string()]),
         };
 
-        manager.set_model_settings(model_id.to_string(), custom_settings.clone())
+        manager
+            .set_model_settings(model_id.to_string(), custom_settings.clone())
             .expect("Should set model settings");
 
         // Should get custom settings
@@ -661,44 +727,56 @@ mod tests {
     #[tokio::test]
     async fn test_provider_models_filtering() {
         let (manager, _temp) = create_test_model_manager();
-        
+
         // Create some test models
         let mut models = HashMap::new();
-        models.insert("anthropic/claude-3-5-sonnet".to_string(), ExtendedModelConfig {
-            provider_id: "anthropic".to_string(),
-            model_id: "claude-3-5-sonnet".to_string(),
-            name: "Claude 3.5 Sonnet".to_string(),
-            description: None,
-            context_length: None,
-            input_cost_per_1k: None,
-            output_cost_per_1k: None,
-            capabilities: ModelCapabilities::default(),
-            settings: ModelSettings::default(),
-        });
-        
-        models.insert("openai/gpt-4".to_string(), ExtendedModelConfig {
-            provider_id: "openai".to_string(),
-            model_id: "gpt-4".to_string(),
-            name: "GPT-4".to_string(),
-            description: None,
-            context_length: None,
-            input_cost_per_1k: None,
-            output_cost_per_1k: None,
-            capabilities: ModelCapabilities::default(),
-            settings: ModelSettings::default(),
-        });
+        models.insert(
+            "anthropic/claude-3-5-sonnet".to_string(),
+            ExtendedModelConfig {
+                provider_id: "anthropic".to_string(),
+                model_id: "claude-3-5-sonnet".to_string(),
+                name: "Claude 3.5 Sonnet".to_string(),
+                description: None,
+                context_length: None,
+                input_cost_per_1k: None,
+                output_cost_per_1k: None,
+                capabilities: ModelCapabilities::default(),
+                settings: ModelSettings::default(),
+            },
+        );
+
+        models.insert(
+            "openai/gpt-4".to_string(),
+            ExtendedModelConfig {
+                provider_id: "openai".to_string(),
+                model_id: "gpt-4".to_string(),
+                name: "GPT-4".to_string(),
+                description: None,
+                context_length: None,
+                input_cost_per_1k: None,
+                output_cost_per_1k: None,
+                capabilities: ModelCapabilities::default(),
+                settings: ModelSettings::default(),
+            },
+        );
 
         let mut model_guard = manager.models.write().await;
         *model_guard = models;
         drop(model_guard);
 
         // Get Anthropic models
-        let anthropic_models = manager.get_provider_models("anthropic").await.expect("Should get Anthropic models");
+        let anthropic_models = manager
+            .get_provider_models("anthropic")
+            .await
+            .expect("Should get Anthropic models");
         assert_eq!(anthropic_models.len(), 1);
         assert_eq!(anthropic_models[0].provider_id, "anthropic");
 
         // Get OpenAI models
-        let openai_models = manager.get_provider_models("openai").await.expect("Should get OpenAI models");
+        let openai_models = manager
+            .get_provider_models("openai")
+            .await
+            .expect("Should get OpenAI models");
         assert_eq!(openai_models.len(), 1);
         assert_eq!(openai_models[0].provider_id, "openai");
     }

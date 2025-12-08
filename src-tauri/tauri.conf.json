@@ -15,7 +15,8 @@
       {
         "title": "OpenCode Nexus",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "label": "main"
       }
     ],
     "security": {
@@ -31,55 +32,12 @@
   "bundle": {
     "active": true,
     "targets": "all",
-    "category": "Utility",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ],
-    "iOS": {
-      "developmentTeam": "PCJU8QD9FN",
-      "minimumSystemVersion": "14.0",
-      "bundleVersion": "30",
-      "capabilities": [],
-      "entitlements": "ios-config/src-tauri_iOS.entitlements",
-      "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": false,
-          "NSExceptionDomains": {
-            "api.opencode.ai": {
-              "NSExceptionAllowsInsecureHTTPLoads": false,
-              "NSExceptionMinimumTLSVersion": "TLSv1.2",
-              "NSExceptionRequiresForwardSecrecy": true
-            },
-            "opencode.ai": {
-              "NSExceptionAllowsInsecureHTTPLoads": false,
-              "NSExceptionMinimumTLSVersion": "TLSv1.2",
-              "NSExceptionRequiresForwardSecrecy": true
-            }
-          }
-        },
-        "ITSAppUsesNonExemptEncryption": true,
-        "NSCameraUsageDescription": "This app may use the camera for scanning QR codes and other features.",
-        "NSMicrophoneUsageDescription": "This app may access the microphone for voice input features.",
-        "CFBundleDisplayName": "OpenCode Nexus",
-        "CFBundleName": "OpenCodeNexus",
-        "LSRequiresIPhoneOS": true,
-        "UIRequiredDeviceCapabilities": ["armv7"],
-        "UISupportedInterfaceOrientations": [
-          "UIInterfaceOrientationPortrait",
-          "UIInterfaceOrientationLandscapeLeft",
-          "UIInterfaceOrientationLandscapeRight"
-        ],
-        "UISupportedInterfaceOrientations~ipad": [
-          "UIInterfaceOrientationPortrait",
-          "UIInterfaceOrientationPortraitUpsideDown",
-          "UIInterfaceOrientationLandscapeLeft",
-          "UIInterfaceOrientationLandscapeRight"
-        ]
-      }
-    }
+    ]
   }
 }

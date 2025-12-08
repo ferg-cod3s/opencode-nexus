@@ -1,0 +1,33 @@
+name: Display Cost Warning
+
+description: 'Display cost warning for using GitHub-hosted runners'
+
+inputs:
+  cost_warning:
+    description: 'Cost warning message'
+    required: true
+    type: string
+  repository:
+    description: 'Repository name'
+    required: true
+    type: string
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Display Cost Warning
+      shell: bash
+      run: |
+        echo "💰 Cost Warning Display"
+        echo "Repository: ${{ inputs.repository }}"
+        echo "Warning: ${{ inputs.cost_warning }}"
+        echo ""
+        echo "💡 Tip: Consider setting up a self-hosted runner to reduce costs for frequent builds."
+        echo ""
+        echo "# 💰 Cost Warning" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Repository**: ${{ inputs.repository }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "⚠️ ${{ inputs.cost_warning }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "💡 **Tip**: Consider setting up a self-hosted runner to reduce costs for frequent builds." >> $GITHUB_STEP_SUMMARY
