@@ -391,6 +391,14 @@ const mockApi = {
       '[2024-01-01 12:00:02 UTC] 👤 [USER] Getting user information...',
       '[2024-01-01 12:00:03 UTC] 🚀 [ONBOARDING] Getting onboarding state...'
     ];
+  },
+
+  // Connection management APIs
+  restore_last_connection: async (): Promise<void> => {
+    console.log(`[MOCK API] restore_last_connection called`);
+    // In mock mode, just log that we're attempting to restore connection
+    // This would normally try to reconnect to the last known server
+    return;
   }
 };
 
@@ -463,9 +471,9 @@ export const listen = async (event: string, handler: (event: any) => void): Prom
       const index = listeners.indexOf(handler);
       if (index > -1) {
         listeners.splice(index, 1);
-      }
     }
-  };
+  }
+};
 };
 
 /**

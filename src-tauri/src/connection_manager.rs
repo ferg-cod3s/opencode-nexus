@@ -8,6 +8,19 @@ use std::time::{Duration, SystemTime};
 use tauri::Emitter;
 use tokio::sync::broadcast;
 
+// Logging macros for this module
+macro_rules! log_info {
+    ($($arg:tt)*) => {
+        eprintln!("[INFO] {}", format!($($arg)*));
+    };
+}
+
+macro_rules! log_warn {
+    ($($arg:tt)*) => {
+        eprintln!("[WARN] {}", format!($($arg)*));
+    };
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Copy)]
 pub enum ConnectionStatus {
     Disconnected,
@@ -524,6 +537,66 @@ impl ConnectionManager {
             connections_map.insert(connection.name.clone(), connection);
         }
 
+        Ok(())
+    }
+
+    /// Attempt to restore the last connection on startup
+    /// This should be called after load_connections to automatically reconnect
+    pub async fn restore_last_connection(&mut self) -> Result<(), String> {
+        // Load connections first if not already loaded
+        self.load_connections()?;
+
+        let current_connection_name = {
+            let current_conn = self.current_connection.lock().unwrap();
+            current_conn.clone()
+        };
+
+        // If we have a current connection marked, try to reconnect to it
+        if let Some(connection_name) = current_connection_name {
+            let connection = {
+                let connections = self.connections.lock().unwrap();
+                connections.get(&connection_name).cloned()
+            };
+
+            if let Some(connection) = connection {
+                log_info!("🔄 [CONNECTION] Attempting to restore last connection to {}:{}",
+                         connection.hostname, connection.port);
+
+                // Try to reconnect with authentication
+                match self.connect_to_server_with_auth(
+                    &connection.hostname,
+                    connection.port,
+                    connection.secure,
+                    connection.auth_type,
+                    connection.auth_credentials,
+                ).await {
+                    Ok(()) => {
+                        log_info!("✅ [CONNECTION] Successfully restored connection to {}:{}",
+                                 connection.hostname, connection.port);
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        log_warn!("⚠️ [CONNECTION] Failed to restore connection to {}:{}: {}",
+                                 connection.hostname, connection.port, e);
+
+                        // Mark as disconnected but don't clear the connection info
+                        // User can manually reconnect later
+                        *self.connection_status.lock().unwrap() = ConnectionStatus::Disconnected;
+
+                        // Send disconnection event
+                        let _ = self.event_sender.send(ConnectionEvent {
+                            timestamp: SystemTime::now(),
+                            event_type: ConnectionEventType::Disconnected,
+                            message: format!("Failed to restore connection: {}", e),
+                        });
+
+                        return Err(format!("Failed to restore last connection: {}", e));
+                    }
+                }
+            }
+        }
+
+        log_info!("ℹ️ [CONNECTION] No previous connection to restore");
         Ok(())
     }
 

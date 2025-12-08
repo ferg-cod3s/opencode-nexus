@@ -424,6 +424,29 @@ fn ensure_server_connected() -> Result<String, String> {
 
 // Connection management commands
 #[tauri::command]
+async fn restore_last_connection(app_handle: tauri::AppHandle) -> Result<(), String> {
+    log_info!("🔄 [CONNECTION] Restoring last server connection on startup...");
+
+    let config_dir = dirs::config_dir()
+        .ok_or("Could not determine config directory")?
+        .join("opencode-nexus");
+
+    let mut connection_manager =
+        ConnectionManager::new(config_dir, Some(app_handle)).map_err(|e| e.to_string())?;
+
+    connection_manager
+        .restore_last_connection()
+        .await
+        .map_err(|e| {
+            log_error!("❌ [CONNECTION] Failed to restore last connection: {}", e);
+            e
+        })?;
+
+    log_info!("✅ [CONNECTION] Connection restoration completed");
+    Ok(())
+}
+
+#[tauri::command]
 async fn connect_to_server(
     app_handle: tauri::AppHandle,
     hostname: String,
@@ -722,6 +745,7 @@ pub fn run() {
             invalidate_session,
             cleanup_expired_sessions,
             // Connection management commands
+            restore_last_connection,
             connect_to_server,
             connect_to_server_with_auth,
             test_server_connection,

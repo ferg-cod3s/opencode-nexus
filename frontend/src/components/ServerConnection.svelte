@@ -1175,5 +1175,4 @@
   .connect-btn {
     min-height: 44px;
   }
-</style></content>
-<parameter name="filePath">frontend/src/components/ServerConnection.svelte
+</style>

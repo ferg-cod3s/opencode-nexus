@@ -12,6 +12,7 @@ settingGroups:
     base:
       PRODUCT_NAME: OpenCode Nexus
       PRODUCT_BUNDLE_IDENTIFIER: com.agentic-codeflow.opencode-nexus
+      DEVELOPMENT_TEAM: PCJU8QD9FN
 targetTemplates:
   app:
     type: application
@@ -51,8 +52,8 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        CFBundleShortVersionString: 0.1.0
-        CFBundleVersion: "0.1.0"
+        CFBundleShortVersionString: 0.1.1
+        CFBundleVersion: "0.1.1"
     entitlements:
       path: src-tauri_iOS/src-tauri_iOS.entitlements
     scheme:

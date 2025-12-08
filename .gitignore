@@ -19,6 +19,13 @@ frontend/test-results/
 *.local
 .env
 .env.*.local
+
+# iOS/macOS credentials (never commit)
+.credentials/
+*.p12
+*.p8
+*.mobileprovision
+AuthKey_*.p8
 .vscode/*
 !.vscode/extensions.json
 .idea

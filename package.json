@@ -1,20 +1,23 @@
 {
   "name": "src-tauri",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.0.0-dev001",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "cd frontend && bun run build",
     "preview": "vite preview",
     "tauri": "tauri",
+    "tauri:dev": "cargo tauri dev",
+    "tauri:build": "cargo tauri build",
+    "ios:build": "cargo tauri ios build",
+    "ios:dev": "cargo tauri ios dev",
     "version:patch": "node scripts/bump-version.js patch",
     "version:minor": "node scripts/bump-version.js minor",
     "version:major": "node scripts/bump-version.js major",
-    "build:ios": "cargo tauri ios build --release",
     "deploy:testflight": "scripts/deploy-testflight.sh",
     "deploy:testflight:quick": "scripts/deploy-testflight.sh --skip-build",
-    "release": "npm run version:patch && git add -A && git commit -m \"chore: bump version\" && npm run deploy:testflight"
+    "release": "bun run version:patch && git add -A && git commit -m \"chore: bump version\" && bun run deploy:testflight"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
