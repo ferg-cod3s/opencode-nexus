@@ -1,0 +1,170 @@
+name: iOS TestFlight Release
+
+on:
+  push:
+    tags:
+      - 'ios-v*'
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: 0
+  RUST_LOG: warn
+  NODE_ENV: production
+
+jobs:
+  build-ios:
+    name: iOS TestFlight Build
+    runs-on: macos-14
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: version
+        run: |
+          TAG_NAME="${{ github.ref_name }}"
+          VERSION=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/[^0-9.]*$//')
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "Tag: $TAG_NAME"
+          echo "Version: $VERSION (Build: $BUILD_NUMBER)"
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '15.4'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios, aarch64-apple-ios-sim
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --version "^2.0.0" --locked
+
+      - name: Frontend Build
+        run: |
+          cd frontend
+          bun install --frozen-lockfile
+          NODE_ENV=production bun run build
+          cd ..
+
+      - name: Rust Pre-build
+        run: |
+          cd src-tauri
+          export IPHONEOS_DEPLOYMENT_TARGET=14.0
+          cargo build --target aarch64-apple-ios --release --lib
+          cd ..
+
+      - name: iOS Project Setup
+        run: |
+          cd src-tauri
+          rm -rf gen/apple
+          cargo tauri ios init
+          mkdir -p gen/apple/Externals/arm64/Release
+          cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
+          cd ..
+
+      - name: Setup Code Signing
+        env:
+          IOS_CERTIFICATE_P12: ${{ secrets.IOS_CERTIFICATE_P12 }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD_TEMP || secrets.IOS_CERTIFICATE_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$(mktemp -d)/build.keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          echo "$IOS_CERTIFICATE_P12" | base64 --decode > /tmp/cert.p12
+          security import /tmp/cert.p12 \
+            -k "$KEYCHAIN_PATH" \
+            -P "$IOS_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/xcodebuild
+          rm -f /tmp/cert.p12
+
+      - name: Install Provisioning Profile
+        env:
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
+          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
+          cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/OpenCodeNexus_AppStore.mobileprovision
+          rm -f /tmp/profile.mobileprovision
+
+      - name: iOS Archive
+        run: |
+          cd src-tauri/gen/apple
+          mkdir -p build/archives
+          xcodebuild \
+            -project src-tauri.xcodeproj \
+            -scheme src-tauri_iOS \
+            -configuration Release \
+            -archivePath build/archives/OpenCodeNexus.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM="PCJU8QD9FN"
+          cd ../../..
+
+      - name: Export IPA
+        id: export
+        run: |
+          cd src-tauri/gen/apple
+          mkdir -p build/ipa
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/archives/OpenCodeNexus.xcarchive \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath build/ipa
+          IPA_FILE=$(find build/ipa -name "*.ipa" -type f)
+          echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
+          echo "IPA_FILE=$IPA_FILE" >> $GITHUB_ENV
+          cd ../../..
+
+      - name: Upload to TestFlight
+        if: success()
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
+        run: |
+          TEMP_KEY_DIR=$(mktemp -d)
+          echo "$APP_STORE_CONNECT_API_PRIVATE_KEY" | base64 --decode > "$TEMP_KEY_DIR/AuthKey.p8"
+          xcrun altool \
+            --upload-app \
+            --type ios \
+            --file "${{ env.IPA_FILE }}" \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --apiKeysDir "$TEMP_KEY_DIR" \
+            --verbose
+          rm -rf "$TEMP_KEY_DIR"
+
+      - name: Create Sentry Release
+        if: success()
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+        run: |
+          curl -X POST \
+            -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"version":"${{ steps.version.outputs.version }}","projects":["opencode-nexus-frontend","opencode-nexus-backend"]}' \
+            https://sentry.fergify.work/api/0/organizations/unforgettable-designs/releases/
+
+      - name: Upload Build Artifacts
+        if: always() && env.IPA_FILE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencode-nexus-ios-${{ steps.version.outputs.version }}-build-${{ steps.version.outputs.build }}
+          path: ${{ env.IPA_FILE }}
+          retention-days: 30
