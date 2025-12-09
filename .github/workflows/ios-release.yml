@@ -100,12 +100,14 @@ jobs:
 
       - name: iOS Project Setup
         run: |
-          cd src-tauri
-          rm -rf gen/apple
-          cargo tauri ios init
-          mkdir -p gen/apple/Externals/arm64/Release
-          cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
-          cd ..
+           # Ensure xcodegen is in PATH
+           export PATH="$HOME/bin:$PATH"
+           cd src-tauri
+           rm -rf gen/apple
+           cargo tauri ios init
+           mkdir -p gen/apple/Externals/arm64/Release
+           cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
+           cd ..
 
       - name: Setup Code Signing
         env:
