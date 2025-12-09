@@ -68,21 +68,44 @@ jobs:
         with:
           runner_type: ${{ needs.detect-runner.outputs.runner_type }}
 
-      - name: Set up environment variables
-        run: |
-          TAG_NAME="${{ github.event.inputs.tag_name || github.ref_name }}"
-          VERSION_NUMBER=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/-.*$//')
-          BUILD_NUMBER=$(git rev-list --count HEAD)
-          CLEAN_BUILD="${{ github.event.inputs.clean_build || 'false' }}"
+       - name: Set up environment variables
+         run: |
+           TAG_NAME="${{ github.event.inputs.tag_name || github.ref_name }}"
+           REF_TYPE="${{ github.ref_type }}"
+           BUILD_NUMBER=$(git rev-list --count HEAD)
+           CLEAN_BUILD="${{ github.event.inputs.clean_build || 'false' }}"
 
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
-          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
-          echo "CLEAN_BUILD=$CLEAN_BUILD" >> $GITHUB_ENV
-          echo "BUILD_TIMESTAMP=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+           # Version parsing logic
+           if [[ "$REF_TYPE" == "tag" ]]; then
+             # Tag build: extract version from tag name
+             VERSION_NUMBER=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/[^0-9.]*$//')
+           elif [[ -n "${{ github.event.inputs.tag_name }}" && "${{ github.event.inputs.tag_name }}" != "$TAG_NAME" ]]; then
+             # Manual build with custom tag_name input
+             VERSION_NUMBER=$(echo "${{ github.event.inputs.tag_name }}" | sed 's/^[^0-9]*//;s/[^0-9.]*$//')
+           else
+             # Branch build: use package.json version for development builds
+             if command -v jq >/dev/null 2>&1 && [ -f "package.json" ]; then
+               VERSION_NUMBER=$(jq -r '.version' package.json 2>/dev/null || echo "0.0.0-dev")
+             else
+               # Fallback: extract from package.json manually
+               VERSION_NUMBER=$(grep '"version"' package.json | head -1 | sed 's/.*"version": "\([^"]*\)".*/\1/' 2>/dev/null || echo "0.0.0-dev")
+             fi
+             # Ensure we have a valid version
+             if [[ -z "$VERSION_NUMBER" || "$VERSION_NUMBER" == "null" ]]; then
+               VERSION_NUMBER="0.0.0-dev"
+             fi
+           fi
 
-          echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
-          echo "Clean build: $CLEAN_BUILD"
+           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+           echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
+           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+           echo "CLEAN_BUILD=$CLEAN_BUILD" >> $GITHUB_ENV
+           echo "BUILD_TIMESTAMP=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+
+           echo "Ref Type: $REF_TYPE"
+           echo "Tag Name: $TAG_NAME"
+           echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
+           echo "Clean build: $CLEAN_BUILD"
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
