@@ -70,5 +70,8 @@ fn main() {
         scope.set_tag("arch", std::env::consts::ARCH);
     });
 
+    // Setup custom panic hook for crash reporting
+    src_tauri_lib::setup_panic_hook();
+
     src_tauri_lib::run()
 }

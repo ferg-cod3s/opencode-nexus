@@ -59,8 +59,21 @@ pub struct ConnectionManagerState(pub Arc<AsyncMutex<Option<ConnectionManager>>>
 // Legacy state for backward compatibility
 pub struct ChatClientState(pub Arc<AsyncMutex<Option<ChatClient>>>);
 
+// Custom panic hook for crash reporting
+pub fn setup_panic_hook() {
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        let panic_message = format!("Application panicked: {:?}", panic_info);
+        eprintln!("{}", panic_message);
+        log_to_file(&panic_message);
+
+        // Call the default hook to maintain normal panic behavior
+        default_hook(panic_info);
+    }));
+}
+
 // Logging utility function
-fn log_to_file(message: &str) {
+pub fn log_to_file(message: &str) {
     if let Some(config_dir) = dirs::config_dir() {
         let log_path = config_dir.join("opencode-nexus").join("application.log");
 
@@ -80,6 +93,7 @@ fn log_to_file(message: &str) {
 }
 
 // Enhanced logging macros that log to both console and file
+#[macro_export]
 macro_rules! log_info {
     ($($arg:tt)*) => {
         let message = format!("[INFO] {}", format!($($arg)*));
@@ -88,6 +102,7 @@ macro_rules! log_info {
     };
 }
 
+#[macro_export]
 macro_rules! log_error {
     ($($arg:tt)*) => {
         let message = format!("[ERROR] {}", format!($($arg)*));
@@ -96,6 +111,7 @@ macro_rules! log_error {
     };
 }
 
+#[macro_export]
 macro_rules! log_warn {
     ($($arg:tt)*) => {
         let message = format!("[WARN] {}", format!($($arg)*));
@@ -104,6 +120,7 @@ macro_rules! log_warn {
     };
 }
 
+#[macro_export]
 macro_rules! log_debug {
     ($($arg:tt)*) => {
         let message = format!("[DEBUG] {}", format!($($arg)*));
