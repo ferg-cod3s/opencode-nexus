@@ -37,7 +37,7 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '15.4'
+          xcode-version: '26.1.1'
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
