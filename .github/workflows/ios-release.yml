@@ -77,8 +77,13 @@ jobs:
              echo "Installing xcodegen..."
              # Download and install xcodegen binary
              mkdir -p ~/bin
-             curl -L -o ~/bin/xcodegen https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen
-             chmod +x ~/bin/xcodegen
+             cd ~
+             curl -L -o xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen.zip
+             if [ -f xcodegen.zip ]; then
+               unzip xcodegen.zip || tar -xzf xcodegen.zip
+               find . -name "xcodegen" -type f -exec chmod +x {} \;
+               find . -name "xcodegen" -type f -exec mv {} ~/bin/ \; 2>/dev/null || true
+             fi
              export PATH="$HOME/bin:$PATH"
              if command -v xcodegen &> /dev/null; then
                echo "✅ xcodegen installed: $(xcodegen --version)"
