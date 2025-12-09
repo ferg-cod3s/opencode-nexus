@@ -321,18 +321,34 @@ jobs:
           rm -rf "$TEMP_KEY_DIR"
 
       - name: Create GitHub Release
-        if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ env.IPA_FILE }}
-          tag_name: ${{ env.TAG_NAME }}
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(env.TAG_NAME, 'beta') || contains(env.TAG_NAME, 'rc') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+         if: github.ref_type == 'tag'
+         uses: softprops/action-gh-release@v1
+         with:
+           files: ${{ env.IPA_FILE }}
+           tag_name: ${{ env.TAG_NAME }}
+           generate_release_notes: true
+           draft: false
+           prerelease: ${{ contains(env.TAG_NAME, 'beta') || contains(env.TAG_NAME, 'rc') }}
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload IPA to artifacts
+       - name: Create Sentry Release
+         if: success()
+         env:
+           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+         run: |
+           curl -X POST \
+             -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
+             -H "Content-Type: application/json" \
+             -d '{
+               "version": "${{ env.VERSION_NUMBER }}",
+               "projects": ["opencode-nexus-frontend", "opencode-nexus-backend"]
+             }' \
+             https://sentry.fergify.work/api/0/organizations/unforgettable-designs/releases/ \
+             -v
+           echo "Sentry release created for version ${{ env.VERSION_NUMBER }}"
+
+       - name: Upload IPA to artifacts
         if: always() && env.IPA_FILE != ''
         uses: actions/upload-artifact@v4
         with:
