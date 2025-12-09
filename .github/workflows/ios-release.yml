@@ -669,17 +669,17 @@ jobs:
            version: ${{ env.VERSION_NUMBER }}
            projects: opencode-nexus-frontend,opencode-nexus-backend
 
-       - name: Create GitHub Release
-        if: github.ref_type == 'tag'
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ${{ env.IPA_FILE }}
-          tag_name: ${{ env.TAG_NAME }}
-          generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(env.TAG_NAME, 'beta') || contains(env.TAG_NAME, 'rc') }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        - name: Create GitHub Release
+          if: github.ref_type == 'tag'
+          uses: softprops/action-gh-release@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            files: ${{ env.IPA_FILE }}
+            tag_name: ${{ env.TAG_NAME }}
+            generate_release_notes: true
+            draft: false
+            prerelease: ${{ contains(env.TAG_NAME, 'beta') || contains(env.TAG_NAME, 'rc') }}
 
       - name: Upload Enhanced Artifacts
         if: always() && env.IPA_FILE != ''
