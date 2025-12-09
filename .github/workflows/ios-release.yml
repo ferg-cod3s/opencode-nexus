@@ -72,6 +72,7 @@ jobs:
          run: |
            TAG_NAME="${{ github.event.inputs.tag_name || github.ref_name }}"
            REF_TYPE="${{ github.ref_type }}"
+           INPUT_TAG_NAME="${{ github.event.inputs.tag_name }}"
            BUILD_NUMBER=$(git rev-list --count HEAD)
            CLEAN_BUILD="${{ github.event.inputs.clean_build || 'false' }}"
 
@@ -79,9 +80,9 @@ jobs:
            if [[ "$REF_TYPE" == "tag" ]]; then
              # Tag build: extract version from tag name
              VERSION_NUMBER=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/[^0-9.]*$//')
-           elif [[ -n "${{ github.event.inputs.tag_name }}" && "${{ github.event.inputs.tag_name }}" != "$TAG_NAME" ]]; then
+           elif [[ -n "$INPUT_TAG_NAME" && "$INPUT_TAG_NAME" != "$TAG_NAME" ]]; then
              # Manual build with custom tag_name input
-             VERSION_NUMBER=$(echo "${{ github.event.inputs.tag_name }}" | sed 's/^[^0-9]*//;s/[^0-9.]*$//')
+             VERSION_NUMBER=$(echo "$INPUT_TAG_NAME" | sed 's/^[^0-9]*//;s/[^0-9.]*$//')
            else
              # Branch build: use package.json version for development builds
              if command -v jq >/dev/null 2>&1 && [ -f "package.json" ]; then
@@ -104,6 +105,7 @@ jobs:
 
            echo "Ref Type: $REF_TYPE"
            echo "Tag Name: $TAG_NAME"
+           echo "Input Tag: $INPUT_TAG_NAME"
            echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
            echo "Clean build: $CLEAN_BUILD"
 
