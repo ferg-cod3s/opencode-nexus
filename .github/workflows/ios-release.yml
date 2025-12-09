@@ -631,10 +631,20 @@ jobs:
           UPLOAD_TIME=$(($(date +%s) - START_TIME))
           echo "::notice::TestFlight upload completed in ${UPLOAD_TIME}s"
 
-          rm -rf "$TEMP_KEY_DIR"
-          echo "✅ Enhanced TestFlight upload completed"
+           rm -rf "$TEMP_KEY_DIR"
+           echo "✅ Enhanced TestFlight upload completed"
 
-      - name: Create GitHub Release
+       - name: Create Sentry Release
+         uses: getsentry/action-release@v1
+         env:
+           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+           SENTRY_ORG: unfergettable-designs
+         with:
+           environment: production
+           version: ${{ env.VERSION_NUMBER }}
+           projects: opencode-nexus-frontend,opencode-nexus-backend
+
+       - name: Create GitHub Release
         if: github.ref_type == 'tag'
         uses: softprops/action-gh-release@v1
         with:
