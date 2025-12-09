@@ -32,12 +32,15 @@ jobs:
         with:
           targets: aarch64-apple-ios, aarch64-apple-ios-sim
 
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
+       - name: Install Bun
+         uses: oven-sh/setup-bun@v1
+         with:
+           bun-version: latest
 
-      - name: Get version from tag
+       - name: Install Tauri CLI
+         run: cargo install tauri-cli --version "^2.0.0" --locked
+
+       - name: Get version from tag
         id: version
         run: |
           TAG_NAME="${{ github.ref_name }}"
