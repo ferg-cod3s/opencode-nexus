@@ -672,19 +672,17 @@ jobs:
         - name: Create GitHub Release
           if: github.ref_type == 'tag'
           run: |
-            # Determine if this is a prerelease
-            PRERELEASE_FLAG=""
-            if [[ "$TAG_NAME" == *"beta"* || "$TAG_NAME" == *"rc"* ]]; then
-              PRERELEASE_FLAG="--prerelease"
-            fi
+            echo "Creating GitHub release for tag: $TAG_NAME"
+            echo "IPA file: $IPA_FILE"
 
-            # Create release with GitHub CLI
-            gh release create "$TAG_NAME" \
-              "$IPA_FILE" \
-              --title "$TAG_NAME" \
-              --generate-notes \
-              --latest=false \
-              $PRERELEASE_FLAG
+            # Determine if this is a prerelease
+            if [[ "$TAG_NAME" == *"beta"* || "$TAG_NAME" == *"rc"* ]]; then
+              echo "Detected prerelease tag, using --prerelease flag"
+              gh release create "$TAG_NAME" "$IPA_FILE" --title "$TAG_NAME" --generate-notes --latest=false --prerelease
+            else
+              echo "Regular release tag"
+              gh release create "$TAG_NAME" "$IPA_FILE" --title "$TAG_NAME" --generate-notes --latest=false
+            fi
 
       - name: Upload Enhanced Artifacts
         if: always() && env.IPA_FILE != ''
