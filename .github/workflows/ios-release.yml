@@ -12,12 +12,41 @@ env:
   NODE_ENV: production
 
 jobs:
+  detect-runner:
+    name: Detect Runner for iOS Build
+    uses: ./.github/workflows/runner-detection.yml
+    with:
+      preferred_runner: 'self-hosted'
+      fallback_runner: 'macos-14'
+      fail_if_unavailable: false
+      require_macos: true
+      check_disk_space: 15
+
   build-ios:
     name: iOS TestFlight Build
-    runs-on: macos-14
+    runs-on: ${{ needs.detect-runner.outputs.runner_type }}
+    needs: detect-runner
     timeout-minutes: 120
+    if: always() && needs.detect-runner.result == 'success'
 
     steps:
+      - name: Display Cost Warning
+        if: needs.detect-runner.outputs.cost_warning != ''
+        run: |
+          echo "::warning::${{ needs.detect-runner.outputs.cost_warning }}"
+          echo ""
+          echo "💡 **Cost Impact**: This iOS build is running on GitHub-hosted runner"
+          echo "- **Current cost**: $0.08/minute"
+          echo "- **Estimated build time**: 15-20 minutes"
+          echo "- **Estimated cost**: $1.20-$1.60"
+          echo ""
+          echo "💰 **Savings with self-hosted runner**: $1.20-$1.60 per build"
+          echo ""
+          echo "🔧 **To fix this**:"
+          echo "1. Check self-hosted runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
+          echo "2. Restart runner: cd ~/github-runner && ./svc.restart"
+          echo "3. Check logs: cd ~/github-runner && tail -f _diag/Runner_*.log"
+
       - name: Checkout code
         uses: actions/checkout@v4
         with:
