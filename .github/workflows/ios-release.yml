@@ -64,27 +64,25 @@ jobs:
           cd src-tauri
           export IPHONEOS_DEPLOYMENT_TARGET=14.0
           cargo build --target aarch64-apple-ios --release --lib
-          cd ..
+           cd ..
 
       - name: Install iOS Dependencies
         run: |
-           # Install Homebrew if not present
-           if ! command -v brew &> /dev/null; then
-             echo "Installing Homebrew..."
-             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-             echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-             eval "$(/opt/homebrew/bin/brew shellenv)"
+           # Check if xcodegen is available
+           if ! command -v xcodegen &> /dev/null; then
+             echo "xcodegen not found. Installing via gem..."
+             gem install xcodegen
            fi
 
-           # Install xcodegen and cocoapods
-           echo "Installing xcodegen..."
-           brew install xcodegen
-           echo "Installing cocoapods..."
-           brew install cocoapods
+           # Check if cocoapods is available
+           if ! command -v pod &> /dev/null; then
+             echo "cocoapods not found. Installing via gem..."
+             gem install cocoapods
+           fi
 
            # Verify installations
-            xcodegen --version
-            pod --version
+           echo "xcodegen version: $(xcodegen --version)"
+           echo "cocoapods version: $(pod --version)"
 
       - name: iOS Project Setup
         run: |
