@@ -4,26 +4,6 @@ on:
   push:
     tags:
       - 'ios-v*'
-    branches:
-      - 'main'
-      - 'test-ios-build'
-      - 'release'
-  workflow_dispatch:
-    inputs:
-      upload_to_testflight:
-        description: 'Upload to TestFlight'
-        required: false
-        default: true
-        type: boolean
-      tag_name:
-        description: 'Release tag name'
-        required: false
-        type: string
-      clean_build:
-        description: 'Perform clean build (slower but more reliable)'
-        required: false
-        default: false
-        type: boolean
 
 env:
   RUST_BACKTRACE: 0
@@ -31,172 +11,16 @@ env:
   NODE_ENV: production
 
 jobs:
-  # Enhanced runner detection with health monitoring
-  detect-runner:
-    name: Detect and Validate Runner for iOS Build
-    uses: ./.github/workflows/runner-detection.yml
-    with:
-      preferred_runner: 'self-hosted'
-      fallback_runner: 'macos-14'
-      fail_if_unavailable: false
-      require_macos: true
-      check_disk_space: 15
-
-  # Pre-build validation and setup
-  validate-setup:
-    name: Validate Build Environment
-    runs-on: ${{ needs.detect-runner.outputs.runner_type }}
-    needs: detect-runner
-    timeout-minutes: 15
-    if: always() && needs.detect-runner.result == 'success'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Display Cost Warning
-        if: needs.detect-runner.outputs.cost_warning != ''
-        uses: ./.github/actions/display-cost-warning
-        with:
-          cost_warning: ${{ needs.detect-runner.outputs.cost_warning }}
-          repository: ${{ github.repository }}
-
-      - name: Validate Runner Environment
-        uses: ./.github/actions/validate-runner
-        with:
-          runner_type: ${{ needs.detect-runner.outputs.runner_type }}
-
-       - name: Set up environment variables
-         run: |
-           TAG_NAME="${{ github.event.inputs.tag_name || github.ref_name }}"
-           REF_TYPE="${{ github.ref_type }}"
-           BUILD_NUMBER=$(git rev-list --count HEAD)
-           CLEAN_BUILD="${{ github.event.inputs.clean_build || 'false' }}"
-
-            # Version parsing logic
-           if [[ "$REF_TYPE" == "tag" ]]; then
-             # Tag build: extract version from tag name
-             VERSION_NUMBER=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/[^0-9.]*$//')
-           else
-             # Branch build: use package.json version for development builds
-             if command -v jq >/dev/null 2>&1 && [ -f "package.json" ]; then
-               VERSION_NUMBER=$(jq -r '.version' package.json 2>/dev/null || echo "0.0.0-dev")
-             else
-               # Fallback: extract from package.json manually
-               VERSION_NUMBER=$(grep '"version"' package.json | head -1 | sed 's/.*"version": "\([^"]*\)".*/\1/' 2>/dev/null || echo "0.0.0-dev")
-             fi
-             # Ensure we have a valid version
-             if [[ -z "$VERSION_NUMBER" || "$VERSION_NUMBER" == "null" ]]; then
-               VERSION_NUMBER="0.0.0-dev"
-             fi
-           fi
-
-           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-           echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
-           echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
-           echo "CLEAN_BUILD=$CLEAN_BUILD" >> $GITHUB_ENV
-           echo "BUILD_TIMESTAMP=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-
-           echo "Ref Type: $REF_TYPE"
-           echo "Tag Name: $TAG_NAME"
-           echo "Input Tag: $INPUT_TAG_NAME"
-           echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
-           echo "Clean build: $CLEAN_BUILD"
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: '15.4'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-ios, aarch64-apple-ios-sim
-
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-
-      - name: Validate iOS Development Environment
-        run: |
-          echo "🔍 Validating iOS development environment..."
-
-          # Check Xcode
-          xcode_version=$(xcodebuild -version | head -1)
-          echo "✅ Xcode: $xcode_version"
-
-          # Check iOS SDK
-          ios_sdk=$(xcrun --sdk iphoneos --show-sdk-version)
-          echo "✅ iOS SDK: $ios_sdk"
-
-          # Check Rust targets
-          echo "📱 Rust targets:"
-          rustup target list --installed | grep ios
-
-          # Check certificates (optional)
-          if security find-identity -v -p codesigning | grep -q "Apple Distribution"; then
-            echo "✅ iOS distribution certificates found"
-          else
-            echo "⚠️ No iOS distribution certificates (will use secrets)"
-          fi
-
-          # Check available space
-          available_space=$(df -h . | awk 'NR==2 {print $4}')
-          echo "💾 Available disk space: $available_space"
-
-      - name: Cache Dependencies (Enhanced)
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.bun/install/cache
-            frontend/node_modules
-            src-tauri/target
-          key: ${{ runner.os }}-ios-deps-${{ hashFiles('**/Cargo.lock', '**/bun.lockb', 'src-tauri/Cargo.toml', 'frontend/package.json') }}-${{ env.BUILD_TIMESTAMP }}
-          restore-keys: |
-            ${{ runner.os }}-ios-deps-
-            ${{ runner.os }}-deps-
-
-  # Enhanced iOS build with comprehensive error handling
   build-ios:
     name: iOS TestFlight Build
-    runs-on: ${{ needs.detect-runner.outputs.runner_type }}
-    needs: [detect-runner, validate-setup]
+    runs-on: macos-14
     timeout-minutes: 120
-    if: always() && needs.detect-runner.result == 'success' && needs.validate-setup.result == 'success'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Display Cost Warning
-        if: needs.detect-runner.outputs.cost_warning != ''
-        uses: ./.github/actions/display-cost-warning
-        with:
-          cost_warning: ${{ needs.detect-runner.outputs.cost_warning }}
-          repository: ${{ github.repository }}
-
-      - name: Restore environment variables
-        run: |
-          TAG_NAME="${{ github.event.inputs.tag_name || github.ref_name }}"
-          VERSION_NUMBER=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/-.*$//')
-          BUILD_NUMBER=$(git rev-list --count HEAD)
-          CLEAN_BUILD="${{ github.event.inputs.clean_build || 'false' }}"
-
-          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
-          echo "VERSION_NUMBER=$VERSION_NUMBER" >> $GITHUB_ENV
-          echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
-          echo "CLEAN_BUILD=$CLEAN_BUILD" >> $GITHUB_ENV
-          echo "BUILD_TIMESTAMP=$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-
-          echo "Version: $VERSION_NUMBER (Build: $BUILD_NUMBER)"
-          echo "Clean build: $CLEAN_BUILD"
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -213,516 +37,135 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Install Tauri CLI
+      - name: Get version from tag
+        id: version
         run: |
-          echo "📦 Installing Tauri CLI..."
-          cargo install tauri-cli --version "^2.0.0" --locked
-          echo "✅ Tauri CLI installed"
+          TAG_NAME="${{ github.ref_name }}"
+          VERSION=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/[^0-9.]*$//')
+          BUILD_NUMBER=$(git rev-list --count HEAD)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION (Build: $BUILD_NUMBER)"
 
-      - name: Restore Dependencies Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.bun/install/cache
-            frontend/node_modules
-            src-tauri/target
-          key: ${{ runner.os }}-ios-deps-${{ hashFiles('**/Cargo.lock', '**/bun.lockb', 'src-tauri/Cargo.toml', 'frontend/package.json') }}-${{ env.BUILD_TIMESTAMP }}
-          restore-keys: |
-            ${{ runner.os }}-ios-deps-
-            ${{ runner.os }}-deps-
-
-      - name: Clean Build (if requested)
-        if: env.CLEAN_BUILD == 'true'
+      - name: Frontend Build
         run: |
-          echo "🧹 Performing clean build..."
-          rm -rf src-tauri/target
-          rm -rf frontend/dist
-          rm -rf src-tauri/gen/apple
-          cargo clean
-
-      - name: Enhanced Frontend Build
-        run: |
-          echo "🎨 Building frontend with enhanced reliability..."
           cd frontend
+          bun install --frozen-lockfile
+          NODE_ENV=production bun run build
 
-          # Install dependencies with retry
-          for i in {1..3}; do
-            echo "Installing dependencies (attempt $i/3)..."
-            if bun install --frozen-lockfile; then
-              break
-            elif [ $i -eq 3 ]; then
-              echo "❌ Failed to install dependencies after 3 attempts"
-              exit 1
-            else
-              echo "⚠️ Install failed, retrying in 10s..."
-              sleep 10
-            fi
-          done
-
-          # Build with error handling
-          echo "Building frontend for production..."
-          NODE_ENV=production bun run build || {
-            echo "❌ Frontend build failed"
-            echo "Available disk space: $(df -h .)"
-            echo "Memory usage: $(vm_stat | grep 'Pages free')"
-            exit 1
-          }
-
-          echo "✅ Frontend built successfully"
-
-      - name: Enhanced Rust Pre-build
-        id: prebuild
+      - name: Rust Pre-build
         run: |
-          echo "🦀 Enhanced Rust pre-build for iOS..."
           cd src-tauri
-
-          # Set iOS-specific environment
           export IPHONEOS_DEPLOYMENT_TARGET=14.0
-          export CFLAGS="-miphoneos-version-min=14.0"
-          export CXXFLAGS="-miphoneos-version-min=14.0"
+          cargo build --target aarch64-apple-ios --release --lib
 
-          # Pre-warm dependencies
-          echo "Pre-warming Rust dependencies..."
-          cargo fetch --target aarch64-apple-ios
-
-          # Build with enhanced error handling
-          echo "Building Rust library for iOS..."
-          START_TIME=$(date +%s)
-
-          cargo build --target aarch64-apple-ios --release --lib || {
-            echo "❌ Rust build failed"
-            echo "Debugging information:"
-            echo "  - Rust version: $(rustc --version)"
-            echo "  - Available targets: $(rustup target list --installed)"
-            echo "  - Disk space: $(df -h .)"
-            exit 1
-          }
-
-          RUST_BUILD_TIME=$(($(date +%s) - START_TIME))
-          echo "::notice::Rust build completed in ${RUST_BUILD_TIME}s"
-
-          # Validate library
-          LIB_NAME="libsrc_tauri_lib.a"
-          RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
-
-          if [ ! -f "$RUST_LIB_PATH" ]; then
-            echo "❌ Library not found: $RUST_LIB_PATH"
-            echo "Available files:"
-            find target/aarch64-apple-ios/release -name "*.a" -type f
-            exit 1
-          fi
-
-          # Validate format and architecture
-          if ! file "$RUST_LIB_PATH" | grep -q "ar archive"; then
-            echo "❌ Invalid library format"
-            exit 1
-          fi
-
-          if ! lipo -info "$RUST_LIB_PATH" 2>/dev/null | grep -q "arm64"; then
-            echo "❌ Library not built for arm64"
-            exit 1
-          fi
-
-          LIB_SIZE=$(du -h "$RUST_LIB_PATH" | cut -f1)
-          echo "✅ Rust library built: $LIB_NAME ($LIB_SIZE)"
-          echo "rust_build_time=$RUST_BUILD_TIME" >> $GITHUB_OUTPUT
-
-      - name: Enhanced iOS Project Setup
+      - name: iOS Project Setup
         run: |
-          echo "🍎 Enhanced iOS project setup..."
           cd src-tauri
-
-          # Clean previous builds
-          if [ -d "gen/apple" ]; then
-            echo "Cleaning previous iOS project..."
-            rm -rf gen/apple
-          fi
-
-          # Initialize iOS project
-          echo "Initializing iOS project..."
-          cargo tauri ios init || {
-            echo "❌ Failed to initialize iOS project"
-            exit 1
-          }
-
-          # Create directory structure
-          echo "Creating Externals directory structure..."
+          rm -rf gen/apple
+          cargo tauri ios init
           mkdir -p gen/apple/Externals/arm64/Release
-          mkdir -p gen/apple/Externals/arm64/release
+          cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
 
-          # Copy pre-built library
-          echo "Copying pre-built library..."
-          LIB_NAME="libsrc_tauri_lib.a"
-          RUST_LIB_PATH="target/aarch64-apple-ios/release/$LIB_NAME"
-
-          cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/Release/libapp.a
-          cp "$RUST_LIB_PATH" gen/apple/Externals/arm64/release/libapp.a
-
-          # Copy configuration
-          if [ -f "ios-config/ExportOptions.plist" ]; then
-            cp ios-config/ExportOptions.plist gen/apple/ExportOptions.plist
-          fi
-
-          # Apply CI patches
-          echo "Applying CI optimization patches..."
-          cd gen/apple
-          PBXPROJ="src-tauri.xcodeproj/project.pbxproj"
-
-          if grep -q "cargo tauri ios xcode-script" "$PBXPROJ"; then
-            echo "Applying Rust build optimization patch..."
-            sed -i.bak 's|shellScript = "cargo tauri ios xcode-script|shellScript = "if [ -f \"${SRCROOT}/Externals/arm64/${CONFIGURATION}/libapp.a\" ]; then echo \"🚀 CI-Skip: Using pre-built library\"; exit 0; fi; cargo tauri ios xcode-script|' "$PBXPROJ"
-
-            if grep -q "CI-Skip" "$PBXPROJ"; then
-              echo "✅ CI optimization patch applied"
-            else
-              echo "⚠️ CI patch may not have been applied"
-            fi
-          fi
-
-          rm -f "$PBXPROJ.bak"
-          echo "✅ iOS project setup completed"
-
-      - name: Comprehensive Build Validation
-        run: |
-          echo "✅ Comprehensive build validation..."
-          cd src-tauri
-
-          # Validate library
-          if [ -f "gen/apple/Externals/arm64/Release/libapp.a" ]; then
-            echo "✅ Pre-built library found"
-          else
-            echo "❌ Pre-built library not found"
-            exit 1
-          fi
-
-          # Validate Xcode project
-          if [ -f "gen/apple/src-tauri.xcodeproj/project.pbxproj" ]; then
-            echo "✅ Xcode project found"
-          else
-            echo "❌ Xcode project not found"
-            exit 1
-          fi
-
-          # Validate CI patch
-          if grep -q "CI-Skip" gen/apple/src-tauri.xcodeproj/project.pbxproj; then
-            echo "✅ CI optimization patch applied"
-          else
-            echo "⚠️ CI patch not found"
-          fi
-
-          echo "✅ All validations passed"
-
-      - name: Setup Enhanced Code Signing
+      - name: Setup Code Signing
         env:
           IOS_CERTIFICATE_P12: ${{ secrets.IOS_CERTIFICATE_P12 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD_TEMP || secrets.IOS_CERTIFICATE_PASSWORD }}
+          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD_TEMP || secrets.IOS_CERTIFICATE_PASSWORD }}
         run: |
-          echo "🔐 Enhanced code signing setup..."
-
-          # Validate secrets
-          if [ -z "$IOS_CERTIFICATE_P12" ]; then
-            echo "❌ IOS_CERTIFICATE_P12 secret not configured"
-            exit 1
-          fi
-
           KEYCHAIN_PATH=$(mktemp -d)/build.keychain
-
           security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           security default-keychain -s "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -t 3600 -u "$KEYCHAIN_PATH"
-
-          # Import certificate with validation
           echo "$IOS_CERTIFICATE_P12" | base64 --decode > /tmp/cert.p12
-
-          if [ ! -s /tmp/cert.p12 ]; then
-            echo "❌ Certificate file is empty or invalid"
-            exit 1
-          fi
-
           security import /tmp/cert.p12 \
             -k "$KEYCHAIN_PATH" \
             -P "$IOS_CERTIFICATE_PASSWORD" \
             -T /usr/bin/codesign \
-            -T /usr/bin/security \
             -T /usr/bin/xcodebuild
-
-          security set-key-partition-list \
-            -S apple-tool:,apple:,codesign: \
-            -s \
-            -k "$KEYCHAIN_PASSWORD" \
-            "$KEYCHAIN_PATH"
-
           rm -f /tmp/cert.p12
-          echo "✅ Enhanced code signing setup completed"
 
       - name: Install Provisioning Profile
         env:
           IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
         run: |
-          echo "📱 Installing provisioning profile..."
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
-
           echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
-          cp /tmp/profile.mobileprovision \
-            ~/Library/MobileDevice/Provisioning\ Profiles/OpenCodeNexus_AppStore.mobileprovision
+          cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/OpenCodeNexus_AppStore.mobileprovision
           rm -f /tmp/profile.mobileprovision
 
-          echo "✅ Provisioning profile installed"
-
-      - name: Enhanced iOS Archive
+      - name: iOS Archive
         run: |
-          echo "🏗️ Enhanced iOS archive..."
           cd src-tauri/gen/apple
-
           mkdir -p build/archives
-
-          echo "Starting iOS archive with direct xcodebuild..."
-          START_TIME=$(date +%s)
-
           xcodebuild \
             -project src-tauri.xcodeproj \
             -scheme src-tauri_iOS \
             -configuration Release \
             -archivePath build/archives/OpenCodeNexus.xcarchive \
-            -derivedDataPath build/DerivedData \
             archive \
             CODE_SIGN_IDENTITY="Apple Distribution" \
             DEVELOPMENT_TEAM="PCJU8QD9FN" \
-            OTHER_CODE_SIGN_FLAGS="--timestamp=none" \
-            -verbose || {
-              echo "❌ Archive failed"
-              echo "Checking for common issues..."
-              echo "  - Certificate validity: $(security find-identity -v -p codesigning)"
-              echo "  - Provisioning profile: $(ls -la ~/Library/MobileDevice/Provisioning\ Profiles/)"
-              exit 1
-            }
+            OTHER_CODE_SIGN_FLAGS="--timestamp=none"
 
-          ARCHIVE_TIME=$(($(date +%s) - START_TIME))
-          echo "::notice::Archive completed in ${ARCHIVE_TIME}s"
-          echo "✅ App archived successfully"
-
-      - name: Enhanced IPA Export
+      - name: Export IPA
         id: export
         run: |
-          echo "📦 Enhanced IPA export..."
           cd src-tauri/gen/apple
-
           mkdir -p build/ipa
-
-          START_TIME=$(date +%s)
           xcodebuild \
             -exportArchive \
             -archivePath build/archives/OpenCodeNexus.xcarchive \
             -exportOptionsPlist ExportOptions.plist \
-            -exportPath build/ipa \
-            -allowProvisioningUpdates || {
-              echo "❌ Export failed"
-              exit 1
-            }
-
-          EXPORT_TIME=$(($(date +%s) - START_TIME))
-          echo "::notice::Export completed in ${EXPORT_TIME}s"
-
+            -exportPath build/ipa
           IPA_FILE=$(find build/ipa -name "*.ipa" -type f)
-          if [ -z "$IPA_FILE" ]; then
-            echo "❌ IPA file not found"
-            exit 1
-          fi
-
-          IPA_SIZE=$(du -h "$IPA_FILE" | cut -f1)
-          echo "✅ IPA exported: $IPA_FILE ($IPA_SIZE)"
-          echo "IPA_FILE=$IPA_FILE" >> $GITHUB_ENV
           echo "ipa-path=$IPA_FILE" >> $GITHUB_OUTPUT
+          echo "IPA_FILE=$IPA_FILE" >> $GITHUB_ENV
 
-      - name: Enhanced IPA Normalization
-        run: |
-          echo "🔧 Enhanced IPA normalization for TestFlight..."
-
-          IPA_FILE="${{ env.IPA_FILE }}"
-          WORK_DIR="$(pwd)"
-
-          rm -rf build/ipa_work temp_app Payload
-          mkdir -p build/ipa_work
-
-          cd build/ipa_work
-          cp "$WORK_DIR/$IPA_FILE" app.ipa
-          unzip -q app.ipa -d temp_app
-
-          if [ ! -d "temp_app/Payload" ]; then
-            echo "❌ Payload directory not found"
-            exit 1
-          fi
-
-          APP_DIR=$(find temp_app/Payload -maxdepth 1 -type d -name "*.app" | head -n 1)
-          if [ -z "$APP_DIR" ]; then
-            echo "❌ App bundle not found"
-            exit 1
-          fi
-
-          echo "📱 Processing app bundle: $APP_DIR"
-
-          # Update Info.plist
-          INFO_PLIST="$APP_DIR/Info.plist"
-          /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $VERSION_NUMBER" "$INFO_PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Set CFBundleVersion $BUILD_NUMBER" "$INFO_PLIST" 2>/dev/null || true
-
-          # Remove forbidden files
-          if [ -f "$APP_DIR/libapp.a" ]; then
-            echo "🗑️ Removing forbidden static library"
-            rm -f "$APP_DIR/libapp.a"
-          fi
-
-          # Re-embed provisioning profile
-          PROFILE_PATH="${HOME}/Library/MobileDevice/Provisioning Profiles/OpenCodeNexus_AppStore.mobileprovision"
-          if [ -f "$PROFILE_PATH" ]; then
-            cp "$PROFILE_PATH" "$APP_DIR/embedded.mobileprovision"
-          fi
-
-          # Create distribution entitlements
-          cat > distribution_entitlements.plist << EOF
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>application-identifier</key>
-              <string>PCJU8QD9FN.com.agentic-codeflow.opencode-nexus</string>
-              <key>com.apple.developer.team-identifier</key>
-              <string>PCJU8QD9FN</string>
-              <key>get-task-allow</key>
-              <false/>
-          </dict>
-          </plist>
-          EOF
-
-          # Re-sign app
-          codesign --force \
-            --sign "Apple Distribution: John Ferguson (PCJU8QD9FN)" \
-            --entitlements distribution_entitlements.plist \
-            "$APP_DIR" || {
-              echo "❌ Codesign failed"
-              exit 1
-            }
-
-          # Re-pack IPA
-          cd temp_app
-          rm -f "$WORK_DIR/$IPA_FILE"
-          zip -qr "$WORK_DIR/$IPA_FILE" Payload
-
-          cd "$WORK_DIR"
-          echo "✅ Enhanced IPA normalization completed"
-
-      - name: Upload to TestFlight (Enhanced)
-        if: github.event.inputs.upload_to_testflight != 'false' && (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_to_testflight == 'true')
+      - name: Upload to TestFlight
+        if: success()
         env:
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_API_PRIVATE_KEY }}
         run: |
-          echo "📤 Enhanced TestFlight upload..."
-
           TEMP_KEY_DIR=$(mktemp -d)
           echo "$APP_STORE_CONNECT_API_PRIVATE_KEY" | base64 --decode > "$TEMP_KEY_DIR/AuthKey.p8"
-
-          IPA_FILE="${{ env.IPA_FILE }}"
-
-          echo "Starting TestFlight upload..."
-          START_TIME=$(date +%s)
-
           xcrun altool \
             --upload-app \
             --type ios \
-            --file "$IPA_FILE" \
+            --file "${{ env.IPA_FILE }}" \
             --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
             --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
             --apiKeysDir "$TEMP_KEY_DIR" \
-            --verbose || {
-              echo "❌ TestFlight upload failed"
-              echo "Common issues:"
-              echo "  - API key permissions"
-              echo "  - IPA format validation"
-              echo "  - App Store Connect status"
-              rm -rf "$TEMP_KEY_DIR"
-              exit 1
-            }
+            --verbose
+          rm -rf "$TEMP_KEY_DIR"
 
-          UPLOAD_TIME=$(($(date +%s) - START_TIME))
-          echo "::notice::TestFlight upload completed in ${UPLOAD_TIME}s"
+      - name: Create Sentry Release
+        if: success()
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: unforgettable-designs
+          SENTRY_PROJECT: opencode-nexus-frontend
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          curl -X POST \
+            -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{"version":"'$VERSION'","projects":["opencode-nexus-frontend","opencode-nexus-backend"]}' \
+            https://sentry.fergify.work/api/0/organizations/$SENTRY_ORG/releases/
 
-rm -rf "$TEMP_KEY_DIR"
-            echo "✅ Enhanced TestFlight upload completed"
-
-       - name: Upload Enhanced Artifacts
+      - name: Upload Build Artifacts
         if: always() && env.IPA_FILE != ''
         uses: actions/upload-artifact@v4
         with:
-          name: opencode-nexus-ios-${{ env.VERSION_NUMBER }}-build-${{ env.BUILD_NUMBER }}
+          name: opencode-nexus-ios-${{ steps.version.outputs.version }}-build-${{ steps.version.outputs.build }}
           path: ${{ env.IPA_FILE }}
           retention-days: 30
 
-      - name: Enhanced Build Success Summary
+      - name: Build Success
         if: success()
         run: |
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-          ## 🎉 iOS Build Successful
-
-          ### ✅ Completed Steps
-          1. **Environment Validation**: Comprehensive health checks passed
-          2. **Dependency Management**: Enhanced caching and error recovery
-          3. **Frontend Build**: Production build with retry logic
-          4. **Rust Pre-build**: Optimized library compilation
-          5. **iOS Project Setup**: CI patches and optimization applied
-          6. **Archive Phase**: Direct xcodebuild with enhanced error handling
-          7. **Export & Normalize**: IPA processing and validation
-          8. **TestFlight Upload**: Enhanced upload with detailed diagnostics
-
-          ### 📊 Build Metrics
-          - **Rust Build**: ${{ steps.prebuild.outputs.rust_build_time || 'N/A' }}s
-          - **Total Time**: ${{ job.status == 'success' && 'Completed successfully' || 'Failed' }}
-          - **Clean Build**: ${{ env.CLEAN_BUILD }}
-
-          ### 🚀 Key Improvements
-          - ✅ Enhanced error handling and recovery
-          - ✅ Comprehensive build validation
-          - ✅ Optimized caching strategy
-          - ✅ Improved diagnostic information
-          - ✅ TCP socket error prevention
-          - ✅ Enhanced code signing validation
-
-          ### 📱 Next Steps
-          1. Monitor [App Store Connect](https://appstoreconnect.apple.com/apps) for processing
-          2. Check TestFlight availability (5-15 minutes)
-          3. Run internal testing validation
-
-          Enhanced workflow completed successfully!
-          EOF
-
-      - name: Enhanced Failure Analysis
-        if: failure()
-        run: |
-          cat >> $GITHUB_STEP_SUMMARY << 'EOF'
-          ## ❌ iOS Build Analysis
-
-          ### 🔍 Enhanced Diagnostics
-          - **Build Type**: ${{ env.CLEAN_BUILD == 'true' && 'Clean Build' || 'Incremental Build' }}
-          - **Runner**: ${{ runner.os }}
-          - **Environment**: Validated
-
-          ### 🛠️ Enhanced Troubleshooting
-          1. **Library Build**: Check Rust target compatibility
-          2. **Code Signing**: Verify certificate and profile validity
-          3. **Network**: Check connectivity and API access
-          4. **Disk Space**: Ensure adequate storage available
-          5. **Dependencies**: Validate all tools and SDKs
-
-          ### 📊 System Information
-          - **Xcode Version**: $(xcodebuild -version | head -1)
-          - **iOS SDK**: $(xcrun --sdk iphoneos --show-sdk-version)
-          - **Rust Version**: $(rustc --version)
-          - **Available Space**: $(df -h . | awk 'NR==2 {print $4}')
-
-          Check the detailed job logs above for specific error information.
-          EOF
+          echo "✅ iOS build completed successfully"
+          echo "Version: ${{ steps.version.outputs.version }}"
+          echo "Build: ${{ steps.version.outputs.build }}"
