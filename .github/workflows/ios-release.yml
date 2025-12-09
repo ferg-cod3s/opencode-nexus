@@ -68,40 +68,22 @@ jobs:
 
       - name: Install iOS Dependencies
         run: |
-           # Check if required tools are available
            echo "Checking for required iOS development tools..."
 
            if command -v xcodegen &> /dev/null; then
              echo "✅ xcodegen found: $(xcodegen --version)"
            else
-             echo "❌ xcodegen not found, attempting to install..."
-             # Try to install xcodegen without admin privileges
-             if command -v brew &> /dev/null; then
-               echo "Trying brew install (may fail without sudo)..."
-               brew install xcodegen || echo "Brew install failed, trying direct download..."
-             fi
-
-             # Try direct download as fallback
-             echo "Downloading xcodegen binary directly..."
-             curl -L -o xcodegen.tar.gz https://github.com/yonaskolb/XcodeGen/releases/download/2.40.1/xcodegen.tar.gz
-             tar -xzf xcodegen.tar.gz
-             chmod +x xcodegen
-             sudo mv xcodegen /usr/local/bin/ 2>/dev/null || mv xcodegen ~/bin/ && export PATH="$HOME/bin:$PATH"
-
-             if command -v xcodegen &> /dev/null; then
-               echo "✅ xcodegen installed: $(xcodegen --version)"
-             else
-               echo "❌ Failed to install xcodegen"
-               echo "Please pre-install xcodegen on the self-hosted runner"
-               exit 1
-             fi
+             echo "❌ xcodegen not found on self-hosted runner"
+             echo "Please install xcodegen manually:"
+             echo "  brew install xcodegen"
+             echo "  # or download from: https://github.com/yonaskolb/XcodeGen/releases"
+             exit 1
            fi
 
            if command -v pod &> /dev/null; then
              echo "✅ cocoapods found: $(pod --version)"
            else
-             echo "❌ cocoapods not found"
-             echo "Installing cocoapods via gem..."
+             echo "Installing cocoapods..."
              gem install cocoapods
              echo "✅ cocoapods installed: $(pod --version)"
            fi
