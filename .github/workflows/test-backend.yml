@@ -25,7 +25,7 @@ concurrency:
 jobs:
   test:
     name: Rust Test Suite
-    runs-on: macos-latest
+    runs-on: self-hosted
     
     strategy:
       matrix:
@@ -128,7 +128,7 @@ jobs:
 
   coverage:
     name: Code Coverage
-    runs-on: macos-latest
+    runs-on: self-hosted
     
     steps:
       - name: Checkout repository
@@ -158,8 +158,7 @@ jobs:
 
   build-test:
     name: Build Test
-    runs-on: macos-latest
-
+    runs-on: self-hosted
     
     strategy:
       matrix:
@@ -168,21 +167,6 @@ jobs:
           - target: x86_64-apple-darwin
     
     steps:
-      - name: Display Cost Warning for macOS
-        run: |
-          echo "::warning::Running on GitHub-hosted macOS runner"
-          echo ""
-          echo "💡 **Cost Impact**: This macOS build is running on GitHub-hosted runner"
-          echo "- **Current cost**: $0.08/minute"
-          echo "- **Estimated build time**: 5-10 minutes"
-          echo "- **Estimated cost**: $0.40-$0.80"
-          echo ""
-          echo "💰 **Savings with self-hosted runner**: $0.40-$0.80 per build"
-          echo ""
-          echo "🔧 **To fix this**:"
-          echo "1. Check self-hosted runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
-          echo "2. Restart runner: cd ~/github-runner && ./svc.sh restart"
-
       - name: Checkout repository
         uses: actions/checkout@v4
       
