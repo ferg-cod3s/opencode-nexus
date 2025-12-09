@@ -669,27 +669,27 @@ jobs:
         #     version: ${{ env.VERSION_NUMBER }}
         #     projects: opencode-nexus-frontend,opencode-nexus-backend
 
-        - name: Create GitHub Release
-          run: |
-            echo "GitHub ref type: ${{ github.ref_type }}"
-            echo "Tag name: $TAG_NAME"
-            echo "IPA file: $IPA_FILE"
+        # - name: Create GitHub Release
+        #   run: |
+        #     echo "GitHub ref type: ${{ github.ref_type }}"
+        #     echo "Tag name: $TAG_NAME"
+        #     echo "IPA file: $IPA_FILE"
 
-            # Only create release for tags
-            if [[ "${{ github.ref_type }}" == "tag" ]]; then
-              echo "Creating GitHub release for tag: $TAG_NAME"
+        #     # Only create release for tags
+        #     if [[ "${{ github.ref_type }}" == "tag" ]]; then
+        #       echo "Creating GitHub release for tag: $TAG_NAME"
 
-              # Determine if this is a prerelease
-              if [[ "$TAG_NAME" == *"beta"* || "$TAG_NAME" == *"rc"* ]]; then
-                echo "Detected prerelease tag, using --prerelease flag"
-                gh release create "$TAG_NAME" "$IPA_FILE" --title "$TAG_NAME" --generate-notes --latest=false --prerelease
-              else
-                echo "Regular release tag"
-                gh release create "$TAG_NAME" "$IPA_FILE" --title "$TAG_NAME" --generate-notes --latest=false
-              fi
-            else
-              echo "Skipping GitHub release creation (not a tag push)"
-            fi
+        #       # Determine if this is a prerelease
+        #       if [[ "$TAG_NAME" == *"beta"* || "$TAG_NAME" == *"rc"* ]]; then
+        #         echo "Detected prerelease tag, using --prerelease flag"
+        #         gh release create "$TAG_NAME" "$IPA_FILE" --title "$TAG_NAME" --generate-notes --latest=false --prerelease
+        #       else
+        #         echo "Regular release tag"
+        #         gh release create "$TAG_NAME" "$IPA_FILE" --title "$TAG_NAME" --generate-notes --latest=false
+        #       fi
+        #     else
+        #       echo "Skipping GitHub release creation (not a tag push)"
+        #     fi
 
       - name: Upload Enhanced Artifacts
         if: always() && env.IPA_FILE != ''
