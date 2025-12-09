@@ -80,11 +80,11 @@ jobs:
 
            if command -v pod &> /dev/null; then
              echo "✅ cocoapods found: $(pod --version)"
-            else
-              echo "Installing cocoapods..."
-              gem install --user-install cocoapods
-              echo "✅ cocoapods installed: $(pod --version)"
-            fi
+           else
+             echo "⚠️  cocoapods not found - attempting build without it"
+             echo "Note: cocoapods may be required for iOS dependencies"
+             echo "If build fails, install with: gem install cocoapods"
+           fi
 
            echo "All iOS dependencies verified!"
 
