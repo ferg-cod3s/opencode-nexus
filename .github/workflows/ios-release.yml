@@ -68,21 +68,30 @@ jobs:
 
       - name: Install iOS Dependencies
         run: |
-           # Check if xcodegen is available
-           if ! command -v xcodegen &> /dev/null; then
-             echo "xcodegen not found. Installing via gem..."
-             gem install xcodegen
+           # Check if required tools are available
+           echo "Checking for required iOS development tools..."
+
+           if command -v xcodegen &> /dev/null; then
+             echo "✅ xcodegen found: $(xcodegen --version)"
+           else
+             echo "❌ xcodegen not found"
+             echo "Please install xcodegen on the self-hosted runner"
+             echo "Installation options:"
+             echo "  - brew install xcodegen (requires admin)"
+             echo "  - Download from: https://github.com/yonaskolb/XcodeGen/releases"
+             exit 1
            fi
 
-           # Check if cocoapods is available
-           if ! command -v pod &> /dev/null; then
-             echo "cocoapods not found. Installing via gem..."
+           if command -v pod &> /dev/null; then
+             echo "✅ cocoapods found: $(pod --version)"
+           else
+             echo "❌ cocoapods not found"
+             echo "Installing cocoapods via gem..."
              gem install cocoapods
+             echo "✅ cocoapods installed: $(pod --version)"
            fi
 
-           # Verify installations
-           echo "xcodegen version: $(xcodegen --version)"
-           echo "cocoapods version: $(pod --version)"
+           echo "All iOS dependencies verified!"
 
       - name: iOS Project Setup
         run: |
