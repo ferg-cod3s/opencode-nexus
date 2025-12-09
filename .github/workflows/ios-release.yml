@@ -73,9 +73,19 @@ jobs:
            if command -v xcodegen &> /dev/null; then
              echo "✅ xcodegen found: $(xcodegen --version)"
            else
-             echo "⚠️  xcodegen not found - attempting build without it"
-             echo "Note: xcodegen may be required for iOS project generation"
-             echo "If build fails, install with: brew install xcodegen"
+             echo "❌ xcodegen not found - required for iOS build"
+             echo "Installing xcodegen..."
+             # Download and install xcodegen binary
+             mkdir -p ~/bin
+             curl -L -o ~/bin/xcodegen https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen
+             chmod +x ~/bin/xcodegen
+             export PATH="$HOME/bin:$PATH"
+             if command -v xcodegen &> /dev/null; then
+               echo "✅ xcodegen installed: $(xcodegen --version)"
+             else
+               echo "❌ Failed to install xcodegen"
+               exit 1
+             fi
            fi
 
            if command -v pod &> /dev/null; then
