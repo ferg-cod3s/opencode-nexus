@@ -82,7 +82,7 @@ jobs:
              echo "✅ cocoapods found: $(pod --version)"
             else
               echo "Installing cocoapods..."
-              sudo gem install cocoapods
+              gem install --user-install cocoapods
               echo "✅ cocoapods installed: $(pod --version)"
             fi
 
