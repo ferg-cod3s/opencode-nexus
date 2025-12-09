@@ -137,7 +137,13 @@ impl ConnectionManager {
         secure: bool,
     ) -> Result<(), String> {
         // Check if already connected
-        let current_status = *self.connection_status.lock().unwrap();
+        let current_status = match self.connection_status.lock() {
+            Ok(status) => *status,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager connect: status mutex poisoned, recovering...");
+                *poisoned.into_inner()
+            }
+        };
         if matches!(
             current_status,
             ConnectionStatus::Connected | ConnectionStatus::Connecting
@@ -146,7 +152,13 @@ impl ConnectionManager {
         }
 
         // Update status to connecting
-        *self.connection_status.lock().unwrap() = ConnectionStatus::Connecting;
+        match self.connection_status.lock() {
+            Ok(mut status) => *status = ConnectionStatus::Connecting,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager connect: failed to set connecting status, mutex poisoned");
+                return Err("Internal error: connection state corrupted".to_string());
+            }
+        }
 
         // Send connecting event
         let _ = self.event_sender.send(ConnectionEvent {
@@ -165,10 +177,22 @@ impl ConnectionManager {
             hostname,
             port
         );
-        *self.server_url.lock().unwrap() = Some(server_url.clone());
+        match self.server_url.lock() {
+            Ok(mut url) => *url = Some(server_url.clone()),
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager connect: failed to store server URL, mutex poisoned");
+                return Err("Internal error: connection state corrupted".to_string());
+            }
+        }
 
         // Update status to connected
-        *self.connection_status.lock().unwrap() = ConnectionStatus::Connected;
+        match self.connection_status.lock() {
+            Ok(mut status) => *status = ConnectionStatus::Connected,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager connect: failed to set connected status, mutex poisoned");
+                return Err("Internal error: connection state corrupted".to_string());
+            }
+        }
 
         // Store connection info
         let connection = ServerConnection {
@@ -180,11 +204,22 @@ impl ConnectionManager {
         };
 
         let connection_id = connection.name.clone();
-        self.connections
-            .lock()
-            .unwrap()
-            .insert(connection_id.clone(), connection);
-        *self.current_connection.lock().unwrap() = Some(connection_id.clone());
+        match self.connections.lock() {
+            Ok(mut connections) => {
+                connections.insert(connection_id.clone(), connection);
+            }
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager connect: connections mutex poisoned, recovering...");
+                poisoned.into_inner().insert(connection_id.clone(), connection);
+            }
+        }
+        match self.current_connection.lock() {
+            Ok(mut current) => *current = Some(connection_id.clone()),
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager connect: current_connection mutex poisoned, recovering...");
+                *poisoned.into_inner() = Some(connection_id.clone());
+            }
+        }
 
         // Save connections to disk
         self.save_connections()?;
@@ -281,31 +316,71 @@ impl ConnectionManager {
     }
 
     pub fn get_connection_status(&self) -> ConnectionStatus {
-        *self.connection_status.lock().unwrap()
+        match self.connection_status.lock() {
+            Ok(status) => *status,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager get_connection_status: mutex poisoned, returning Disconnected");
+                ConnectionStatus::Disconnected
+            }
+        }
     }
 
     pub fn get_server_url(&self) -> Option<String> {
-        self.server_url.lock().unwrap().clone()
+        match self.server_url.lock() {
+            Ok(url) => url.clone(),
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager get_server_url: mutex poisoned, returning None");
+                None
+            }
+        }
     }
 
     pub fn get_current_connection(&self) -> Option<ServerConnection> {
-        self.current_connection
-            .lock()
-            .unwrap()
-            .as_ref()
-            .and_then(|id| self.connections.lock().unwrap().get(id).cloned())
+        let current_id = match self.current_connection.lock() {
+            Ok(id) => id.clone(),
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager get_current_connection: current_connection mutex poisoned");
+                None
+            }
+        };
+
+        if let Some(id) = current_id {
+            match self.connections.lock() {
+                Ok(connections) => connections.get(&id).cloned(),
+                Err(poisoned) => {
+                    eprintln!("[ERROR] ConnectionManager get_current_connection: connections mutex poisoned");
+                    None
+                }
+            }
+        } else {
+            None
+        }
     }
 
     pub fn get_saved_connections(&self) -> Vec<ServerConnection> {
-        self.connections.lock().unwrap().values().cloned().collect()
+        match self.connections.lock() {
+            Ok(connections) => connections.values().cloned().collect(),
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager get_saved_connections: mutex poisoned, returning empty vec");
+                Vec::new()
+            }
+        }
     }
 
     pub fn get_last_used_connection(&self) -> Option<ServerConnection> {
-        let connections_guard = self.connections.lock().unwrap();
+        let connections_guard = match self.connections.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager get_last_used_connection: mutex poisoned, returning None");
+                return None;
+            }
+        };
+
         let last_used = connections_guard
             .values()
             .filter(|c| c.last_connected.is_some())
-            .max_by_key(|c| c.last_connected.clone());
+            .max_by_key(|c| c.last_connected.as_ref().unwrap_or(&"".to_string()).clone());
+
         match last_used {
             Some(connection) => Some(connection.clone()),
             None => connections_guard.values().next().cloned(),
@@ -317,23 +392,47 @@ impl ConnectionManager {
     }
 
     pub fn save_connection(&mut self, connection: ServerConnection) -> Result<(), String> {
-        let mut connections_guard = self.connections.lock().unwrap();
+        let mut connections_guard = match self.connections.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager save_connection: mutex poisoned, cannot save connection");
+                return Err("Internal error: connection state corrupted".to_string());
+            }
+        };
         connections_guard.insert(connection.name.clone(), connection);
         drop(connections_guard); // Release lock before calling save_connections
         self.save_connections()
     }
 
     pub async fn disconnect_from_server(&mut self) -> Result<(), String> {
-        let current_status = *self.connection_status.lock().unwrap();
+        let current_status = match self.connection_status.lock() {
+            Ok(status) => *status,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager disconnect: status mutex poisoned, recovering...");
+                *poisoned.into_inner()
+            }
+        };
         if matches!(current_status, ConnectionStatus::Disconnected) {
             return Ok(());
         }
 
         // Update status
-        *self.connection_status.lock().unwrap() = ConnectionStatus::Disconnected;
+        match self.connection_status.lock() {
+            Ok(mut status) => *status = ConnectionStatus::Disconnected,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager disconnect: failed to set disconnected status, mutex poisoned");
+                return Err("Internal error: connection state corrupted".to_string());
+            }
+        }
 
         // Clear server URL
-        *self.server_url.lock().unwrap() = None;
+        match self.server_url.lock() {
+            Ok(mut url) => *url = None,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager disconnect: failed to clear server URL, mutex poisoned");
+                return Err("Internal error: connection state corrupted".to_string());
+            }
+        }
 
         // Send disconnected event
         let _ = self.event_sender.send(ConnectionEvent {
@@ -361,7 +460,13 @@ impl ConnectionManager {
     }
 
     fn save_connections(&self) -> Result<(), String> {
-        let connections_guard = self.connections.lock().unwrap();
+        let connections_guard = match self.connections.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager save_connections: mutex poisoned, cannot save connections");
+                return Err("Internal error: connection state corrupted".to_string());
+            }
+        };
         let connections: Vec<&ServerConnection> = connections_guard.values().collect();
         let json = serde_json::to_string_pretty(&connections)
             .map_err(|e| format!("Failed to serialize connections: {}", e))?;
@@ -385,7 +490,13 @@ impl ConnectionManager {
         let connections: Vec<ServerConnection> = serde_json::from_str(&json)
             .map_err(|e| format!("Failed to deserialize connections: {}", e))?;
 
-        let mut connections_map = self.connections.lock().unwrap();
+        let mut connections_map = match self.connections.lock() {
+            Ok(map) => map,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager load_connections: connections mutex poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         connections_map.clear();
         for connection in connections {
             connections_map.insert(connection.name.clone(), connection);
@@ -402,11 +513,17 @@ impl ConnectionManager {
 
         // Find the most recent connection (by last_connected timestamp)
         let connection_to_restore = {
-            let connections_guard = self.connections.lock().unwrap();
+            let connections_guard = match self.connections.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => {
+                    eprintln!("[ERROR] ConnectionManager restore_connection: connections mutex poisoned, recovering...");
+                    poisoned.into_inner()
+                }
+            };
             connections_guard
                 .values()
                 .filter(|c| c.last_connected.is_some())
-                .max_by_key(|c| c.last_connected.as_ref().unwrap())
+                .max_by_key(|c| c.last_connected.clone().unwrap_or_else(|| "".to_string()))
                 .or_else(|| connections_guard.values().next())
                 .cloned() // Clone the connection to avoid borrowing issues
         };
@@ -460,15 +577,19 @@ impl ConnectionManager {
         let server_url = Arc::clone(&self.server_url);
         let event_sender = self.event_sender.clone();
 
-        tokio::spawn(async move {
+        // Spawn health monitoring task with panic recovery
+        let health_task = tokio::spawn(async move {
             loop {
                 tokio::time::sleep(Duration::from_secs(30)).await;
 
                 let should_continue = {
-                    matches!(
-                        *connection_status.lock().unwrap(),
-                        ConnectionStatus::Connected
-                    )
+                    match connection_status.lock() {
+                        Ok(status) => matches!(*status, ConnectionStatus::Connected),
+                        Err(poisoned) => {
+                            eprintln!("[ERROR] ConnectionManager health check: mutex poisoned, assuming disconnected");
+                            false // Stop health checks if mutex is poisoned
+                        }
+                    }
                 };
 
                 if !should_continue {
@@ -476,7 +597,13 @@ impl ConnectionManager {
                 }
 
                 // Perform health check - extract URL before async operation
-                let url_to_check = { server_url.lock().unwrap().clone() };
+                let url_to_check = match server_url.lock() {
+                    Ok(url) => url.clone(),
+                    Err(poisoned) => {
+                        eprintln!("[ERROR] ConnectionManager health check: server_url mutex poisoned");
+                        None
+                    }
+                };
 
                 if let Some(url) = url_to_check {
                     let health_url = format!("{}/session", url);
@@ -491,7 +618,13 @@ impl ConnectionManager {
                         }
                         _ => {
                             // Server is unhealthy
-                            *connection_status.lock().unwrap() = ConnectionStatus::Error;
+                            match connection_status.lock() {
+                                Ok(mut status) => *status = ConnectionStatus::Error,
+                                Err(poisoned) => {
+                                    eprintln!("[ERROR] ConnectionManager health check: failed to set error status, mutex poisoned");
+                                    // Continue trying health checks even if we can't update status
+                                }
+                            }
                             let _ = event_sender.send(ConnectionEvent {
                                 timestamp: SystemTime::now(),
                                 event_type: ConnectionEventType::Error,
@@ -500,6 +633,18 @@ impl ConnectionManager {
                             break;
                         }
                     }
+                }
+            }
+        });
+
+        // Wrap the task join handle with panic recovery
+        tokio::spawn(async move {
+            if let Err(join_error) = health_task.await {
+                // Check if the task panicked
+                if join_error.is_panic() {
+                    eprintln!("[ERROR] ConnectionManager health check task panicked");
+                } else {
+                    eprintln!("[ERROR] ConnectionManager health check task failed: {:?}", join_error);
                 }
             }
         });

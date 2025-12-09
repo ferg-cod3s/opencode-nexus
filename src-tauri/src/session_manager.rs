@@ -239,17 +239,14 @@ impl SessionManager {
         session_id: &str,
         request: SendMessageRequest,
     ) -> Result<ChatMessage, Box<dyn std::error::Error>> {
-        // Validate session exists
+        // Validate session exists and get mutable reference
         let mut sessions = self.sessions.write().await;
-        if !sessions.contains_key(session_id) {
-            return Err(AppError::SessionError {
+        let session = sessions.get_mut(session_id).ok_or_else(|| {
+            AppError::SessionError {
                 session_id: session_id.to_string(),
                 message: "Session not found".to_string(),
             }
-            .into());
-        }
-
-        let session = sessions.get_mut(session_id).unwrap();
+        })?;
         let now = Utc::now();
 
         // Create user message

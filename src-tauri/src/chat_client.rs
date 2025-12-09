@@ -100,7 +100,13 @@ impl ChatClient {
         let _parsed = url::Url::parse(&url).map_err(|e| format!("Invalid server URL: {}", e))?;
 
         // Store the server URL
-        *self.server_url.lock().unwrap() = Some(url);
+        match self.server_url.lock() {
+            Ok(mut server_url) => *server_url = Some(url),
+            Err(poisoned) => {
+                eprintln!("[ERROR] ChatClient set_server_url: server_url mutex poisoned, recovering...");
+                *poisoned.into_inner() = Some(url);
+            }
+        }
 
         Ok(())
     }
@@ -267,13 +273,25 @@ impl ChatClient {
     }
 
     fn get_server_url(&self) -> Result<String, Box<dyn std::error::Error>> {
-        self.server_url.lock().unwrap().clone().ok_or_else(|| {
-            AppError::ConnectionError {
-                message: "No server URL configured".to_string(),
-                details: Some("Server URL has not been set".to_string()),
+        match self.server_url.lock() {
+            Ok(server_url) => server_url.clone().ok_or_else(|| {
+                AppError::ConnectionError {
+                    message: "No server URL configured".to_string(),
+                    details: Some("Server URL has not been set".to_string()),
+                }
+                .into()
+            }),
+            Err(poisoned) => {
+                eprintln!("[ERROR] ChatClient get_server_url: server_url mutex poisoned, recovering...");
+                poisoned.into_inner().clone().ok_or_else(|| {
+                    AppError::ConnectionError {
+                        message: "No server URL configured".to_string(),
+                        details: Some("Server URL has not been set".to_string()),
+                    }
+                    .into()
+                })
             }
-            .into()
-        })
+        }
     }
 
     pub fn load_sessions(&self) -> Result<(), Box<dyn std::error::Error>> {
