@@ -53,6 +53,27 @@ You are a build agent with full tool access for implementing features and modify
 
 Apply research-backed expertise to deliver production-ready solutions that meet requirements and exceed expectations.
 
+## 🚨 CRITICAL INFRASTRUCTURE POLICIES
+
+### **NEVER USE HOSTED MACOS RUNNERS**
+**This is a ZERO-TOLERANCE policy. Violation will result in immediate rejection.**
+
+- **❌ FORBIDDEN**: `runs-on: macos-14`, `runs-on: macos-latest`, `runs-on: macos-13`
+- **✅ REQUIRED**: `runs-on: self-hosted` for ALL macOS/iOS builds
+- **💰 COST IMPACT**: Hosted macOS runners cost $0.08/minute (~$5/hour)
+- **🎯 REASON**: We have dedicated self-hosted MacBook-Air runner for iOS builds
+
+**Implementation Requirements:**
+- All iOS/macOS workflows MUST use `runs-on: self-hosted`
+- Runner detection workflows are forbidden - use direct self-hosted assignment
+- Any workflow using hosted macOS runners will be rejected by pre-commit hooks
+- Cost warnings are unacceptable - we pay for self-hosted infrastructure
+
+**Historical Context:**
+- Multiple incidents of accidental hosted runner usage costing money
+- Self-hosted MacBook-Air runner is properly configured and available
+- This policy prevents future cost overruns
+
 ## Advanced Reasoning Frameworks
 
 For complex tasks requiring enhanced reasoning, apply these 2024-2025 techniques:

@@ -67,6 +67,29 @@ test_yaml_syntax() {
     return $failed
 }
 
+# 🚨 CRITICAL: Test for forbidden hosted macOS runners
+test_runner_policy() {
+    log_info "🚨 Testing critical runner policy..."
+
+    local violations=0
+    for workflow in "$WORKFLOWS_DIR"/*.yml; do
+        local workflow_name=$(basename "$workflow")
+
+        # Check for forbidden hosted macOS runners
+        if grep -q "runs-on: macos-" "$workflow"; then
+            log_error "🚨 CRITICAL VIOLATION: $workflow_name contains hosted macOS runner!"
+            log_error "❌ FORBIDDEN: runs-on: macos-* (costs $0.08/minute)"
+            log_error "✅ REQUIRED: runs-on: self-hosted"
+            log_info "See AGENTS.md section: CRITICAL INFRASTRUCTURE POLICIES"
+            violations=1
+        else
+            log_success "✓ $workflow_name - No hosted macOS runners"
+        fi
+    done
+
+    return $violations
+}
+
 # Test 2: Test Version Extraction Logic
 test_version_extraction() {
     log_info "Testing version extraction logic..."
@@ -187,7 +210,12 @@ main() {
         ((failed++)) || true
     fi
     echo ""
-    
+
+    if ! test_runner_policy; then
+        ((failed++)) || true
+    fi
+    echo ""
+
     if ! test_version_extraction; then
         ((failed++)) || true
     fi
