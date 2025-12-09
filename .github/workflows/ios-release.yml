@@ -674,14 +674,14 @@ jobs:
           run: |
             # Determine if this is a prerelease
             PRERELEASE_FLAG=""
-            if [[ "${{ env.TAG_NAME }}" == *"beta"* || "${{ env.TAG_NAME }}" == *"rc"* ]]; then
+            if [[ "$TAG_NAME" == *"beta"* || "$TAG_NAME" == *"rc"* ]]; then
               PRERELEASE_FLAG="--prerelease"
             fi
 
             # Create release with GitHub CLI
-            gh release create "${{ env.TAG_NAME }}" \
-              "${{ env.IPA_FILE }}" \
-              --title "${{ env.TAG_NAME }}" \
+            gh release create "$TAG_NAME" \
+              "$IPA_FILE" \
+              --title "$TAG_NAME" \
               --generate-notes \
               --latest=false \
               $PRERELEASE_FLAG
