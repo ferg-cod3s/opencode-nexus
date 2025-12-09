@@ -204,11 +204,22 @@ impl ConnectionManager {
         };
 
         let connection_id = connection.name.clone();
-        self.connections
-            .lock()
-            .unwrap()
-            .insert(connection_id.clone(), connection);
-        *self.current_connection.lock().unwrap() = Some(connection_id.clone());
+        match self.connections.lock() {
+            Ok(mut connections) => {
+                connections.insert(connection_id.clone(), connection);
+            }
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager connect: connections mutex poisoned, recovering...");
+                poisoned.into_inner().insert(connection_id.clone(), connection);
+            }
+        }
+        match self.current_connection.lock() {
+            Ok(mut current) => *current = Some(connection_id.clone()),
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager connect: current_connection mutex poisoned, recovering...");
+                *poisoned.into_inner() = Some(connection_id.clone());
+            }
+        }
 
         // Save connections to disk
         self.save_connections()?;
@@ -479,7 +490,13 @@ impl ConnectionManager {
         let connections: Vec<ServerConnection> = serde_json::from_str(&json)
             .map_err(|e| format!("Failed to deserialize connections: {}", e))?;
 
-        let mut connections_map = self.connections.lock().unwrap();
+        let mut connections_map = match self.connections.lock() {
+            Ok(map) => map,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ConnectionManager load_connections: connections mutex poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         connections_map.clear();
         for connection in connections {
             connections_map.insert(connection.name.clone(), connection);
@@ -496,11 +513,17 @@ impl ConnectionManager {
 
         // Find the most recent connection (by last_connected timestamp)
         let connection_to_restore = {
-            let connections_guard = self.connections.lock().unwrap();
+            let connections_guard = match self.connections.lock() {
+                Ok(guard) => guard,
+                Err(poisoned) => {
+                    eprintln!("[ERROR] ConnectionManager restore_connection: connections mutex poisoned, recovering...");
+                    poisoned.into_inner()
+                }
+            };
             connections_guard
                 .values()
                 .filter(|c| c.last_connected.is_some())
-                .max_by_key(|c| c.last_connected.as_ref().unwrap())
+                .max_by_key(|c| c.last_connected.clone().unwrap_or_else(|| "".to_string()))
                 .or_else(|| connections_guard.values().next())
                 .cloned() // Clone the connection to avoid borrowing issues
         };

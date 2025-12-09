@@ -206,7 +206,13 @@ impl ModelManager {
                 details: Some(e.to_string()),
             })?;
 
-        let mut preferences = self.preferences.write().unwrap();
+        let mut preferences = match self.preferences.write() {
+            Ok(prefs) => prefs,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ModelManager load_preferences: preferences RwLock poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         *preferences = loaded_preferences;
 
         Ok(())
@@ -214,7 +220,13 @@ impl ModelManager {
 
     /// Save user preferences to disk
     pub fn save_preferences(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let preferences = self.preferences.read().unwrap();
+        let preferences = match self.preferences.read() {
+            Ok(prefs) => prefs,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ModelManager save_preferences: preferences RwLock poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         let preferences_json =
             serde_json::to_string_pretty(&*preferences).map_err(|e| AppError::ParseError {
                 message: "Failed to serialize preferences".to_string(),
@@ -276,7 +288,13 @@ impl ModelManager {
     pub async fn get_default_model(
         &self,
     ) -> Result<Option<ModelConfig>, Box<dyn std::error::Error>> {
-        let preferences = self.preferences.read().unwrap();
+        let preferences = match self.preferences.read() {
+            Ok(prefs) => prefs,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ModelManager get_default_model: preferences RwLock poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
 
         if let (Some(provider_id), Some(model_id)) =
             (&preferences.default_provider, &preferences.default_model)
@@ -305,7 +323,13 @@ impl ModelManager {
         provider_id: String,
         model_id: String,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut preferences = self.preferences.write().unwrap();
+        let mut preferences = match self.preferences.write() {
+            Ok(prefs) => prefs,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ModelManager set_default_model: preferences RwLock poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         preferences.default_provider = Some(provider_id);
         preferences.default_model = Some(model_id);
         drop(preferences);
@@ -315,7 +339,13 @@ impl ModelManager {
 
     /// Get model settings for a specific model
     pub fn get_model_settings(&self, model_id: &str) -> ModelSettings {
-        let preferences = self.preferences.read().unwrap();
+        let preferences = match self.preferences.read() {
+            Ok(prefs) => prefs,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ModelManager get_model_settings: preferences RwLock poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         preferences
             .custom_settings
             .get(model_id)
@@ -329,7 +359,13 @@ impl ModelManager {
         model_id: String,
         settings: ModelSettings,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut preferences = self.preferences.write().unwrap();
+        let mut preferences = match self.preferences.write() {
+            Ok(prefs) => prefs,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ModelManager set_model_settings: preferences RwLock poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         preferences
             .custom_settings
             .insert(model_id.clone(), settings);
@@ -340,7 +376,13 @@ impl ModelManager {
 
     /// Get user preferences
     pub fn get_preferences(&self) -> ModelPreferences {
-        self.preferences.read().unwrap().clone()
+        match self.preferences.read() {
+            Ok(prefs) => prefs.clone(),
+            Err(poisoned) => {
+                eprintln!("[ERROR] ModelManager get_preferences: preferences RwLock poisoned, recovering...");
+                poisoned.into_inner().clone()
+            }
+        }
     }
 
     /// Update user preferences
@@ -348,7 +390,13 @@ impl ModelManager {
         &self,
         updates: ModelPreferences,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut preferences = self.preferences.write().unwrap();
+        let mut preferences = match self.preferences.write() {
+            Ok(prefs) => prefs,
+            Err(poisoned) => {
+                eprintln!("[ERROR] ModelManager update_preferences: preferences RwLock poisoned, recovering...");
+                poisoned.into_inner()
+            }
+        };
         *preferences = updates;
         drop(preferences);
 
