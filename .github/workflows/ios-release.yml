@@ -38,15 +38,15 @@ jobs:
           fi
           echo "✅ Running on self-hosted runner: $RUNNER_NAME"
 
-      - name: Get version from tag
+      - name: Get version from Tauri config
         id: version
         run: |
-          TAG_NAME="${{ github.ref_name }}"
-          VERSION=$(echo "$TAG_NAME" | sed 's/^[^0-9]*//;s/[^0-9.]*$//')
+          # Read version from tauri.conf.json
+          VERSION=$(grep '"version"' src-tauri/tauri.conf.json | sed 's/.*"version": "\([^"]*\)".*/\1/')
           BUILD_NUMBER=$(git rev-list --count HEAD)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "build=$BUILD_NUMBER" >> $GITHUB_OUTPUT
-          echo "Tag: $TAG_NAME"
+          echo "Branch: ${{ github.ref_name }}"
           echo "Version: $VERSION (Build: $BUILD_NUMBER)"
 
       - name: Setup Xcode
