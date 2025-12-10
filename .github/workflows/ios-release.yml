@@ -113,6 +113,11 @@ jobs:
            cargo tauri ios init
            mkdir -p gen/apple/Externals/arm64/Release
            cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
+
+           # Set manual code signing in Xcode project
+           echo "Setting manual code signing in Xcode project..."
+           sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Distribution"/CODE_SIGN_IDENTITY = "iPhone Distribution"\n\t\t\t\tCODE_SIGN_STYLE = Manual/' gen/apple/src-tauri.xcodeproj/project.pbxproj
+
            cd ..
 
       - name: Setup Code Signing
