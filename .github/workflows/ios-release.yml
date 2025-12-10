@@ -14,7 +14,7 @@ env:
 jobs:
   build-ios:
     name: iOS TestFlight Build
-    runs-on: self-hosted
+    runs-on: [self-hosted, macOS, ARM64]
     timeout-minutes: 120
 
     steps:
@@ -22,6 +22,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Verify Self-Hosted Runner
+        run: |
+          if [ "$RUNNER_NAME" != "MacBook-Air" ]; then
+            echo "❌ ERROR: This workflow must run on self-hosted runner 'MacBook-Air'"
+            echo "💰 Hosted runners cost \$0.08/minute (~\$5/hour)"
+            echo "🏠 Self-hosted runner required for iOS certificates and environment"
+            echo ""
+            echo "🔧 To fix:"
+            echo "1. Check runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
+            echo "2. Restart runner: cd ~/github-runner && ./svc.restart"
+            echo "3. Check runner logs: cd ~/github-runner && tail -f _diag/Runner_*.log"
+            exit 1
+          fi
+          echo "✅ Running on self-hosted runner: $RUNNER_NAME"
 
       - name: Get version from tag
         id: version
