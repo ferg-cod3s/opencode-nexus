@@ -92,7 +92,7 @@ jobs:
       - name: iOS Project Setup
         run: |
            # Ensure xcodegen is in PATH
-           export PATH="$HOME/bin:$PATH"
+           export PATH="/opt/homebrew/bin:$PATH"
            cd src-tauri
            rm -rf gen/apple
            cargo tauri ios init
