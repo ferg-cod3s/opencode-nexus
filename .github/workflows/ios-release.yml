@@ -68,24 +68,28 @@ jobs:
 
       - name: Install iOS Dependencies
         run: |
+           # Check if required tools are available (pre-installed on self-hosted runner)
            echo "Checking for required iOS development tools..."
+           echo "PATH: $PATH"
+           echo "Checking for xcodegen..."
 
-            if command -v xcodegen &> /dev/null; then
-              echo "✅ xcodegen found: $(xcodegen --version)"
-            else
-              echo "❌ xcodegen not found in PATH"
-              echo "Expected location: /opt/homebrew/bin/xcodegen"
-              echo "Please ensure xcodegen is installed on the self-hosted runner"
-              exit 1
-            fi
+           if command -v xcodegen &> /dev/null; then
+             echo "✅ xcodegen found: $(xcodegen --version)"
+           else
+             echo "❌ xcodegen not found in PATH"
+             echo "Checking common locations..."
+             ls -la /opt/homebrew/bin/xcodegen 2>/dev/null && echo "Found in /opt/homebrew/bin/" || echo "Not in /opt/homebrew/bin/"
+             ls -la /usr/local/bin/xcodegen 2>/dev/null && echo "Found in /usr/local/bin/" || echo "Not in /usr/local/bin/"
+             echo "Please ensure xcodegen is installed and in PATH"
+             exit 1
+           fi
 
            if command -v pod &> /dev/null; then
              echo "✅ cocoapods found: $(pod --version)"
-            else
-              echo "⚠️  cocoapods not found - attempting build without it"
-              echo "Note: cocoapods may be required for iOS dependencies"
-              echo "Expected location: /opt/homebrew/bin/pod"
-            fi
+           else
+             echo "⚠️  cocoapods not found - attempting build without it"
+             echo "Note: cocoapods may be required for iOS dependencies"
+           fi
 
            echo "All iOS dependencies verified!"
 
