@@ -114,9 +114,11 @@ jobs:
            mkdir -p gen/apple/Externals/arm64/Release
            cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
 
-           # Set manual code signing in Xcode project
-           echo "Setting manual code signing in Xcode project..."
-           sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Distribution"/CODE_SIGN_IDENTITY = "iPhone Distribution"\n\t\t\t\tCODE_SIGN_STYLE = Manual/' gen/apple/src-tauri.xcodeproj/project.pbxproj
+           # Configure code signing for distribution
+           echo "Configuring code signing for distribution..."
+           # Remove manual code signing settings to use automatic signing with correct profile
+           sed -i '' '/CODE_SIGN_IDENTITY = "iPhone Distribution"/d' gen/apple/src-tauri.xcodeproj/project.pbxproj
+           sed -i '' '/CODE_SIGN_STYLE = Manual/d' gen/apple/src-tauri.xcodeproj/project.pbxproj
 
            cd ..
 
@@ -151,14 +153,13 @@ jobs:
         run: |
           cd src-tauri/gen/apple
           mkdir -p build/archives
-          xcodebuild \
-            -project src-tauri.xcodeproj \
-            -scheme src-tauri_iOS \
-            -configuration Release \
-            -archivePath build/archives/OpenCodeNexus.xcarchive \
-            archive \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            DEVELOPMENT_TEAM="PCJU8QD9FN"
+           xcodebuild \
+             -project src-tauri.xcodeproj \
+             -scheme src-tauri_iOS \
+             -configuration Release \
+             -archivePath build/archives/OpenCodeNexus.xcarchive \
+             archive \
+             DEVELOPMENT_TEAM="PCJU8QD9FN"
           cd ../../..
 
       - name: Export IPA
