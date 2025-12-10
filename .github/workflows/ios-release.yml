@@ -70,36 +70,22 @@ jobs:
         run: |
            echo "Checking for required iOS development tools..."
 
-           if command -v xcodegen &> /dev/null; then
-             echo "✅ xcodegen found: $(xcodegen --version)"
-           else
-             echo "❌ xcodegen not found - required for iOS build"
-             echo "Installing xcodegen..."
-             # Download and install xcodegen binary
-             mkdir -p ~/bin
-             cd ~
-             curl -L -o xcodegen.zip https://github.com/yonaskolb/XcodeGen/releases/download/2.44.1/xcodegen.zip
-             if [ -f xcodegen.zip ]; then
-               unzip xcodegen.zip || tar -xzf xcodegen.zip
-               find . -name "xcodegen" -type f -exec chmod +x {} \;
-               find . -name "xcodegen" -type f -exec mv {} ~/bin/ \; 2>/dev/null || true
-             fi
-             export PATH="$HOME/bin:$PATH"
-             if command -v xcodegen &> /dev/null; then
-               echo "✅ xcodegen installed: $(xcodegen --version)"
-             else
-               echo "❌ Failed to install xcodegen"
-               exit 1
-             fi
-           fi
+            if command -v xcodegen &> /dev/null; then
+              echo "✅ xcodegen found: $(xcodegen --version)"
+            else
+              echo "❌ xcodegen not found in PATH"
+              echo "Expected location: /opt/homebrew/bin/xcodegen"
+              echo "Please ensure xcodegen is installed on the self-hosted runner"
+              exit 1
+            fi
 
            if command -v pod &> /dev/null; then
              echo "✅ cocoapods found: $(pod --version)"
-           else
-             echo "⚠️  cocoapods not found - attempting build without it"
-             echo "Note: cocoapods may be required for iOS dependencies"
-             echo "If build fails, install with: gem install cocoapods"
-           fi
+            else
+              echo "⚠️  cocoapods not found - attempting build without it"
+              echo "Note: cocoapods may be required for iOS dependencies"
+              echo "Expected location: /opt/homebrew/bin/pod"
+            fi
 
            echo "All iOS dependencies verified!"
 
