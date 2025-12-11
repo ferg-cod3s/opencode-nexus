@@ -126,8 +126,10 @@ jobs:
         env:
           IOS_CERTIFICATE_P12: ${{ secrets.IOS_CERTIFICATE_P12 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          # Import certificate into login keychain (automatic signing)
+          # Unlock login keychain and import certificate
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" ~/Library/Keychains/login.keychain
           echo "$IOS_CERTIFICATE_P12" | base64 --decode > /tmp/cert.p12
           security import /tmp/cert.p12 \
             -k ~/Library/Keychains/login.keychain \
