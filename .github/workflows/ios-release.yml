@@ -128,15 +128,24 @@ jobs:
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
         run: |
-          # Unlock login keychain and import certificate
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" ~/Library/Keychains/login.keychain
+          # Create temporary keychain for code signing (more reliable in CI)
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -t 3600 -u "$KEYCHAIN_PATH"
+
+          # Import certificate into temporary keychain
           echo "$IOS_CERTIFICATE_P12" | base64 --decode > /tmp/cert.p12
           security import /tmp/cert.p12 \
-            -k ~/Library/Keychains/login.keychain \
+            -k "$KEYCHAIN_PATH" \
             -P "$IOS_CERTIFICATE_PASSWORD" \
             -T /usr/bin/codesign \
             -T /usr/bin/xcodebuild
           rm -f /tmp/cert.p12
+
+          # Set the temporary keychain as the search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain
 
       - name: Install Provisioning Profile
         env:
@@ -151,13 +160,15 @@ jobs:
         run: |
           cd src-tauri/gen/apple
           mkdir -p build/archives
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
            xcodebuild \
              -project src-tauri.xcodeproj \
              -scheme src-tauri_iOS \
              -configuration Release \
              -archivePath build/archives/OpenCodeNexus.xcarchive \
              archive \
-             DEVELOPMENT_TEAM="PCJU8QD9FN"
+             DEVELOPMENT_TEAM="PCJU8QD9FN" \
+             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
           cd ../../..
 
       - name: Export IPA
