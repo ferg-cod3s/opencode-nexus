@@ -74,14 +74,14 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0" --locked
 
-      - name: Frontend Build
+       - name: Frontend Build
         run: |
            cd frontend
            bun install --frozen-lockfile
            NODE_ENV=production bun run build
            cd ..
 
-      - name: Start Development Server
+       - name: Start Development Server
         run: |
            cd frontend
            bun run dev &
@@ -90,21 +90,28 @@ jobs:
            cd ..
            sleep 5  # Give server time to start
 
-      - name: Rust Pre-build
+       - name: Rust Pre-build
         run: |
            cd src-tauri
            export IPHONEOS_DEPLOYMENT_TARGET=14.0
            export RUST_BACKTRACE=1
            echo "Starting Rust build for iOS with 20-minute timeout..."
-           # Use timeout command for reliable termination
-           if timeout 1200 cargo build --target aarch64-apple-ios --release --lib --verbose; then
+           # Use background process with kill timeout for macOS compatibility
+           (cargo build --target aarch64-apple-ios --release --lib --verbose) &
+           BUILD_PID=$!
+           (sleep 1200 && kill $BUILD_PID 2>/dev/null && echo "Build timed out, killing process") &
+           WATCHDOG_PID=$!
+           wait $BUILD_PID 2>/dev/null
+           BUILD_EXIT=$?
+           kill $WATCHDOG_PID 2>/dev/null || true
+           if [ $BUILD_EXIT -eq 0 ]; then
              echo "✅ Rust build completed successfully"
            else
-             echo "❌ Rust build timed out after 20 minutes"
+             echo "❌ Rust build failed or timed out after 20 minutes"
              echo "This indicates a hanging build process that needs investigation"
              exit 1
            fi
-            cd ..
+           cd ..
 
       - name: Install iOS Dependencies
         run: |
@@ -171,8 +178,8 @@ jobs:
           # Set the temporary keychain as the search list
           security list-keychains -d user -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain
 
-      - name: Install Provisioning Profile
-        env:
+       - name: Install Provisioning Profile
+         env:
            IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
         run: |
            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
@@ -180,12 +187,12 @@ jobs:
            cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/OpenCodeNexus_AppStore.mobileprovision
            rm -f /tmp/profile.mobileprovision
 
-      - name: Copy ExportOptions.plist
+       - name: Copy ExportOptions.plist
         run: |
            cp src-tauri/ios-config/ExportOptions.plist src-tauri/gen/apple/ExportOptions.plist
            echo "Copied ExportOptions.plist for App Store distribution"
 
-      - name: iOS Archive
+       - name: iOS Archive
         run: |
           cd src-tauri/gen/apple
           mkdir -p build/archives
@@ -235,17 +242,17 @@ jobs:
             --verbose
           rm -rf "$TEMP_KEY_DIR"
 
-      - name: Stop Development Server
-        if: always()
+       - name: Stop Development Server
+         if: always()
         run: |
            if [ ! -z "$DEV_SERVER_PID" ]; then
              kill $DEV_SERVER_PID 2>/dev/null || true
              wait $DEV_SERVER_PID 2>/dev/null || true
            fi
 
-      - name: Create Sentry Release
-        if: success()
-        env:
+       - name: Create Sentry Release
+         if: success()
+         env:
            SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
            curl -X POST \
