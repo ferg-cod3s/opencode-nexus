@@ -23,8 +23,8 @@ jobs:
         with:
           fetch-depth: 0
 
-       - name: Verify Self-Hosted Runner
-         run: |
+      - name: Verify Self-Hosted Runner
+        run: |
            if [ "$RUNNER_NAME" != "MacBook-Air" ]; then
              echo "❌ ERROR: This workflow must run on self-hosted runner 'MacBook-Air'"
              echo "💰 Hosted runners cost \$0.08/minute (~\$5/hour)"
@@ -74,15 +74,15 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0" --locked
 
-       - name: Frontend Build
-         run: |
+      - name: Frontend Build
+        run: |
            cd frontend
            bun install --frozen-lockfile
            NODE_ENV=production bun run build
            cd ..
 
-       - name: Start Development Server
-         run: |
+      - name: Start Development Server
+        run: |
            cd frontend
            bun run dev &
            DEV_SERVER_PID=$!
@@ -90,8 +90,8 @@ jobs:
            cd ..
            sleep 5  # Give server time to start
 
-       - name: Rust Pre-build
-         run: |
+      - name: Rust Pre-build
+        run: |
            cd src-tauri
            export IPHONEOS_DEPLOYMENT_TARGET=14.0
            export RUST_BACKTRACE=1
@@ -171,21 +171,21 @@ jobs:
           # Set the temporary keychain as the search list
           security list-keychains -d user -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain
 
-       - name: Install Provisioning Profile
-         env:
+      - name: Install Provisioning Profile
+        env:
            IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
-         run: |
+        run: |
            mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
            echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
            cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/OpenCodeNexus_AppStore.mobileprovision
            rm -f /tmp/profile.mobileprovision
 
-       - name: Copy ExportOptions.plist
-         run: |
+      - name: Copy ExportOptions.plist
+        run: |
            cp src-tauri/ios-config/ExportOptions.plist src-tauri/gen/apple/ExportOptions.plist
            echo "Copied ExportOptions.plist for App Store distribution"
 
-       - name: iOS Archive
+      - name: iOS Archive
         run: |
           cd src-tauri/gen/apple
           mkdir -p build/archives
@@ -235,19 +235,19 @@ jobs:
             --verbose
           rm -rf "$TEMP_KEY_DIR"
 
-       - name: Stop Development Server
-         if: always()
-         run: |
+      - name: Stop Development Server
+        if: always()
+        run: |
            if [ ! -z "$DEV_SERVER_PID" ]; then
              kill $DEV_SERVER_PID 2>/dev/null || true
              wait $DEV_SERVER_PID 2>/dev/null || true
            fi
 
-       - name: Create Sentry Release
-         if: success()
-         env:
+      - name: Create Sentry Release
+        if: success()
+        env:
            SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-         run: |
+        run: |
            curl -X POST \
              -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
              -H "Content-Type: application/json" \
