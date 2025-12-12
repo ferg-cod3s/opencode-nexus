@@ -23,20 +23,27 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Verify Self-Hosted Runner
-        run: |
-          if [ "$RUNNER_NAME" != "MacBook-Air" ]; then
-            echo "❌ ERROR: This workflow must run on self-hosted runner 'MacBook-Air'"
-            echo "💰 Hosted runners cost \$0.08/minute (~\$5/hour)"
-            echo "🏠 Self-hosted runner required for iOS certificates and environment"
-            echo ""
-            echo "🔧 To fix:"
-            echo "1. Check runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
-            echo "2. Restart runner: cd ~/github-runner && ./svc.restart"
-            echo "3. Check runner logs: cd ~/github-runner && tail -f _diag/Runner_*.log"
-            exit 1
-          fi
-          echo "✅ Running on self-hosted runner: $RUNNER_NAME"
+       - name: Verify Self-Hosted Runner
+         run: |
+           if [ "$RUNNER_NAME" != "MacBook-Air" ]; then
+             echo "❌ ERROR: This workflow must run on self-hosted runner 'MacBook-Air'"
+             echo "💰 Hosted runners cost \$0.08/minute (~\$5/hour)"
+             echo "🏠 Self-hosted runner required for iOS certificates and environment"
+             echo ""
+             echo "🔧 To fix:"
+             echo "1. Check runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
+             echo "2. Restart runner: cd ~/github-runner && ./svc.restart"
+             echo "3. Check runner logs: cd ~/github-runner && tail -f _diag/Runner_*.log"
+             exit 1
+           fi
+           echo "✅ Running on self-hosted runner: $RUNNER_NAME"
+
+           # Check system resources
+           echo "📊 System Resources:"
+           echo "CPU: $(sysctl -n hw.ncpu) cores"
+           echo "Memory: $(echo "scale=2; $(sysctl -n hw.memsize) / 1024 / 1024 / 1024" | bc) GB"
+           echo "Available disk: $(df -h / | tail -1 | awk '{print $4}')"
+           echo "Load average: $(uptime | awk -F'load average:' '{print $2}')"
 
       - name: Get version from Tauri config
         id: version
@@ -67,19 +74,37 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0" --locked
 
-      - name: Frontend Build
-        run: |
-          cd frontend
-          bun install --frozen-lockfile
+       - name: Frontend Build
+         run: |
+           cd frontend
+           bun install --frozen-lockfile
            NODE_ENV=production bun run build
            cd ..
 
-      - name: Rust Pre-build
-        run: |
-          cd src-tauri
-          export IPHONEOS_DEPLOYMENT_TARGET=14.0
-          cargo build --target aarch64-apple-ios --release --lib
+       - name: Start Development Server
+         run: |
+           cd frontend
+           bun run dev &
+           DEV_SERVER_PID=$!
+           echo "DEV_SERVER_PID=$DEV_SERVER_PID" >> $GITHUB_ENV
            cd ..
+           sleep 5  # Give server time to start
+
+       - name: Rust Pre-build
+         run: |
+           cd src-tauri
+           export IPHONEOS_DEPLOYMENT_TARGET=14.0
+           export RUST_BACKTRACE=1
+           echo "Starting Rust build for iOS with 20-minute timeout..."
+           # Use timeout command for reliable termination
+           if timeout 1200 cargo build --target aarch64-apple-ios --release --lib --verbose; then
+             echo "✅ Rust build completed successfully"
+           else
+             echo "❌ Rust build timed out after 20 minutes"
+             echo "This indicates a hanging build process that needs investigation"
+             exit 1
+           fi
+            cd ..
 
       - name: Install iOS Dependencies
         run: |
@@ -114,11 +139,10 @@ jobs:
            mkdir -p gen/apple/Externals/arm64/Release
            cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
 
-           # Configure code signing for distribution
-           echo "Configuring code signing for distribution..."
-           # Remove manual code signing settings to use automatic signing with correct profile
-           sed -i '' '/CODE_SIGN_IDENTITY = "iPhone Distribution"/d' gen/apple/src-tauri.xcodeproj/project.pbxproj
-           sed -i '' '/CODE_SIGN_STYLE = Manual/d' gen/apple/src-tauri.xcodeproj/project.pbxproj
+            # Configure code signing for distribution
+            echo "Configuring code signing for distribution..."
+            # Set manual code signing for TestFlight distribution
+            sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer";/CODE_SIGN_IDENTITY = "iPhone Distribution";/g' gen/apple/src-tauri.xcodeproj/project.pbxproj
 
            cd ..
 
@@ -147,28 +171,34 @@ jobs:
           # Set the temporary keychain as the search list
           security list-keychains -d user -s "$KEYCHAIN_PATH" ~/Library/Keychains/login.keychain
 
-      - name: Install Provisioning Profile
-        env:
-          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
-        run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
-          echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
-          cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/OpenCodeNexus_AppStore.mobileprovision
-          rm -f /tmp/profile.mobileprovision
+       - name: Install Provisioning Profile
+         env:
+           IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+         run: |
+           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles/
+           echo "$IOS_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
+           cp /tmp/profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/OpenCodeNexus_AppStore.mobileprovision
+           rm -f /tmp/profile.mobileprovision
 
-      - name: iOS Archive
+       - name: Copy ExportOptions.plist
+         run: |
+           cp src-tauri/ios-config/ExportOptions.plist src-tauri/gen/apple/ExportOptions.plist
+           echo "Copied ExportOptions.plist for App Store distribution"
+
+       - name: iOS Archive
         run: |
           cd src-tauri/gen/apple
           mkdir -p build/archives
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
-           xcodebuild \
-             -project src-tauri.xcodeproj \
-             -scheme src-tauri_iOS \
-             -configuration Release \
-             -archivePath build/archives/OpenCodeNexus.xcarchive \
-             archive \
-             DEVELOPMENT_TEAM="PCJU8QD9FN" \
-             OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
+            xcodebuild \
+              -project src-tauri.xcodeproj \
+              -scheme src-tauri_iOS \
+              -configuration Release \
+              -archivePath build/archives/OpenCodeNexus.xcarchive \
+              archive \
+              DEVELOPMENT_TEAM="PCJU8QD9FN" \
+              CODE_SIGN_IDENTITY="iPhone Distribution" \
+              OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
           cd ../../..
 
       - name: Export IPA
@@ -205,16 +235,24 @@ jobs:
             --verbose
           rm -rf "$TEMP_KEY_DIR"
 
-      - name: Create Sentry Release
-        if: success()
-        env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: |
-          curl -X POST \
-            -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{"version":"${{ steps.version.outputs.version }}","projects":["opencode-nexus-frontend","opencode-nexus-backend"]}' \
-            https://sentry.fergify.work/api/0/organizations/unforgettable-designs/releases/
+       - name: Stop Development Server
+         if: always()
+         run: |
+           if [ ! -z "$DEV_SERVER_PID" ]; then
+             kill $DEV_SERVER_PID 2>/dev/null || true
+             wait $DEV_SERVER_PID 2>/dev/null || true
+           fi
+
+       - name: Create Sentry Release
+         if: success()
+         env:
+           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+         run: |
+           curl -X POST \
+             -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
+             -H "Content-Type: application/json" \
+             -d '{"version":"${{ steps.version.outputs.version }}","projects":["opencode-nexus-frontend","opencode-nexus-backend"]}' \
+             https://sentry.fergify.work/api/0/organizations/unforgettable-designs/releases/
 
       - name: Upload Build Artifacts
         if: always() && env.IPA_FILE != ''
