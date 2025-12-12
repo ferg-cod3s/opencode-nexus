@@ -97,12 +97,12 @@ cargo build --target aarch64-apple-ios --release
 RUST_BUILD_TIME=$(($(date +%s) - RUST_START_TIME))
 print_success "Rust compilation completed in ${RUST_BUILD_TIME}s"
 
-# Time the Tauri iOS build
-TAURI_START_TIME=$(date +%s)
-print_status "Running Tauri iOS build process..."
-cargo tauri ios build --release
-TAURI_BUILD_TIME=$(($(date +%s) - TAURI_START_TIME))
-print_success "Tauri iOS build completed in ${TAURI_BUILD_TIME}s"
+ # Time the Tauri iOS build
+ TAURI_START_TIME=$(date +%s)
+ print_status "Running Tauri iOS build process..."
+ cargo tauri ios build
+ TAURI_BUILD_TIME=$(($(date +%s) - TAURI_START_TIME))
+ print_success "Tauri iOS build completed in ${TAURI_BUILD_TIME}s"
 
 cd ..
 TOTAL_TIME=$(($(date +%s) - START_TIME))
