@@ -71,7 +71,7 @@ jobs:
           mkdir -p gen/apple/Externals/arm64/Release
           cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
 
-          # Skip project modification - use xcodebuild command line signing instead
+          # Skip project modification - let xcodebuild use keychain defaults
 
           # Disable Tauri CLI build script to avoid signing conflicts
           sed -i '' 's/shellScript = "cargo tauri ios xcode-script/shellScript = "echo \\"Using pre-built Rust library - skipping Tauri CLI\\"/g' gen/apple/src-tauri.xcodeproj/project.pbxproj
