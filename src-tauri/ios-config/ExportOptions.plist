@@ -2,55 +2,44 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Export method for App Store distribution -->
     <key>method</key>
-    <string>app-store</string>
+    <string>app-store-connect</string>
 
-    <!-- Development team ID -->
+    <key>destination</key>
+    <string>export</string>
+
     <key>teamID</key>
     <string>PCJU8QD9FN</string>
 
-    <!-- Upload symbols for crash reports -->
     <key>uploadSymbols</key>
     <true/>
 
-    <!-- Upload bitcode (deprecated but included for compatibility) -->
-    <key>uploadBitcode</key>
-    <false/>
-
-    <!-- Manual signing for better control -->
+    <!-- Force xcodebuild export to use the profile that matches our Apple Distribution cert -->
     <key>signingStyle</key>
     <string>manual</string>
 
-    <!-- Code signing identity -->
     <key>signingCertificate</key>
-    <string>Apple Distribution: John Ferguson (PCJU8QD9FN)</string>
+    <string>Apple Distribution</string>
 
-    <!-- Provisioning profiles per bundle identifier -->
     <key>provisioningProfiles</key>
     <dict>
         <key>com.agentic-codeflow.opencode-nexus</key>
-        <string>OpenCodeNexus_AppStore</string>
+        <string>Opencode Nexus App Store V2</string>
     </dict>
 
-    <!-- Compile for all architectures -->
     <key>compileBitcode</key>
     <false/>
 
-    <!-- Ensure symbols are stripped for release -->
+    <key>uploadBitcode</key>
+    <false/>
+
     <key>stripSwiftSymbols</key>
     <true/>
 
-    <!-- Thinning for App Store -->
     <key>thinning</key>
     <string>&lt;none&gt;</string>
-    
-    <!-- iCloud support (if needed) -->
-    <key>iCloudContainerEnvironment</key>
-    <string>Production</string>
-    
-    <!-- App Extensions -->
-    <key>uploadBitcode</key>
-    <false/>
+
+    <key>manageAppVersionAndBuildNumber</key>
+    <true/>
 </dict>
 </plist>
