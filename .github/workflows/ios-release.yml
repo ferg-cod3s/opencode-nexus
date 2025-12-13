@@ -71,10 +71,8 @@ jobs:
           mkdir -p gen/apple/Externals/arm64/Release
           cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
 
-          # Configure manual signing
-          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "Apple Distribution"/g' gen/apple/src-tauri.xcodeproj/project.pbxproj
-          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = "[^"]*"/PROVISIONING_PROFILE_SPECIFIER = ""/g' gen/apple/src-tauri.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic/CODE_SIGN_STYLE = Manual/g' gen/apple/src-tauri.xcodeproj/project.pbxproj
+          # Use development signing as suggested by Xcode error
+          sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "Apple Development"/g' gen/apple/src-tauri.xcodeproj/project.pbxproj
 
           # Disable Tauri CLI build script to avoid signing conflicts
           sed -i '' 's/shellScript = "cargo tauri ios xcode-script/shellScript = "echo \\"Using pre-built Rust library - skipping Tauri CLI\\"/g' gen/apple/src-tauri.xcodeproj/project.pbxproj
