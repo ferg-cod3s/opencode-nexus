@@ -93,7 +93,7 @@ xcodebuild \
      DEVELOPMENT_TEAM="$TEAM_ID" \
      MARKETING_VERSION="$IOS_MARKETING_VERSION" \
      CURRENT_PROJECT_VERSION="$IOS_BUILD_NUMBER" \
-     CODE_SIGN_IDENTITY="Apple Distribution" \
+     CODE_SIGN_IDENTITY="Apple Development" \
      PROVISIONING_PROFILE_SPECIFIER="Opencode Nexus App Store V2" \
      clean archive
 
