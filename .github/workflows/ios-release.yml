@@ -68,6 +68,8 @@ jobs:
           cd src-tauri
           rm -rf gen/apple
           cargo tauri ios init
+          mkdir -p gen/apple/Externals/arm64/Release
+          cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
 
           # Use development signing as suggested by Xcode error
           sed -i '' 's/CODE_SIGN_IDENTITY = "iPhone Developer"/CODE_SIGN_IDENTITY = "Apple Development"/g' gen/apple/src-tauri.xcodeproj/project.pbxproj
