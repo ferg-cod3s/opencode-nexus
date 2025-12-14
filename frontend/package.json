@@ -9,6 +9,7 @@
     "astro": "astro",
     "typecheck": "astro check",
     "test": "bun test src/tests",
+    "test:integration": "bun test src/tests",
     "test:watch": "bun test --watch",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
