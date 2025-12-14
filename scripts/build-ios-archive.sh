@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 # Configuration
 PROJECT_PATH="src-tauri/gen/apple/src-tauri.xcodeproj"
 SCHEME="src-tauri_iOS"
-CONFIGURATION="Release"
+CONFIGURATION="${ARCHIVE_CONFIGURATION:-release}"
 ARCHIVE_PATH="${ARCHIVE_PATH:-build/OpenCodeNexus.xcarchive}"
 EXPORT_PATH="${EXPORT_PATH:-build/ipa}"
 EXPORT_OPTIONS="${EXPORT_OPTIONS:-src-tauri/ios-config/ExportOptions.plist}"

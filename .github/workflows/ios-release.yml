@@ -25,18 +25,18 @@ jobs:
 
       - name: Verify Self-Hosted Runner
         run: |
-           if [ "$RUNNER_NAME" != "MacBook-Air" ]; then
-             echo "❌ ERROR: This workflow must run on self-hosted runner 'MacBook-Air'"
-             echo "💰 Hosted runners cost \$0.08/minute (~\$5/hour)"
-             echo "🏠 Self-hosted runner required for iOS certificates and environment"
-             echo ""
-             echo "🔧 To fix:"
-             echo "1. Check runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
-             echo "2. Restart runner: cd ~/github-runner && ./svc.restart"
-             echo "3. Check runner logs: cd ~/github-runner && tail -f _diag/Runner_*.log"
-             exit 1
-           fi
-           echo "✅ Running on self-hosted runner: $RUNNER_NAME"
+          if [ "$RUNNER_NAME" != "MacBook-Air" ]; then
+            echo "❌ ERROR: This workflow must run on self-hosted runner 'MacBook-Air'"
+            echo "💰 Hosted runners cost \$0.08/minute (~\$5/hour)"
+            echo "🏠 Self-hosted runner required for iOS certificates and environment"
+            echo ""
+            echo "🔧 To fix:"
+            echo "1. Check runner status: https://github.com/${{ github.repository }}/settings/actions/runners"
+            echo "2. Restart runner: cd ~/github-runner && ./svc.restart"
+            echo "3. Check runner logs: cd ~/github-runner && tail -f _diag/Runner_*.log"
+            exit 1
+          fi
+          echo "✅ Running on self-hosted runner: $RUNNER_NAME"
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
@@ -53,14 +53,14 @@ jobs:
 
       - name: Frontend Build
         run: |
-           cd frontend
-           bun install --frozen-lockfile
-           bun run build
+          cd frontend
+          bun install --frozen-lockfile
+          bun run build
 
       - name: Rust Build
         run: |
-           cd src-tauri
-           cargo build --target aarch64-apple-ios --release --lib
+          cd src-tauri
+          cargo build --target aarch64-apple-ios --release --lib
 
       - name: Generate Xcode Project
         run: |
@@ -68,7 +68,9 @@ jobs:
           cd src-tauri
           rm -rf gen/apple
           cargo tauri ios init
+          mkdir -p gen/apple/Externals/arm64/release
           mkdir -p gen/apple/Externals/arm64/Release
+          cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/release/libapp.a
           cp target/aarch64-apple-ios/release/libsrc_tauri_lib.a gen/apple/Externals/arm64/Release/libapp.a
 
           # Skip project modification - let xcodebuild use keychain defaults
@@ -77,6 +79,8 @@ jobs:
           sed -i '' 's/shellScript = "cargo tauri ios xcode-script/shellScript = "echo \\"Using pre-built Rust library - skipping Tauri CLI\\"/g' gen/apple/src-tauri.xcodeproj/project.pbxproj
 
       - name: Build & Archive iOS App
+        env:
+          ARCHIVE_CONFIGURATION: release
         run: ./scripts/build-ios-archive.sh
 
       - name: Upload to TestFlight
