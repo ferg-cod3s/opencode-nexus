@@ -103,7 +103,9 @@ impl ChatClient {
         match self.server_url.lock() {
             Ok(mut server_url) => *server_url = Some(url),
             Err(poisoned) => {
-                eprintln!("[ERROR] ChatClient set_server_url: server_url mutex poisoned, recovering...");
+                eprintln!(
+                    "[ERROR] ChatClient set_server_url: server_url mutex poisoned, recovering..."
+                );
                 *poisoned.into_inner() = Some(url);
             }
         }
@@ -282,7 +284,9 @@ impl ChatClient {
                 .into()
             }),
             Err(poisoned) => {
-                eprintln!("[ERROR] ChatClient get_server_url: server_url mutex poisoned, recovering...");
+                eprintln!(
+                    "[ERROR] ChatClient get_server_url: server_url mutex poisoned, recovering..."
+                );
                 poisoned.into_inner().clone().ok_or_else(|| {
                     AppError::ConnectionError {
                         message: "No server URL configured".to_string(),

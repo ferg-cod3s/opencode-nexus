@@ -140,7 +140,9 @@ impl ConnectionManager {
         let current_status = match self.connection_status.lock() {
             Ok(status) => *status,
             Err(poisoned) => {
-                eprintln!("[ERROR] ConnectionManager connect: status mutex poisoned, recovering...");
+                eprintln!(
+                    "[ERROR] ConnectionManager connect: status mutex poisoned, recovering..."
+                );
                 *poisoned.into_inner()
             }
         };
@@ -180,7 +182,9 @@ impl ConnectionManager {
         match self.server_url.lock() {
             Ok(mut url) => *url = Some(server_url.clone()),
             Err(poisoned) => {
-                eprintln!("[ERROR] ConnectionManager connect: failed to store server URL, mutex poisoned");
+                eprintln!(
+                    "[ERROR] ConnectionManager connect: failed to store server URL, mutex poisoned"
+                );
                 return Err("Internal error: connection state corrupted".to_string());
             }
         }
@@ -209,8 +213,12 @@ impl ConnectionManager {
                 connections.insert(connection_id.clone(), connection);
             }
             Err(poisoned) => {
-                eprintln!("[ERROR] ConnectionManager connect: connections mutex poisoned, recovering...");
-                poisoned.into_inner().insert(connection_id.clone(), connection);
+                eprintln!(
+                    "[ERROR] ConnectionManager connect: connections mutex poisoned, recovering..."
+                );
+                poisoned
+                    .into_inner()
+                    .insert(connection_id.clone(), connection);
             }
         }
         match self.current_connection.lock() {
@@ -329,7 +337,9 @@ impl ConnectionManager {
         match self.server_url.lock() {
             Ok(url) => url.clone(),
             Err(poisoned) => {
-                eprintln!("[ERROR] ConnectionManager get_server_url: mutex poisoned, returning None");
+                eprintln!(
+                    "[ERROR] ConnectionManager get_server_url: mutex poisoned, returning None"
+                );
                 None
             }
         }
@@ -408,7 +418,9 @@ impl ConnectionManager {
         let current_status = match self.connection_status.lock() {
             Ok(status) => *status,
             Err(poisoned) => {
-                eprintln!("[ERROR] ConnectionManager disconnect: status mutex poisoned, recovering...");
+                eprintln!(
+                    "[ERROR] ConnectionManager disconnect: status mutex poisoned, recovering..."
+                );
                 *poisoned.into_inner()
             }
         };
@@ -600,7 +612,9 @@ impl ConnectionManager {
                 let url_to_check = match server_url.lock() {
                     Ok(url) => url.clone(),
                     Err(poisoned) => {
-                        eprintln!("[ERROR] ConnectionManager health check: server_url mutex poisoned");
+                        eprintln!(
+                            "[ERROR] ConnectionManager health check: server_url mutex poisoned"
+                        );
                         None
                     }
                 };
@@ -644,7 +658,10 @@ impl ConnectionManager {
                 if join_error.is_panic() {
                     eprintln!("[ERROR] ConnectionManager health check task panicked");
                 } else {
-                    eprintln!("[ERROR] ConnectionManager health check task failed: {:?}", join_error);
+                    eprintln!(
+                        "[ERROR] ConnectionManager health check task failed: {:?}",
+                        join_error
+                    );
                 }
             }
         });
