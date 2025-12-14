@@ -54,70 +54,53 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             "https://api.github.com/repos/${{ github.repository }}/actions/runs?per_page=100&created=>=$SINCE_DATE")
           
-          # Parse workflow runs
-          TOTAL_JOBS=$(echo "$WORKFLOW_RUNS" | jq '.workflow_runs | length')
-          
-          # Count jobs by runner type
-          # Initialize counters
-          SELF_HOSTED_JOBS=0
-          GITHUB_HOSTED_JOBS=0
-          SELF_HOSTED_MINUTES=0
-          GITHUB_HOSTED_MINUTES=0
-          
-          # Loop through workflow runs and fetch jobs for each
-          for run_id in $(echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[].id'); do
-            JOBS=$(curl -s \
-              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/${{ github.repository }}/actions/runs/$run_id/jobs?per_page=100")
-            
-            # For each job, check labels and sum minutes
-            SELF_HOSTED_JOB_COUNT=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? == "self-hosted")] | length')
-            GITHUB_HOSTED_JOB_COUNT=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? != "self-hosted")] | length')
-            
-            SELF_HOSTED_JOB_MINUTES=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? == "self-hosted") | ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601) | floor/60)] | add // 0')
-            GITHUB_HOSTED_JOB_MINUTES=$(echo "$JOBS" | jq '[.jobs[] | select(.labels[]? != "self-hosted") | ((.completed_at | fromdateiso8601) - (.started_at | fromdateiso8601) | floor/60)] | add // 0')
-            
+          # Ensure required tools are available
+          sudo apt-get update -y
+          sudo apt-get install -y jq bc
+
+          RUN_IDS=$(echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[].id')
+
           TOTAL_JOBS=0
           SELF_HOSTED_JOBS=0
           GITHUB_HOSTED_JOBS=0
           TOTAL_MINUTES=0
           SELF_HOSTED_MINUTES=0
           GITHUB_HOSTED_MINUTES=0
-          
+
           # Iterate over workflow runs and fetch jobs for each run
-          for RUN_ID in $(echo "$WORKFLOW_RUNS" | jq -r '.workflow_runs[].id'); do
-            JOBS_JSON=$(curl -s \
+          for RUN_ID in $RUN_IDS; do
+            JOBS_JSON=$(curl -sS \
               -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
               -H "Accept: application/vnd.github.v3+json" \
               "https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs?per_page=100")
-            
-            # For each job, check runner type and accumulate stats
+
             JOB_COUNT=$(echo "$JOBS_JSON" | jq '.jobs | length')
             TOTAL_JOBS=$((TOTAL_JOBS + JOB_COUNT))
-            
-            for i in $(seq 0 $((JOB_COUNT - 1))); do
-              # Get job info
-              JOB=$(echo "$JOBS_JSON" | jq ".jobs[$i]")
-              # Get job duration in minutes
+
+            if [ "$JOB_COUNT" -eq 0 ]; then
+              continue
+            fi
+
+            while IFS= read -r JOB; do
               START=$(echo "$JOB" | jq -r '.started_at')
               END=$(echo "$JOB" | jq -r '.completed_at')
+
               if [[ "$START" != "null" && "$END" != "null" ]]; then
                 MINUTES=$(( ( $(date -d "$END" +%s) - $(date -d "$START" +%s) ) / 60 ))
               else
                 MINUTES=0
               fi
+
               TOTAL_MINUTES=$((TOTAL_MINUTES + MINUTES))
-              
-              # Check if job ran on self-hosted runner
-              if echo "$JOB" | jq -r '.labels[]? // empty' | grep -q "self-hosted"; then
+
+              if echo "$JOB" | jq -e 'any(.labels[]?; . == "self-hosted")' > /dev/null; then
                 SELF_HOSTED_JOBS=$((SELF_HOSTED_JOBS + 1))
                 SELF_HOSTED_MINUTES=$((SELF_HOSTED_MINUTES + MINUTES))
               else
                 GITHUB_HOSTED_JOBS=$((GITHUB_HOSTED_JOBS + 1))
                 GITHUB_HOSTED_MINUTES=$((GITHUB_HOSTED_MINUTES + MINUTES))
               fi
-            done
+            done < <(echo "$JOBS_JSON" | jq -c '.jobs[]')
           done
           
           # Calculate costs

@@ -2,47 +2,26 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- App Sandbox required for App Store distribution -->
-    <key>com.apple.security.app-sandbox</key>
-    <true/>
-    
-    <!-- App Group for data sharing between app and extensions -->
-    <key>com.apple.security.application-groups</key>
-    <array>
-        <string>group.com.agentic-codeflow.opencode-nexus</string>
-    </array>
-    
     <!-- Network client permissions for @opencode-ai/sdk -->
     <key>com.apple.security.network.client</key>
     <true/>
-    
+
     <!-- Network server permissions (disabled for security) -->
     <key>com.apple.security.network.server</key>
     <false/>
-    
+
     <!-- Team identifier for code signing -->
     <key>com.apple.developer.team-identifier</key>
     <string>PCJU8QD9FN</string>
-    
+
     <!-- Distribution settings - disable debugging for release builds -->
     <key>get-task-allow</key>
     <false/>
-    
+
     <!-- Keychain access for secure storage -->
     <key>keychain-access-groups</key>
     <array>
         <string>$(AppIdentifierPrefix)com.agentic-codeflow.opencode-nexus</string>
     </array>
-    
-    <!-- Associated domains for deep linking -->
-    <key>com.apple.developer.associated-domains</key>
-    <array>
-        <string>applinks:opencode.ai</string>
-        <string>webcredentials:opencode.ai</string>
-    </array>
-    
-    <!-- Push notifications (if needed) -->
-    <key>aps-environment</key>
-    <string>production</string>
 </dict>
 </plist>

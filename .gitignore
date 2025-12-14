@@ -151,8 +151,28 @@ _*.tsx
 _*.svelte
 _*.astro
 _*.rs
-.credentials
+credentials
 
 # Local testing secrets
 .secrets.local
 .actrc.local
+docs/deployment/IOS_CREDENTIALS_REFERENCE.md
+
+# iOS Signing Files - Keep all credentials local
+.credentials
+credentials/
+*.p12
+*.p8
+*.mobileprovision
+
+# Temporary status reports and documentation (prevent future accumulation)
+*_COMPLETE.md
+*_REPORT.md
+*_SUMMARY.md
+*_STATUS.md
+SESSION_SUMMARY*.md
+PHASE*_*.md
+DAY*_*.md
+IOS_*_*.md
+*test-debug*
+*test-output*
