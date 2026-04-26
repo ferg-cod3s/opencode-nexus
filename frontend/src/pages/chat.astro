@@ -208,20 +208,20 @@ import ConnectionStatus from '../components/ConnectionStatus.svelte';
           }
 
           try {
-            await invoke('logout_user');
+            await invoke('disconnect_from_server');
 
-            // Clear Sentry user context on logout
+            // Clear Sentry user context on disconnect
             sentry.setUser(null);
 
-            // Add breadcrumb for successful logout
+            // Add breadcrumb for successful disconnect
             sentry.addBreadcrumb({
-              message: 'User logged out successfully',
-              category: 'authentication',
+              message: 'User disconnected successfully',
+              category: 'connection',
               level: 'info'
             });
 
             sessionStorage.clear();
-            window.location.href = '/login';
+            window.location.href = '/connect';
           } catch (error) {
             console.error('Logout failed:', error);
 
