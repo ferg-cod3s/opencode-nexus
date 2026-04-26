@@ -13,7 +13,7 @@ settingGroups:
       PRODUCT_NAME: OpenCode Nexus
       PRODUCT_BUNDLE_IDENTIFIER: com.agentic-codeflow.opencode-nexus
       DEVELOPMENT_TEAM: PCJU8QD9FN
-      MARKETING_VERSION: 0.0.0
+      MARKETING_VERSION: 0.1.31
       CURRENT_PROJECT_VERSION: 1
 targetTemplates:
   app:
