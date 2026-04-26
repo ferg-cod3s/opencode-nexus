@@ -176,3 +176,6 @@ DAY*_*.md
 IOS_*_*.md
 *test-debug*
 *test-output*
+
+*.pem
+.env.*

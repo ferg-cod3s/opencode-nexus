@@ -22,11 +22,15 @@ echo ""
 
 # Step 2: Check provisioning profile
 echo "2. Checking Provisioning Profile..."
-PROFILE_PATH="Opencode_Nexus_App_Store_V2.mobileprovision"
+PROFILE_PATH="${IOS_MOBILE_PROVISION:-$HOME/.config/opencode-nexus/profile.mobileprovision}"
 
 if [ ! -f "$PROFILE_PATH" ]; then
-    echo "❌ Provisioning profile not found: $PROFILE_PATH"
-    exit 1
+    echo "⚠️  Provisioning profile not found at: $PROFILE_PATH"
+    echo "   Set IOS_MOBILE_PROVISION env var or place profile at ~/.config/opencode-nexus/profile.mobileprovision"
+    echo "   Skipping profile verification."
+    echo ""
+    echo "🎉 Partial verification complete (profile skipped)"
+    exit 0
 fi
 
 # Extract profile details

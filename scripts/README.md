@@ -20,17 +20,13 @@ This directory contains scripts for building, signing, and uploading iOS apps to
    export P12_PASSWORD="your-p12-password"
    export APP_STORE_CONNECT_API_KEY_ID="J94Q923ZNG"
    export APP_STORE_CONNECT_ISSUER_ID="c6f421de-3e35-4aab-b96d-4c4461c39766"
-   export APP_STORE_CONNECT_API_KEY_PATH="$HOME/Github/opencode-nexus/AuthKey_J94Q923ZNG.p8"
+   export APP_STORE_CONNECT_API_KEY_PATH="$HOME/.config/opencode-nexus/AuthKey.p8"
+   export IOS_MOBILE_PROVISION="$HOME/.config/opencode-nexus/profile.mobileprovision"
    ```
 
-3. **Setup Keychain** (one-time):
+3. **Install Provisioning Profile**:
    ```bash
-   ./scripts/setup-keychain.sh
-   ```
-
-4. **Install Provisioning Profile**:
-   ```bash
-   ./scripts/install-provisioning-profile.sh ../Opencode_Nexus_App_Store_V2.mobileprovision
+   ./scripts/install-provisioning-profile.sh "$IOS_MOBILE_PROVISION"
    ```
 
 ### Build & Upload
@@ -73,16 +69,17 @@ This directory contains scripts for building, signing, and uploading iOS apps to
 | `KEYCHAIN_PASSWORD` | Password for build keychain | Yes |
 | `P12_PATH` | Path to distribution .p12 file | Yes (for setup) |
 | `P12_PASSWORD` | Password for .p12 file | Yes (for setup) |
-| `APP_STORE_CONNECT_API_KEY_ID` | API key ID (J94Q923ZNG) | Yes (for upload) |
-| `APP_STORE_CONNECT_ISSUER_ID` | Issuer ID (c6f421de-3e35-4aab-b96d-4c4461c39766) | Yes (for upload) |
-| `APP_STORE_CONNECT_API_KEY_PATH` | Path to .p8 API key file | Alternative to content |
+| `APP_STORE_CONNECT_API_KEY_ID` | API key ID | Yes (for upload) |
+| `APP_STORE_CONNECT_ISSUER_ID` | Issuer ID | Yes (for upload) |
+| `APP_STORE_CONNECT_API_KEY_PATH` | Path to .p8 API key file (default: `$HOME/.config/opencode-nexus/AuthKey.p8`) | Alternative to content |
 | `APP_STORE_CONNECT_API_PRIVATE_KEY` | Base64-encoded .p8 content | Alternative to path |
+| `IOS_MOBILE_PROVISION` | Path to .mobileprovision file (default: `$HOME/.config/opencode-nexus/profile.mobileprovision`) | Yes (for build) |
 
 ### Files
 
 - `src-tauri/ios-config/ExportOptions.plist` - Export configuration for manual signing
-- `Opencode_Nexus_App_Store_V2.mobileprovision` - Provisioning profile (in project root)
-- `AuthKey_J94Q923ZNG.p8` - App Store Connect API key
+- Provisioning profile (via `$IOS_MOBILE_PROVISION` or `~/.config/opencode-nexus/profile.mobileprovision`)
+- App Store Connect API key (via `$APP_STORE_CONNECT_API_KEY_PATH` or `$APP_STORE_CONNECT_API_PRIVATE_KEY`)
 
 ## CI/CD Integration
 
