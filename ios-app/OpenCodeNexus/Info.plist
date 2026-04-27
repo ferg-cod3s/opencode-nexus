@@ -24,9 +24,11 @@
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>OpenCode Nexus needs local network access to connect to your OpenCode server.</string>
+	<string>OpenCode Nexus needs network access to connect to your OpenCode server via localhost, Tailscale, or Cloudflare.</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
