@@ -23,13 +23,13 @@ struct Session: Codable, Identifiable, Hashable {
 
 struct TimeInfo: Codable {
     let created: Int64
-    let updated: Int64
+    let updated: Int64?
 
     var createdDate: Date {
         Date(timeIntervalSince1970: TimeInterval(created) / 1000)
     }
 
-    var updatedDate: Date {
-        Date(timeIntervalSince1970: TimeInterval(updated) / 1000)
+    var updatedDate: Date? {
+        updated.map { Date(timeIntervalSince1970: TimeInterval($0) / 1000) }
     }
 }

@@ -13,7 +13,7 @@ struct SessionRow: View {
                 HStack(spacing: 6) {
                     Image(systemName: "clock")
                         .font(.caption2)
-                    Text(session.time.updatedDate.relativeString)
+                    Text((session.time.updatedDate ?? session.time.createdDate).relativeString)
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
