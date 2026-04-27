@@ -1,311 +1,65 @@
 # OpenCode Nexus
 
-[![Build Status](https://github.com/opencode-nexus/opencode-nexus/workflows/Quality%20Gate/badge.svg)](https://github.com/opencode-nexus/opencode-nexus/actions/workflows/quality-gate.yml)
-[![Security Scan](https://github.com/opencode-nexus/opencode-nexus/workflows/Security%20Scan/badge.svg)](https://github.com/opencode-nexus/opencode-nexus/actions/workflows/security-scan.yml)
-[![License Check](https://github.com/opencode-nexus/opencode-nexus/workflows/License%20Check/badge.svg)](https://github.com/opencode-nexus/opencode-nexus/actions/workflows/license-check.yml)
-[![codecov](https://codecov.io/gh/opencode-nexus/opencode-nexus/branch/main/graph/badge.svg)](https://codecov.io/gh/opencode-nexus/opencode-nexus)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A secure iOS mobile app for connecting to OpenCode servers started with `opencode serve`, built with Tauri v2 (Rust), Astro + Svelte (Bun), and the official @opencode-ai/sdk for seamless API integration.
+A native iOS client for OpenCode servers, built with SwiftUI and Liquid Glass (iOS 26+).
 
-## 🚀 Features
+## Features
 
-- **Native OpenCode Client** - Connect to any OpenCode server with a beautiful native interface
-- **Real-Time Chat Interface** - Seamless AI conversation experience with instant message streaming via Server-Sent Events
-- **iOS Mobile App** - Native iOS experience with TestFlight distribution, built with Tauri for future cross-platform expansion
-- **SDK-Powered Integration** - Uses official @opencode-ai/sdk for type-safe, reliable API communication
-- **Session Management** - Persistent conversation history with metadata-only caching for mobile optimization
-- **Accessibility First** - WCAG 2.2 AA compliant with full screen reader and keyboard navigation support
-- **Connection Management** - Support for localhost, Cloudflare Tunnel, and reverse proxy connections
+- **Native iOS app** — SwiftUI with Liquid Glass design language
+- **Connect to any OpenCode server** — `opencode serve` on localhost or remote
+- **Real-time chat** — Session management with SSE event streaming
+- **No dependencies** — Pure Swift, URLSession, zero third-party packages
+- **iOS 26 Liquid Glass** — Translucent, adaptive materials throughout
 
-## 🛠️ Tech Stack
-
-- **Backend:** Tauri v2 (Rust) for native iOS app development and API communication
-- **Frontend:** Astro with Svelte islands for modern, responsive chat interface
-- **Package Manager:** Bun for frontend dependencies and runtime
-- **API Integration:** Official @opencode-ai/sdk with Server-Sent Events for real-time streaming
-- **Security:** TLS 1.3 secure connections to OpenCode servers, encrypted local storage
-
-## 📋 Prerequisites
-
-- **OpenCode Server:** Start an OpenCode server on any machine with OpenCode installed using `opencode serve` (or `opencode --server` in older versions)
-- **iOS Device:** iOS 14.0+ for native mobile experience
-- **Memory:** 4GB RAM minimum, 8GB recommended
-- **Storage:** 1GB available disk space
-- **Network:** Internet connection for server communication
-
-## 🚀 Quick Start
-
-### Starting an OpenCode Server
-
-First, ensure you have OpenCode installed on a server machine. Start the server:
+## Quick Start
 
 ```bash
-# On the machine where you want to run the OpenCode server
-opencode serve --port 3000 --hostname 0.0.0.0
+# Prerequisites: Xcode 26, iOS 26 simulator
+
+# Build and run
+cd ios-app
+xcodebuild -project OpenCodeNexus.xcodeproj -scheme OpenCodeNexus \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+
+# Or open in Xcode
+open OpenCodeNexus.xcodeproj
 ```
 
-This will start an OpenCode server that the client can connect to. Note the server's IP address or hostname for client configuration.
+## OpenCode Server
 
-### Installation
-
-#### iOS (TestFlight)
-1. **Request TestFlight access** through the [GitHub Issues](https://github.com/opencode-nexus/opencode-nexus/issues)
-2. **Install** TestFlight app from the App Store
-3. **Accept invitation** and install OpenCode Nexus
-4. **Launch** and configure your OpenCode server connection
-
-#### Desktop (Development)
-1. **Download** the latest release for your platform from the [releases page](https://github.com/opencode-nexus/opencode-nexus/releases)
-2. **Install** the application following platform-specific instructions
-3. **Launch** OpenCode Nexus and connect to your OpenCode server
-
-*Note: Desktop builds are available for development and testing purposes. The primary experience is optimized for iOS.*
-
-### Development Setup
+The app connects to an OpenCode server via REST + SSE:
 
 ```bash
-# Clone the repository
-git clone https://github.com/opencode-nexus/opencode-nexus.git
-cd opencode-nexus
+# Start a server
+opencode serve --port 4096
 
-# Install frontend dependencies
-cd frontend
-bun install
-
-# Start frontend development server
-bun run dev
-
-# In another terminal, start Tauri development
-cd ..
-cargo tauri dev
+# Then in the app, connect to http://localhost:4096
 ```
 
-### Building for Production
+See [OpenCode Server Docs](https://opencode.ai/docs/server/) for full API reference.
 
-```bash
-# Build frontend
-cd frontend
-bun run build
+## Tech Stack
 
-# Build Tauri application
-cd ..
-cargo tauri build
-```
+| Layer | Technology |
+|-------|-----------|
+| UI | SwiftUI + Liquid Glass (iOS 26) |
+| Networking | URLSession async/await + SSE |
+| State | @Observable (Swift 6.2) |
+| Platform | iOS 26.0+, no dependencies |
 
-## 📦 Release Process
-
-OpenCode Nexus uses automated releases via GitHub Actions.
-
-### For Users
-
-Download the latest release:
-- **iOS:** TestFlight beta distribution (primary platform)
-- **Desktop:** `.dmg` (macOS), `.msi` (Windows), `.AppImage` (Linux) - development builds
-
-Visit the [Releases page](https://github.com/opencode-nexus/opencode-nexus/releases) to download.
-
-### For Maintainers
-
-Releases are automatically built and published when a version tag is pushed:
-
-```bash
-# Create and push a version tag
-git tag v0.1.0
-git push origin v0.1.0
-```
-
-This triggers the release workflow which:
-1. Builds iOS IPA for TestFlight distribution
-2. Runs all quality gates and security scans
-3. Creates a GitHub Release with iOS assets
-4. Generates checksums for verification
-
-See [CONTRIBUTING.md](CONTRIBUTING.md#release-process) for detailed release guidelines.
-
-## 📚 Documentation
-
-Comprehensive documentation is available in the `/docs/client/` directory:
-
-- **[Product Requirements Document](docs/client/PRD.md)** - Mobile-first client goals, features, and requirements
-- **[Architecture Overview](docs/client/ARCHITECTURE.md)** - Client-only system design and technical architecture
-- **[User Flows](docs/client/USER-FLOWS.md)** - Mobile touch interactions and offline user flows
-- **[Security Model](docs/client/SECURITY.md)** - Client connection security and data protection
-- **[Testing Strategy](docs/client/TESTING.md)** - Mobile testing approach and touch interaction testing
-- **[Documentation Overview](docs/client/README.md)** - Complete client documentation guide
-
-## 🔧 Development
-
-### Project Structure
+## Project Structure
 
 ```
-opencode-nexus/
-├── frontend/                 # Astro + Svelte frontend (Bun)
-├── src-tauri/               # Tauri Rust backend
-├── docs/                    # Project documentation
-├── status_docs/             # Project status and tracking
-│   ├── TODO.md              # Task tracking
-│   └── CURRENT_STATUS.md    # Detailed status
-├── README.md                # This file
-├── CHANGELOG.md             # Version history
-└── LICENSE                  # Project license
+ios-app/OpenCodeNexus/
+├── Models/          # Codable API models
+├── Services/        # OpenCodeClient (HTTP + SSE)
+├── ViewModels/      # @Observable state management
+├── Views/           # SwiftUI views
+├── Extensions/      # Date formatting helpers
+└── Assets.xcassets/ # Icons and colors
 ```
 
-### Development Commands
+## License
 
-```bash
-# Frontend development
-cd frontend
-bun run dev          # Start development server
-bun run build        # Build for production
-bun run test         # Run tests
-bun run test:e2e     # Run end-to-end tests
-bun run lint         # Lint code
-bun run type-check   # TypeScript type checking
-
-# Backend development
-cargo tauri dev      # Start Tauri development
-cargo tauri build    # Build Tauri application
-cargo test           # Run Rust tests
-cargo clippy         # Run linter
-```
-
-### Testing
-
-This project follows **Test-Driven Development (TDD)** as required by our development standards:
-
-- **Unit Tests:** Frontend (Vitest) and backend (Rust test framework)
-- **Integration Tests:** Component and API integration testing
-- **End-to-End Tests:** Playwright for full user journey validation
-- **Accessibility Tests:** WCAG 2.2 AA compliance validation
-- **Security Tests:** Automated vulnerability scanning and security testing
-
-## 🔒 Security
-
-OpenCode Nexus connects securely to OpenCode servers:
-
-- **Server Authentication:** Authentication handled by the OpenCode server (Argon2, account protection)
-- **Secure Connections:** TLS 1.3 encryption for all client-server communications
-- **Local Storage:** Encrypted session metadata storage with mobile-optimized caching
-- **Data Privacy:** No data sharing without user consent, local-first architecture
-- **Server Security:** Relies on OpenCode server's security model and audit logging
-
-### Reporting Security Vulnerabilities
-
-We take security seriously. If you discover a security vulnerability, please report it responsibly:
-
-1. **Do NOT** open a public GitHub issue
-2. Report via [GitHub Security Advisories](https://github.com/opencode-nexus/opencode-nexus/security/advisories/new)
-3. Or email: security@opencode-nexus.example.com
-
-For detailed information, see our [Security Policy](docs/SECURITY.md#15-vulnerability-reporting-process).
-
-**Response Timeline:**
-- Initial response: Within 48 hours
-- Status update: Within 7 days
-- Fix timeline: Based on severity (critical: 7 days, high: 30 days, medium: 90 days)
-
-## 🤝 Contributing
-
-We welcome contributions from the community! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-### CI/CD Pipeline
-
-This project uses automated workflows to ensure code quality and security:
-
-- **Quality Gate:** Runs on all PRs - linting, testing, coverage checks, builds
-- **Security Scan:** Automated vulnerability scanning (Trivy, CodeQL, audit tools)
-- **License Check:** Ensures all dependencies comply with approved licenses
-- **Release Build:** Automated cross-platform builds on version tags
-
-All checks must pass before code can be merged. See [CONTRIBUTING.md](CONTRIBUTING.md#cicd-pipeline) for details.
-
-### Development Standards
-
-This project follows strict development standards:
-
-- **Test-Driven Development (TDD)** - Write tests before implementing features
-- **Security First** - All code must pass security reviews
-- **Accessibility** - WCAG 2.2 AA compliance required
-- **Code Quality** - Comprehensive testing and linting
-- **Documentation** - Maintain comprehensive documentation
-
-### Getting Started
-
-1. **Fork** the repository
-2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
-3. **Write tests** first (TDD requirement)
-4. **Implement** your feature
-5. **Test** thoroughly
-6. **Commit** your changes (`git commit -m 'Add amazing feature'`)
-7. **Push** to the branch (`git push origin feature/amazing-feature`)
-8. **Open** a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-### Getting Help
-
-- **Documentation:** Check the `/docs/` directory
-- **Issues:** Report bugs and request features on [GitHub Issues](https://github.com/opencode-nexus/opencode-nexus/issues)
-- **Discussions:** Join community discussions on [GitHub Discussions](https://github.com/opencode-nexus/opencode-nexus/discussions)
-- **Wiki:** Check the [GitHub Wiki](https://github.com/opencode-nexus/opencode-nexus/wiki) for additional resources
-
-### Community
-
-- **GitHub:** [opencode-nexus/opencode-nexus](https://github.com/opencode-nexus/opencode-nexus)
-- **Discord:** Join our community server
-- **Reddit:** r/opencode-nexus
-- **Twitter:** [@OpenCodeNexus](https://twitter.com/OpenCodeNexus)
-
-## 🗺️ Roadmap
-
-- **v0.1.0** - iOS mobile app with TestFlight distribution ✅
-- **v0.2.0** - Enhanced iOS features and user experience
-- **v0.3.0** - Android client (future expansion)
-- **v1.0.0** - Production-ready iOS app with enterprise features
-
-## 🙏 Acknowledgments
-
-- **OpenCode Team** - For the amazing OpenCode AI coding assistant
-- **Tauri Team** - For the excellent framework enabling native iOS app development
-- **Astro Team** - For the modern web framework
-- **Svelte Team** - For the reactive component framework
-- **Bun Team** - For the fast JavaScript runtime
-
----
-
-**OpenCode Nexus** - Democratizing access to AI-powered coding assistance through a beautiful, secure iOS mobile app.
-
-Made with ❤️ by the OpenCode Nexus community.
-
-
-## Codeflow Workflow - Multi-Platform
-
-This project supports both Claude Code and MCP integration.
-
-### Claude Code Users
-
-Use native slash commands:
-- `/research`, `/plan`, `/execute`, `/test`, `/document`, `/commit`, `/review`
-
-Commands are in `.claude/commands/`.
-
-### Other AI Platforms (OpenCode, Claude Desktop, etc.)
-
-Use MCP tools:
-- `research`, `plan`, `execute`, `test`, `document`, `commit`, `review`
-
-**Setup MCP Server**:
-```bash
-bun run /path/to/codeflow/mcp/codeflow-server.mjs
-```
-
-Commands are in `.opencode/command/`.
-
-### Universal Workflow
-
-1. **Research** → 2. **Plan** → 3. **Execute** → 4. **Test** → 5. **Document** → 6. **Commit** → 7. **Review**
+[MIT](LICENSE)

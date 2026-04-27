@@ -1,0 +1,407 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		002BA9E7CDB3E5874F2EEDDE /* ConnectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27FCBC9BF218D0BDE349EA0 /* ConnectionManager.swift */; };
+		00C98A22B90F84419A9383FF /* OpenCodeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9951D90FCF78841C56ECAE55 /* OpenCodeClient.swift */; };
+		194A8326CE8DA6AB6DA9FFB7 /* SessionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C355768023A130D92EB12564 /* SessionRow.swift */; };
+		1F1CF26F5275D7B15F69D613 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = A478B04936AE9B19FBA23AFC /* Message.swift */; };
+		2A0F4D5F0A9BE0CFF03709B5 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C276DC86CAE0F22CFFC38C6A /* RootView.swift */; };
+		4240D60027C5C9D768FB1273 /* HealthResponse.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66F5D68D60C7339B60BD1FFF /* HealthResponse.swift */; };
+		4DDDACC9EF36F73FDDE47F51 /* SSEEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50D4D536CFBC65D89DE969F1 /* SSEEvent.swift */; };
+		50B912B2A4A15305B2FD2274 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = 316FAB7BED82340DC6FED47F /* MessageBubble.swift */; };
+		51648E7E471696AC13AA113D /* MessageListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6887707C6A779ADA603B996C /* MessageListView.swift */; };
+		5CA88E8CE4D373D62C4EBE85 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1512D12751E0D58E6A416F8B /* ChatViewModel.swift */; };
+		68DD20828373CDC6503B31F0 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E5E83B891FFBB105D3209C /* ChatView.swift */; };
+		7AA1F4FC9686F31ABBFF6474 /* OpenCodeNexusApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82062C38033E41F58A1FB1A2 /* OpenCodeNexusApp.swift */; };
+		9D129651EBBCF36492800157 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB70ABF88ABB6E4EA620A427 /* Session.swift */; };
+		9DF1C2833B43FE13A6295232 /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0430BF58A82E99D3B9B9BF54 /* ConnectView.swift */; };
+		C83FF54475B038351DFB9569 /* MessageInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F292817549F82791FFD0F12 /* MessageInputView.swift */; };
+		C9738BAF201F282FFA36C7ED /* NewSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EFAEAA7ABE31AE3CF95B7CB /* NewSessionView.swift */; };
+		E0690F73FA2B8D33428C2626 /* Date+Relative.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88A02EA1C27385BA5B352FAC /* Date+Relative.swift */; };
+		E6E2BB44528E0F6A4AA15374 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0FE8544DEF0289F135147523 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0430BF58A82E99D3B9B9BF54 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
+		0FE8544DEF0289F135147523 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1512D12751E0D58E6A416F8B /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		22578BFECF2F7F7E4B740809 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		316FAB7BED82340DC6FED47F /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
+		3EFAEAA7ABE31AE3CF95B7CB /* NewSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewSessionView.swift; sourceTree = "<group>"; };
+		50D4D536CFBC65D89DE969F1 /* SSEEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEEvent.swift; sourceTree = "<group>"; };
+		66F5D68D60C7339B60BD1FFF /* HealthResponse.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthResponse.swift; sourceTree = "<group>"; };
+		6887707C6A779ADA603B996C /* MessageListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageListView.swift; sourceTree = "<group>"; };
+		82062C38033E41F58A1FB1A2 /* OpenCodeNexusApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeNexusApp.swift; sourceTree = "<group>"; };
+		88A02EA1C27385BA5B352FAC /* Date+Relative.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Relative.swift"; sourceTree = "<group>"; };
+		8F292817549F82791FFD0F12 /* MessageInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputView.swift; sourceTree = "<group>"; };
+		9951D90FCF78841C56ECAE55 /* OpenCodeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeClient.swift; sourceTree = "<group>"; };
+		A3D356E2268FC800E936544B /* OpenCodeNexus.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenCodeNexus.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A478B04936AE9B19FBA23AFC /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		B27FCBC9BF218D0BDE349EA0 /* ConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionManager.swift; sourceTree = "<group>"; };
+		BB70ABF88ABB6E4EA620A427 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
+		C276DC86CAE0F22CFFC38C6A /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		C2E5E83B891FFBB105D3209C /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		C355768023A130D92EB12564 /* SessionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRow.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0902C529CA13F6B7AC0AACEF /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				C2E5E83B891FFBB105D3209C /* ChatView.swift */,
+				0430BF58A82E99D3B9B9BF54 /* ConnectView.swift */,
+				316FAB7BED82340DC6FED47F /* MessageBubble.swift */,
+				8F292817549F82791FFD0F12 /* MessageInputView.swift */,
+				6887707C6A779ADA603B996C /* MessageListView.swift */,
+				3EFAEAA7ABE31AE3CF95B7CB /* NewSessionView.swift */,
+				C355768023A130D92EB12564 /* SessionRow.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		28DCE0B44E2EDDA3E4E173E6 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A3D356E2268FC800E936544B /* OpenCodeNexus.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4C8B512E75B9EAAA0282793E /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				9951D90FCF78841C56ECAE55 /* OpenCodeClient.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A30443D43310F661761D0E19 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				1512D12751E0D58E6A416F8B /* ChatViewModel.swift */,
+				B27FCBC9BF218D0BDE349EA0 /* ConnectionManager.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		DAAB5AE6D35BEA92A4853897 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				88A02EA1C27385BA5B352FAC /* Date+Relative.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		E2700E6CE9E7BD1FCA24E59E = {
+			isa = PBXGroup;
+			children = (
+				E4F4BCF6B5ADC30D140F02E6 /* OpenCodeNexus */,
+				28DCE0B44E2EDDA3E4E173E6 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E4F4BCF6B5ADC30D140F02E6 /* OpenCodeNexus */ = {
+			isa = PBXGroup;
+			children = (
+				0FE8544DEF0289F135147523 /* Assets.xcassets */,
+				22578BFECF2F7F7E4B740809 /* Info.plist */,
+				82062C38033E41F58A1FB1A2 /* OpenCodeNexusApp.swift */,
+				C276DC86CAE0F22CFFC38C6A /* RootView.swift */,
+				DAAB5AE6D35BEA92A4853897 /* Extensions */,
+				EFC9F276D2B751E94D3F2E5F /* Models */,
+				4C8B512E75B9EAAA0282793E /* Services */,
+				A30443D43310F661761D0E19 /* ViewModels */,
+				0902C529CA13F6B7AC0AACEF /* Views */,
+			);
+			path = OpenCodeNexus;
+			sourceTree = "<group>";
+		};
+		EFC9F276D2B751E94D3F2E5F /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				66F5D68D60C7339B60BD1FFF /* HealthResponse.swift */,
+				A478B04936AE9B19FBA23AFC /* Message.swift */,
+				BB70ABF88ABB6E4EA620A427 /* Session.swift */,
+				50D4D536CFBC65D89DE969F1 /* SSEEvent.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		7873163F1A90A001669D3EFA /* OpenCodeNexus */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DB2A7978DAA050E3EC59798C /* Build configuration list for PBXNativeTarget "OpenCodeNexus" */;
+			buildPhases = (
+				472B1783E1B3816D9FF7515B /* Sources */,
+				ABE20367EC7E73B10CF61B11 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = OpenCodeNexus;
+			packageProductDependencies = (
+			);
+			productName = OpenCodeNexus;
+			productReference = A3D356E2268FC800E936544B /* OpenCodeNexus.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		EC01B3C4C4A6754973C1EFB5 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 1DF46810AEFA285EE59D3AE2 /* Build configuration list for PBXProject "OpenCodeNexus" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = E2700E6CE9E7BD1FCA24E59E;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 28DCE0B44E2EDDA3E4E173E6 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7873163F1A90A001669D3EFA /* OpenCodeNexus */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		ABE20367EC7E73B10CF61B11 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E6E2BB44528E0F6A4AA15374 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		472B1783E1B3816D9FF7515B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				68DD20828373CDC6503B31F0 /* ChatView.swift in Sources */,
+				5CA88E8CE4D373D62C4EBE85 /* ChatViewModel.swift in Sources */,
+				9DF1C2833B43FE13A6295232 /* ConnectView.swift in Sources */,
+				002BA9E7CDB3E5874F2EEDDE /* ConnectionManager.swift in Sources */,
+				E0690F73FA2B8D33428C2626 /* Date+Relative.swift in Sources */,
+				4240D60027C5C9D768FB1273 /* HealthResponse.swift in Sources */,
+				1F1CF26F5275D7B15F69D613 /* Message.swift in Sources */,
+				50B912B2A4A15305B2FD2274 /* MessageBubble.swift in Sources */,
+				C83FF54475B038351DFB9569 /* MessageInputView.swift in Sources */,
+				51648E7E471696AC13AA113D /* MessageListView.swift in Sources */,
+				C9738BAF201F282FFA36C7ED /* NewSessionView.swift in Sources */,
+				00C98A22B90F84419A9383FF /* OpenCodeClient.swift in Sources */,
+				7AA1F4FC9686F31ABBFF6474 /* OpenCodeNexusApp.swift in Sources */,
+				2A0F4D5F0A9BE0CFF03709B5 /* RootView.swift in Sources */,
+				4DDDACC9EF36F73FDDE47F51 /* SSEEvent.swift in Sources */,
+				9D129651EBBCF36492800157 /* Session.swift in Sources */,
+				194A8326CE8DA6AB6DA9FFB7 /* SessionRow.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1304B12B4E3F8EA51AF11C55 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		36BC8C705C822AC119F7743B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OpenCodeNexus/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.agentic-codeflow.opencode-nexus";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		75473F64F6DD5F06EB5A0BD1 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = OpenCodeNexus/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.agentic-codeflow.opencode-nexus";
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		F1EC1E8E0B67501E6CFF38F2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DF46810AEFA285EE59D3AE2 /* Build configuration list for PBXProject "OpenCodeNexus" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1304B12B4E3F8EA51AF11C55 /* Debug */,
+				F1EC1E8E0B67501E6CFF38F2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		DB2A7978DAA050E3EC59798C /* Build configuration list for PBXNativeTarget "OpenCodeNexus" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				36BC8C705C822AC119F7743B /* Debug */,
+				75473F64F6DD5F06EB5A0BD1 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = EC01B3C4C4A6754973C1EFB5 /* Project object */;
+}
