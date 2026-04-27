@@ -3,25 +3,40 @@ import Foundation
 final class OpenCodeClient {
     private let baseURL: URL
     private let session: URLSession
+    private let cfAccessClientId: String?
+    private let cfAccessClientSecret: String?
 
-    init(baseURL: URL) {
+    init(baseURL: URL, cfAccessClientId: String? = nil, cfAccessClientSecret: String? = nil) {
         self.baseURL = baseURL
+        self.cfAccessClientId = cfAccessClientId
+        self.cfAccessClientSecret = cfAccessClientSecret
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 60
         self.session = URLSession(configuration: config)
     }
 
+    private func addAuthHeaders(to request: inout URLRequest) {
+        guard let clientId = cfAccessClientId, !clientId.isEmpty,
+              let clientSecret = cfAccessClientSecret, !clientSecret.isEmpty else { return }
+        request.setValue(clientId, forHTTPHeaderField: "CF-Access-Client-Id")
+        request.setValue(clientSecret, forHTTPHeaderField: "CF-Access-Client-Secret")
+    }
+
     func healthCheck() async throws -> HealthResponse {
         let url = baseURL.appendingPathComponent("global/health")
-        let (data, response) = try await session.data(from: url)
+        var request = URLRequest(url: url)
+        addAuthHeaders(to: &request)
+        let (data, response) = try await session.data(for: request)
         try validateResponse(response)
         return try JSONDecoder().decode(HealthResponse.self, from: data)
     }
 
     func listSessions() async throws -> [Session] {
         let url = baseURL.appendingPathComponent("session")
-        let (data, response) = try await session.data(from: url)
+        var request = URLRequest(url: url)
+        addAuthHeaders(to: &request)
+        let (data, response) = try await session.data(for: request)
         try validateResponse(response)
         return try JSONDecoder().decode([Session].self, from: data)
     }
@@ -31,6 +46,7 @@ final class OpenCodeClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeaders(to: &request)
         request.httpBody = try JSONEncoder().encode(CreateSessionBody(title: title))
         let (data, response) = try await session.data(for: request)
         try validateResponse(response)
@@ -41,6 +57,7 @@ final class OpenCodeClient {
         let url = baseURL.appendingPathComponent("session/\(id)")
         var request = URLRequest(url: url)
         request.httpMethod = "DELETE"
+        addAuthHeaders(to: &request)
         let (data, response) = try await session.data(for: request)
         try validateResponse(response)
         return try JSONDecoder().decode(Bool.self, from: data)
@@ -48,7 +65,9 @@ final class OpenCodeClient {
 
     func getMessages(sessionId: String) async throws -> [Message] {
         let url = baseURL.appendingPathComponent("session/\(sessionId)/message")
-        let (data, response) = try await session.data(from: url)
+        var request = URLRequest(url: url)
+        addAuthHeaders(to: &request)
+        let (data, response) = try await session.data(for: request)
         try validateResponse(response)
         return try JSONDecoder().decode([Message].self, from: data)
     }
@@ -58,6 +77,7 @@ final class OpenCodeClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeaders(to: &request)
         let body = SendMessageBody(parts: [SendMessageBody.Part(type: "text", text: text)])
         request.httpBody = try JSONEncoder().encode(body)
         let (data, response) = try await session.data(for: request)
@@ -69,6 +89,7 @@ final class OpenCodeClient {
         let url = baseURL.appendingPathComponent("event")
         var request = URLRequest(url: url)
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        addAuthHeaders(to: &request)
         request.timeoutInterval = TimeInterval.infinity
 
         return AsyncThrowingStream { continuation in

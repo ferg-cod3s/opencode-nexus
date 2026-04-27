@@ -3,6 +3,7 @@ import SwiftUI
 struct ConnectView: View {
     @Environment(ConnectionManager.self) private var connectionManager
     @FocusState private var isURLFocused: Bool
+    @State private var showCFAccess = false
 
     var body: some View {
         NavigationStack {
@@ -27,15 +28,19 @@ struct ConnectView: View {
     }
 
     private var contentView: some View {
-        VStack(spacing: 36) {
-            Spacer().frame(height: 40)
-            headerSection
-            serverInputSection
-            testResultBanner
-            actionButtons
-            Spacer()
+        ScrollView {
+            VStack(spacing: 36) {
+                Spacer().frame(height: 40)
+                headerSection
+                serverInputSection
+                cfAccessSection
+                testResultBanner
+                actionButtons
+                Spacer()
+            }
+            .padding(.horizontal, 24)
         }
-        .padding(.horizontal, 24)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var headerSection: some View {
@@ -83,6 +88,78 @@ struct ConnectView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .glassEffect(.regular, in: .rect(cornerRadius: 12))
+        }
+    }
+
+    private var cfAccessSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    showCFAccess.toggle()
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "shield.locked.fill")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("Advanced: Cloudflare Zero Trust")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .tracking(0.5)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(showCFAccess ? 90 : 0))
+                }
+            }
+            .buttonStyle(.plain)
+
+            if showCFAccess {
+                VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("CF-Access-Client-Id")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        HStack(spacing: 12) {
+                            Image(systemName: "number")
+                                .foregroundStyle(.secondary)
+                                .font(.body)
+                            TextField("Client ID", text: Bindable(connectionManager).cfAccessClientId)
+                                .font(.body)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("CF-Access-Client-Secret")
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                        HStack(spacing: 12) {
+                            Image(systemName: "key.fill")
+                                .foregroundStyle(.secondary)
+                                .font(.body)
+                            SecureField("Client Secret", text: Bindable(connectionManager).cfAccessClientSecret)
+                                .font(.body)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 14)
+                        .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                    }
+
+                    Text("Enter service token credentials from your Cloudflare Zero Trust dashboard")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
     }
 
