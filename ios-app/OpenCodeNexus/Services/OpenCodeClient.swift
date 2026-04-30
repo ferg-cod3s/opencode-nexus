@@ -427,6 +427,26 @@ final class OpenCodeClient: @unchecked Sendable {
         try await putVoid("pty/\(id)", body: ResizePtyBody(size: PtySize(rows: rows, cols: cols)), query: queryItems(directory: directory))
     }
 
+    func ptyConnectRequest(ptyID: String, directory: String? = nil) -> URLRequest {
+        let path = "pty/\(ptyID)/connect"
+        var url = baseURL.appendingPathComponent(path)
+        let query = queryItems(directory: directory)
+        if !query.isEmpty {
+            url = url.appending(queryItems: query)
+        }
+        if let scheme = url.scheme {
+            let wsScheme = scheme == "https" ? "wss" : "ws"
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+            components.scheme = wsScheme
+            url = components.url!
+        }
+        var request = URLRequest(url: url)
+        addAuthHeaders(to: &request)
+        return request
+    }
+
+    var urlSession: URLSession { session }
+
     // MARK: - SSE
 
     func eventStream(directory: String? = nil, workspace: String? = nil) -> AsyncThrowingStream<SSEEvent, Error> {

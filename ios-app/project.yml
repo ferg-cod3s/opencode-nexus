@@ -3,6 +3,10 @@ configs:
   Debug: debug
   SimDebug: debug
   Release: release
+packages:
+  libghostty-spm:
+    url: https://github.com/Lakr233/libghostty-spm
+    from: 1.0.0
 options:
   bundleIdPrefix: com.agentic-codeflow
   deploymentTarget:
@@ -21,7 +25,9 @@ targets:
     platform: iOS
     sources:
       - path: OpenCodeNexus
-    dependencies: []
+    dependencies:
+      - package: libghostty-spm
+        product: GhosttyTerminal
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.agentic-codeflow.opencode-nexus

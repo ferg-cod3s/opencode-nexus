@@ -982,6 +982,656 @@ final class ChatViewModelTests: XCTestCase {
         """
         return try! JSONDecoder().decode(Question.self, from: Data(json.utf8))
     }
+
+    private func makeMockClient(handler: @Sendable @escaping (URLRequest) throws -> (HTTPURLResponse, Data)) -> OpenCodeClient {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        MockURLProtocol.setRequestHandler(handler)
+        return OpenCodeClient(baseURL: URL(string: "http://opencode.test")!, configuration: config)
+    }
+
+    private func configureWithMockClient(_ handler: @Sendable @escaping (URLRequest) throws -> (HTTPURLResponse, Data)) {
+        let client = makeMockClient(handler: handler)
+        viewModel.configure(with: client)
+    }
+
+    // MARK: - loadProviders()
+
+    func testLoadProvidersSetsAvailableProvidersAndDefaults() async {
+        configureWithMockClient { request in
+            XCTAssertEqual(request.url?.path, "/config/providers")
+            return testRespondJSON("""
+            {"providers":[{"id":"openai","name":"OpenAI","models":{"gpt-4o":{"id":"gpt-4o","name":"GPT-4o"}}}],"default":{"openai":"gpt-4o"}}
+            """)
+        }
+        await viewModel.loadServerInfo()
+        XCTAssertEqual(viewModel.availableProviders.count, 1)
+        XCTAssertEqual(viewModel.availableProviders.first?.id, "openai")
+        XCTAssertEqual(viewModel.providerDefaults["openai"], "gpt-4o")
+    }
+
+    func testLoadProvidersSetsAutoSelectedModel() async {
+        viewModel.selectedModel = nil
+        configureWithMockClient { _ in
+            testRespondJSON("""
+            {"providers":[],"default":{"anthropic":"claude-3","openai":"gpt-4o"}}
+            """)
+        }
+        await viewModel.loadServerInfo()
+        XCTAssertNotNil(viewModel.selectedModel)
+        XCTAssertEqual(viewModel.selectedModel?.providerID, "anthropic")
+        XCTAssertEqual(viewModel.selectedModel?.modelID, "claude-3")
+    }
+
+    func testLoadProvidersPopulatesAvailableModels() async {
+        configureWithMockClient { _ in
+            testRespondJSON("""
+            {"providers":[{"id":"openai","name":"OpenAI","models":{"gpt-4o":{"id":"gpt-4o","name":"GPT-4o"},"old-model":{"id":"old","name":"Old","status":"deprecated"}}}],"default":{}}
+            """)
+        }
+        await viewModel.loadServerInfo()
+        XCTAssertEqual(viewModel.availableModels.count, 1)
+        XCTAssertEqual(viewModel.availableModels.first?.modelID, "gpt-4o")
+    }
+
+    func testLoadProvidersNoOpWithoutClient() async {
+        viewModel.configure(with: nil)
+        await viewModel.loadServerInfo()
+        XCTAssertTrue(viewModel.availableProviders.isEmpty)
+    }
+
+    // MARK: - loadAgents()
+
+    func testLoadAgentsFiltersBuiltInAndSelectsPrimary() async {
+        configureWithMockClient { request in
+            if request.url?.path == "/agent" {
+                return testRespondJSON("""
+                [{"name":"build","description":"Build agent","mode":"primary","builtIn":true},{"name":"coder","description":"Coder","mode":"primary","builtIn":false},{"name":"reviewer","description":"Reviewer","mode":"secondary","builtIn":false},{"name":"helper","description":"Helper","mode":"all","builtIn":false}]
+                """)
+            }
+            return testRespondJSON("{\"providers\":[],\"default\":{}}")
+        }
+        await viewModel.loadServerInfo()
+        XCTAssertEqual(viewModel.availableAgents.count, 2)
+        let names = Set(viewModel.availableAgents.map(\.name))
+        XCTAssertTrue(names.contains("coder"))
+        XCTAssertTrue(names.contains("helper"))
+    }
+
+    // MARK: - loadVcs()
+
+    func testLoadVcsSetsBranch() async {
+        configureWithMockClient { request in
+            if request.url?.path == "/vcs" {
+                return testRespondJSON("{\"branch\":\"feature/test\"}")
+            }
+            return testRespondJSON("{\"providers\":[],\"default\":{}}")
+        }
+        await viewModel.loadServerInfo()
+        XCTAssertEqual(viewModel.vcsBranch, "feature/test")
+    }
+
+    func testLoadVcsHandlesNilBranch() async {
+        configureWithMockClient { request in
+            if request.url?.path == "/vcs" {
+                return testRespondJSON("{}")
+            }
+            return testRespondJSON("{\"providers\":[],\"default\":{}}")
+        }
+        await viewModel.loadServerInfo()
+        XCTAssertNil(viewModel.vcsBranch)
+    }
+
+    // MARK: - loadCommands()
+
+    func testLoadCommandsSetsAvailableCommands() async {
+        configureWithMockClient { request in
+            if request.url?.path == "/command" {
+                return testRespondJSON("""
+                [{"name":"commit","description":"Create a commit"},{"name":"plan","description":"Plan changes"}]
+                """)
+            }
+            return testRespondJSON("{\"providers\":[],\"default\":{}}")
+        }
+        await viewModel.loadServerInfo()
+        XCTAssertEqual(viewModel.availableCommands.count, 2)
+        XCTAssertEqual(viewModel.availableCommands.first?.name, "commit")
+    }
+
+    // MARK: - loadMoreSessions()
+
+    func testLoadMoreSessionsIncreasesPageLimit() async {
+        let sessionJSON = """
+        [{"id":"ses_\(UUID().uuidString)","slug":"s","version":"1.0.0","projectID":"p","directory":"/project","title":"S","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":1}}]
+        """
+        configureWithMockClient { request in
+            if request.url?.path == "/session" {
+                return testRespondJSON(sessionJSON)
+            }
+            if request.url?.path == "/project/current" {
+                return testRespondJSON("{\"id\":\"p\",\"worktree\":\"/project\",\"time\":{\"created\":1}}")
+            }
+            if request.url?.path == "/project" {
+                return testRespondJSON("[{\"id\":\"p\",\"worktree\":\"/project\",\"time\":{\"created\":1}}]")
+            }
+            return testRespondJSON("[]")
+        }
+
+        viewModel.hasMoreSessions = true
+        await viewModel.loadMoreSessions()
+        XCTAssertEqual(viewModel.sessions.count, 1)
+    }
+
+    func testLoadMoreSessionsNoOpWhenNoMore() async {
+        viewModel.hasMoreSessions = false
+        await viewModel.loadMoreSessions()
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+    }
+
+    // MARK: - selectSession(_:)
+
+    func testSelectSessionLoadsMessagesAndSetsId() async throws {
+        let msgJSON = """
+        [{"info":{"id":"msg_1","role":"user","time":{"created":1}},"parts":[{"type":"text","text":"hello"}]}]
+        """
+        configureWithMockClient { request in
+            if request.url?.path == "/session/ses_target/message" {
+                return testRespondJSON(msgJSON)
+            }
+            if request.url?.path == "/session/ses_target/todo" {
+                return testRespondJSON("[]")
+            }
+            if request.url?.path == "/session/ses_target/diff" {
+                return testRespondJSON("[]")
+            }
+            if request.url?.path == "/permission" {
+                return testRespondJSON("[]")
+            }
+            if request.url?.path == "/question" {
+                return testRespondJSON("[]")
+            }
+            if request.url?.path == "/tui/control/next" {
+                throw NSError(domain: "test", code: -1)
+            }
+            return testRespondJSON("[]")
+        }
+
+        let session = try decodeSession(id: "ses_target", title: "Target", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedDirectory = "/project"
+
+        await viewModel.selectSession("ses_target")
+
+        XCTAssertEqual(viewModel.selectedSessionId, "ses_target")
+        XCTAssertEqual(viewModel.messages.count, 1)
+        XCTAssertEqual(viewModel.messages.first?.id, "msg_1")
+    }
+
+    // MARK: - createSession()
+
+    func testCreateSessionSuccess() async throws {
+        let newID = "ses_created_\(UUID().uuidString)"
+        configureWithMockClient { request in
+            XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertEqual(request.url?.path, "/session")
+            return testRespondJSON("""
+            {"id":"\(newID)","slug":"new","version":"1.0.0","projectID":"global","directory":"/project","title":"My Chat","time":{"created":1,"updated":1}}
+            """)
+        }
+        viewModel.selectedDirectory = "/project"
+        viewModel.newSessionTitle = "My Chat"
+
+        await viewModel.createSession()
+
+        XCTAssertEqual(viewModel.selectedSessionId, newID)
+        XCTAssertEqual(viewModel.sessions.first?.id, newID)
+        XCTAssertTrue(viewModel.messages.isEmpty)
+        XCTAssertEqual(viewModel.newSessionTitle, "")
+    }
+
+    func testCreateSessionRequiresTitle() async {
+        viewModel.selectedDirectory = "/project"
+        viewModel.newSessionTitle = "   "
+        await viewModel.createSession()
+        XCTAssertNil(viewModel.selectedSessionId)
+    }
+
+    func testCreateSessionRequiresDirectory() async {
+        viewModel.newSessionTitle = "Test"
+        viewModel.selectedDirectory = nil
+        await viewModel.createSession()
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testCreateSessionHandlesError() async {
+        configureWithMockClient { _ in
+            let response = HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("error".utf8))
+        }
+        viewModel.selectedDirectory = "/project"
+        viewModel.newSessionTitle = "Test"
+        await viewModel.createSession()
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    // MARK: - renameSession(_:title:)
+
+    func testRenameSessionUpdatesSessionInList() async throws {
+        let session = try decodeSession(id: "ses_rename", title: "Old Title", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedDirectory = "/project"
+
+        configureWithMockClient { request in
+            XCTAssertEqual(request.httpMethod, "PATCH")
+            XCTAssertEqual(request.url?.path, "/session/ses_rename")
+            return testRespondJSON("""
+            {"id":"ses_rename","slug":"s","version":"1.0.0","projectID":"p","directory":"/project","title":"New Title","time":{"created":1,"updated":2}}
+            """)
+        }
+
+        await viewModel.renameSession("ses_rename", title: "New Title")
+        XCTAssertEqual(viewModel.sessions.first?.title, "New Title")
+    }
+
+    func testRenameSessionHandlesError() async throws {
+        let session = try decodeSession(id: "ses_err", title: "Keep", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+
+        configureWithMockClient { _ in
+            let response = HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("error".utf8))
+        }
+
+        await viewModel.renameSession("ses_err", title: "Broken")
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertEqual(viewModel.sessions.first?.title, "Keep")
+    }
+
+    // MARK: - deleteSession(_:)
+
+    func testDeleteSessionRemovesFromList() async throws {
+        let s1 = try decodeSession(id: "ses_del", title: "Delete Me", directory: "/project", updated: 1)
+        let s2 = try decodeSession(id: "ses_keep", title: "Keep", directory: "/project", updated: 2)
+        viewModel.sessions = [s1, s2]
+        viewModel.selectedSessionId = "ses_del"
+
+        configureWithMockClient { request in
+            XCTAssertEqual(request.httpMethod, "DELETE")
+            XCTAssertEqual(request.url?.path, "/session/ses_del")
+            return testRespondJSON("true")
+        }
+
+        await viewModel.deleteSession("ses_del")
+        XCTAssertEqual(viewModel.sessions.count, 1)
+        XCTAssertEqual(viewModel.sessions.first?.id, "ses_keep")
+        XCTAssertNil(viewModel.selectedSessionId)
+    }
+
+    func testDeleteSessionDoesNotRemoveOnFailure() async throws {
+        let s1 = try decodeSession(id: "ses_fail", title: "Fail", directory: "/project", updated: 1)
+        viewModel.sessions = [s1]
+
+        configureWithMockClient { _ in
+            let response = HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("error".utf8))
+        }
+
+        await viewModel.deleteSession("ses_fail")
+        XCTAssertEqual(viewModel.sessions.count, 1)
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    // MARK: - forkSession(at:)
+
+    func testForkSessionCreatesForkedSession() async throws {
+        let parent = try decodeSession(id: "ses_parent", title: "Parent", directory: "/project", updated: 1)
+        viewModel.sessions = [parent]
+        viewModel.selectedSessionId = "ses_parent"
+
+        let forkedID = "ses_forked_\(UUID().uuidString)"
+        configureWithMockClient { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_parent/fork")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return testRespondJSON("""
+            {"id":"\(forkedID)","slug":"fork","version":"1.0.0","projectID":"p","directory":"/project","title":"Forked","time":{"created":2,"updated":2}}
+            """)
+        }
+
+        await viewModel.forkSession(at: "msg_1")
+        XCTAssertEqual(viewModel.selectedSessionId, forkedID)
+        XCTAssertEqual(viewModel.sessions.first?.id, forkedID)
+        XCTAssertTrue(viewModel.messages.isEmpty)
+    }
+
+    func testForkSessionRequiresSelectedSession() async {
+        viewModel.selectedSessionId = nil
+        await viewModel.forkSession()
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+    }
+
+    func testForkSessionHandlesError() async throws {
+        let parent = try decodeSession(id: "ses_parent2", title: "P", directory: "/project", updated: 1)
+        viewModel.sessions = [parent]
+        viewModel.selectedSessionId = "ses_parent2"
+
+        configureWithMockClient { _ in
+            let response = HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("error".utf8))
+        }
+
+        await viewModel.forkSession()
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    // MARK: - shareSession(_:)
+
+    func testShareSessionUpdatesSessionWithShareURL() async throws {
+        let session = try decodeSession(id: "ses_share", title: "Share Me", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+
+        configureWithMockClient { request in
+            if request.httpMethod == "POST" && request.url?.path == "/session/ses_share/share" {
+                return testRespondJSON("true")
+            }
+            if request.url?.path == "/session/ses_share" {
+                return testRespondJSON("""
+                {"id":"ses_share","slug":"s","version":"1.0.0","projectID":"p","directory":"/project","title":"Share Me","share":{"url":"https://share.example.com/abc"},"time":{"created":1,"updated":1}}
+                """)
+            }
+            XCTFail("Unexpected request: \(request.url?.path ?? "nil")")
+            return testRespondJSON("{}")
+        }
+
+        await viewModel.shareSession("ses_share")
+        let shared = viewModel.sessions.first
+        XCTAssertNotNil(shared?.share?.url)
+        XCTAssertEqual(shared?.share?.url, "https://share.example.com/abc")
+    }
+
+    // MARK: - revertMessage(_:partID:)
+
+    func testRevertMessageCallsRevertAndReloads() async throws {
+        let session = try decodeSession(id: "ses_revert", title: "Revert", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_revert"
+
+        nonisolated(unsafe) var revertCalled = false
+        configureWithMockClient { request in
+            if request.url?.path == "/session/ses_revert/revert" {
+                revertCalled = true
+                return testRespondJSON("true")
+            }
+            if request.url?.path == "/session/ses_revert/message" {
+                return testRespondJSON("[]")
+            }
+            return testRespondJSON("[]")
+        }
+
+        await viewModel.revertMessage("msg_1", partID: "part_1")
+        XCTAssertTrue(revertCalled)
+    }
+
+    func testRevertMessageHandlesError() async throws {
+        let session = try decodeSession(id: "ses_revert2", title: "R", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_revert2"
+
+        configureWithMockClient { _ in
+            let response = HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("error".utf8))
+        }
+
+        await viewModel.revertMessage("msg_1")
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    // MARK: - loadMessages()
+
+    func testLoadMessagesForSelectedSession() async throws {
+        let session = try decodeSession(id: "ses_msgs", title: "Msgs", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_msgs"
+
+        configureWithMockClient { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_msgs/message")
+            return testRespondJSON("""
+            [{"info":{"id":"msg_a","role":"user","time":{"created":1}},"parts":[{"type":"text","text":"hi"}]},{"info":{"id":"msg_b","role":"assistant","time":{"created":2}},"parts":[{"type":"text","text":"hello"}]}]
+            """)
+        }
+
+        await viewModel.loadMessages()
+        XCTAssertEqual(viewModel.messages.count, 2)
+        XCTAssertFalse(viewModel.isLoadingMessages)
+    }
+
+    func testLoadMessagesSetsHasMoreWhenFullPage() async throws {
+        let session = try decodeSession(id: "ses_full", title: "Full", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_full"
+
+        let messages = (0..<50).map { i -> String in
+            """
+            {"info":{"id":"msg_\(i)","role":"user","time":{"created":\(i)}},"parts":[{"type":"text","text":"m\(i)"}]}
+            """
+        }.joined(separator: ",")
+        configureWithMockClient { _ in testRespondJSON("[\(messages)]") }
+
+        await viewModel.loadMessages()
+        XCTAssertTrue(viewModel.hasMoreMessages)
+    }
+
+    func testLoadMessagesHandlesError() async throws {
+        let session = try decodeSession(id: "ses_merr", title: "Err", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_merr"
+
+        configureWithMockClient { _ in
+            let response = HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("error".utf8))
+        }
+
+        await viewModel.loadMessages()
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testLoadMessagesNoOpWithoutClientOrSession() async {
+        viewModel.configure(with: nil)
+        await viewModel.loadMessages()
+        XCTAssertTrue(viewModel.messages.isEmpty)
+    }
+
+    // MARK: - loadMoreMessages()
+
+    func testLoadMoreMessagesAppendsOlderMessages() async throws {
+        let session = try decodeSession(id: "ses_pag", title: "Pag", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_pag"
+        viewModel.hasMoreMessages = true
+
+        let existingMsg = makeMessageEnvelope(id: "msg_new")
+        viewModel.messages = [existingMsg]
+
+        let olderMessages = (0..<10).map { i -> String in
+            """
+            {"info":{"id":"msg_old_\(i)","role":"user","time":{"created":\(i)}},"parts":[{"type":"text","text":"old\(i)"}]}
+            """
+        }.joined(separator: ",")
+
+        configureWithMockClient { _ in testRespondJSON("[\(olderMessages)]") }
+
+        await viewModel.loadMoreMessages()
+        XCTAssertEqual(viewModel.messages.count, 11)
+        XCTAssertEqual(viewModel.messages.first?.id, "msg_old_0")
+    }
+
+    func testLoadMoreMessagesNoOpWhenNoMore() async {
+        viewModel.hasMoreMessages = false
+        await viewModel.loadMoreMessages()
+        XCTAssertTrue(viewModel.messages.isEmpty)
+    }
+
+    // MARK: - sendCommand(text:)
+
+    func testSendCommandSendsSlashCommand() async throws {
+        let session = try decodeSession(id: "ses_cmd", title: "Cmd", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_cmd"
+
+        configureWithMockClient { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_cmd/command")
+            let body = try chatViewModelTestRequestBody(from: request)
+            let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+            XCTAssertEqual(object["command"] as? String, "commit")
+            return testRespondJSON("""
+            {"info":{"id":"msg_cmd","role":"assistant","time":{"created":1}},"parts":[{"type":"text","text":"committed"}]}
+            """)
+        }
+
+        await viewModel.sendCommand(text: "/commit changes")
+        XCTAssertFalse(viewModel.isSending)
+    }
+
+    func testSendCommandRequiresClientAndSession() async {
+        let client = makeMockClient { _ in testRespondJSON("[]") }
+        viewModel.configure(with: client)
+        viewModel.selectedSessionId = "ses_1"
+        await viewModel.sendCommand(text: "not a slash command")
+    }
+
+    func testSendCommandEmptyNameShowsError() async {
+        let client = makeMockClient { _ in testRespondJSON("[]") }
+        viewModel.configure(with: client)
+        viewModel.selectedSessionId = "ses_1"
+        await viewModel.sendCommand(text: "/")
+        XCTAssertEqual(viewModel.errorMessage, "Enter a slash command name.")
+    }
+
+    // MARK: - loadPendingRequests
+
+    func testLoadPendingRequestsMergesPermissionsAndQuestions() async {
+        let session = try! decodeSession(id: "ses_pending", title: "P", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+
+        configureWithMockClient { request in
+            if request.url?.path == "/permission" {
+                return testRespondJSON("""
+                [{"id":"perm_1","sessionID":"ses_pending","type":"edit","messageID":"msg_1","title":"Edit","time":{"created":1}}]
+                """)
+            }
+            if request.url?.path == "/question" {
+                return testRespondJSON("""
+                [{"id":"que_1","sessionID":"ses_pending","messageID":"msg_1","title":"Q","questions":[{"header":"Q","question":"?","options":[],"multiple":false,"custom":true}]}]
+                """)
+            }
+            return testRespondJSON("[]")
+        }
+
+        await viewModel.loadPendingRequests(for: "ses_pending")
+        XCTAssertEqual(viewModel.pendingPermissions.count, 1)
+        XCTAssertEqual(viewModel.pendingQuestions.count, 1)
+    }
+
+    // MARK: - loadTodos
+
+    func testLoadTodosPopulatesTodos() async throws {
+        let session = try decodeSession(id: "ses_todos", title: "T", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_todos"
+
+        configureWithMockClient { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_todos/todo")
+            return testRespondJSON("""
+            [{"id":"todo_1","content":"Fix bug","status":"pending","priority":"high"},{"id":"todo_2","content":"Write tests","status":"completed","priority":"medium"}]
+            """)
+        }
+
+        await viewModel.loadTodos()
+        XCTAssertEqual(viewModel.todos.count, 2)
+        XCTAssertEqual(viewModel.todos.first?.content, "Fix bug")
+    }
+
+    // MARK: - loadSessionDiffs
+
+    func testLoadSessionDiffsPopulatesFileDiffs() async throws {
+        let session = try decodeSession(id: "ses_diff", title: "D", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_diff"
+
+        configureWithMockClient { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_diff/diff")
+            return testRespondJSON("""
+            [{"file":"main.swift","before":"","after":"code","additions":10,"deletions":2}]
+            """)
+        }
+
+        await viewModel.loadSessionDiffs()
+        XCTAssertEqual(viewModel.fileDiffs.count, 1)
+        XCTAssertEqual(viewModel.fileDiffs.first?.file, "main.swift")
+    }
+
+    // MARK: - projectDirectories
+
+    func testProjectDirectoriesIncludesSandboxes() async throws {
+        _ = try decodeProject(worktree: "/main")
+        let projectJSON = """
+        [{"id":"p2","worktree":"/main","sandboxes":["/sandbox1","/sandbox2"],"time":{"created":1}}]
+        """
+        configureWithMockClient { request in
+            if request.url?.path == "/project/current" {
+                return testRespondJSON("{\"id\":\"p2\",\"worktree\":\"/main\",\"time\":{\"created\":1}}")
+            }
+            if request.url?.path == "/project" {
+                return testRespondJSON(projectJSON)
+            }
+            return testRespondJSON("[]")
+        }
+
+        await viewModel.loadProjectInfo()
+        let dirs = viewModel.projectDirectories
+        let paths = Set(dirs.map(\.path))
+        XCTAssertTrue(paths.contains("/main"))
+        XCTAssertTrue(paths.contains("/sandbox1"))
+        XCTAssertTrue(paths.contains("/sandbox2"))
+    }
+
+    // MARK: - sendShellCommand
+
+    func testSendShellCommandSendsAndReloads() async throws {
+        let session = try decodeSession(id: "ses_shell", title: "Shell", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_shell"
+
+        configureWithMockClient { request in
+            if request.url?.path == "/session/ses_shell/shell" {
+                return testRespondJSON("""
+                {"info":{"id":"msg_shell","role":"assistant","time":{"created":1}},"parts":[{"type":"text","text":"output"}]}
+                """)
+            }
+            if request.url?.path == "/session/ses_shell/message" {
+                return testRespondJSON("[]")
+            }
+            return testRespondJSON("[]")
+        }
+
+        await viewModel.sendShellCommand("ls -la")
+        XCTAssertFalse(viewModel.isSending)
+        XCTAssertTrue(viewModel.sentMessageHistory.contains("! ls -la"))
+    }
+
+    func testSendShellCommandHandlesError() async throws {
+        let session = try decodeSession(id: "ses_shell2", title: "S", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_shell2"
+
+        configureWithMockClient { _ in
+            let response = HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("error".utf8))
+        }
+
+        await viewModel.sendShellCommand("bad command")
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertFalse(viewModel.isSending)
+    }
 }
 
 private func chatViewModelTestRequestBody(from request: URLRequest) throws -> Data {
@@ -999,4 +1649,14 @@ private func chatViewModelTestRequestBody(from request: URLRequest) throws -> Da
         return data
     }
     return Data()
+}
+
+private func testRespondJSON(_ json: String, statusCode: Int = 200) -> (HTTPURLResponse, Data) {
+    let response = HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
+    return (response, Data(json.utf8))
+}
+
+private func testRespondError(_ statusCode: Int = 500) -> (HTTPURLResponse, Data) {
+    let response = HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: statusCode, httpVersion: nil, headerFields: nil)!
+    return (response, Data("error".utf8))
 }
