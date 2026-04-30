@@ -11,7 +11,6 @@
 		00C98A22B90F84419A9383FF /* OpenCodeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9951D90FCF78841C56ECAE55 /* OpenCodeClient.swift */; };
 		13E8E07E2513F1473B94C1CA /* ConnectionFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C98143E40A322565D17B50C5 /* ConnectionFlowTests.swift */; };
 		14123C80FB6221D151DD6BC3 /* QuestionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 159E783BE7AC63E7C547D66D /* QuestionSheet.swift */; };
-		16BEA05A85F379FBED24A8C6 /* TerminalAccessoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 062B7DED4B51E2C91E7C5389 /* TerminalAccessoryView.swift */; };
 		194A8326CE8DA6AB6DA9FFB7 /* SessionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C355768023A130D92EB12564 /* SessionRow.swift */; };
 		1F1CF26F5275D7B15F69D613 /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = A478B04936AE9B19FBA23AFC /* Message.swift */; };
 		2410D976B15DA006D705C535 /* APIModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF0096CB445B09D44A6B6E6B /* APIModels.swift */; };
@@ -42,10 +41,12 @@
 		72C93D90C66458F1A72B7336 /* DiffLineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 327688E5B8352D428C857EBF /* DiffLineView.swift */; };
 		76271146809D9CD63C763788 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BDA0E6A62D4D7F6897DA4B7 /* Theme.swift */; };
 		7871F4A77396402C69DC5C10 /* SessionStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 581FC5DEB07D81F99E874863 /* SessionStatus.swift */; };
+		78BA8D332AD6C0981DFBA239 /* PtyTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B106DBE21B222FA52B3C7508 /* PtyTransport.swift */; };
 		7A8BF441929167BE16C13B0A /* MarkdownSegment.swift in Sources */ = {isa = PBXBuildFile; fileRef = D17BB1EC54969D76E5747EF2 /* MarkdownSegment.swift */; };
 		7AA1F4FC9686F31ABBFF6474 /* OpenCodeNexusApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82062C38033E41F58A1FB1A2 /* OpenCodeNexusApp.swift */; };
+		7CF368A07747319392A4ADCE /* GhosttyTerminalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F2D55C69F90B6BD30FA7285 /* GhosttyTerminalSession.swift */; };
 		8C0E9F5292F3E86FC147D141 /* FileBrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A1929E7C25A7E4044EA73FC /* FileBrowserViewModel.swift */; };
-		9825B52F03B5D4E79D45AB3D /* TerminalOutputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE4614EE1C2588CE03AC4AE2 /* TerminalOutputView.swift */; };
+		94BB5E75A84B08541FC2FA5C /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = 6BBA8E4B381BFE48B3BFE567 /* GhosttyTerminal */; };
 		9C65F6ECC89275AF8AE07386 /* ServerListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C3134FC2ADFD53140850495 /* ServerListView.swift */; };
 		9D129651EBBCF36492800157 /* Session.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB70ABF88ABB6E4EA620A427 /* Session.swift */; };
 		9DF1C2833B43FE13A6295232 /* ConnectView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0430BF58A82E99D3B9B9BF54 /* ConnectView.swift */; };
@@ -95,7 +96,6 @@
 
 /* Begin PBXFileReference section */
 		0430BF58A82E99D3B9B9BF54 /* ConnectView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectView.swift; sourceTree = "<group>"; };
-		062B7DED4B51E2C91E7C5389 /* TerminalAccessoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalAccessoryView.swift; sourceTree = "<group>"; };
 		0FE8544DEF0289F135147523 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		1354F682053FA23504CF5B63 /* MockServerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockServerTests.swift; sourceTree = "<group>"; };
 		1512D12751E0D58E6A416F8B /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
@@ -124,6 +124,7 @@
 		716245A14730A65DB5B39CAD /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainHelper.swift; sourceTree = "<group>"; };
 		76EC5E3440909F0602F21113 /* TerminalViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalViewModel.swift; sourceTree = "<group>"; };
 		7A1929E7C25A7E4044EA73FC /* FileBrowserViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileBrowserViewModel.swift; sourceTree = "<group>"; };
+		7F2D55C69F90B6BD30FA7285 /* GhosttyTerminalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GhosttyTerminalSession.swift; sourceTree = "<group>"; };
 		82062C38033E41F58A1FB1A2 /* OpenCodeNexusApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeNexusApp.swift; sourceTree = "<group>"; };
 		88A02EA1C27385BA5B352FAC /* Date+Relative.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Relative.swift"; sourceTree = "<group>"; };
 		8F292817549F82791FFD0F12 /* MessageInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageInputView.swift; sourceTree = "<group>"; };
@@ -134,13 +135,14 @@
 		9951D90FCF78841C56ECAE55 /* OpenCodeClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeClient.swift; sourceTree = "<group>"; };
 		9CAB80D83422C5DFA173A312 /* FileDiffView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDiffView.swift; sourceTree = "<group>"; };
 		9DD804708148727FF13D225B /* OpenCodeClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeClientTests.swift; sourceTree = "<group>"; };
-		A3D356E2268FC800E936544B /* OpenCodeNexus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenCodeNexus.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3D356E2268FC800E936544B /* OpenCodeNexus.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenCodeNexus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A478B04936AE9B19FBA23AFC /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
 		A91D043F81D214D1DEC80A43 /* FileBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileBrowserView.swift; sourceTree = "<group>"; };
 		AD5368C5D8095FC39F621390 /* ServerStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerStore.swift; sourceTree = "<group>"; };
 		AEF1D2215CAEC9FCEFCDA04F /* SyntaxHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyntaxHighlighter.swift; sourceTree = "<group>"; };
 		AF0A5F3B5C9446912C4392D5 /* SSEEventTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEEventTests.swift; sourceTree = "<group>"; };
 		AFF592E1D8E427925AA8BF1F /* ModelAgentPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelAgentPicker.swift; sourceTree = "<group>"; };
+		B106DBE21B222FA52B3C7508 /* PtyTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PtyTransport.swift; sourceTree = "<group>"; };
 		B27FCBC9BF218D0BDE349EA0 /* ConnectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionManager.swift; sourceTree = "<group>"; };
 		B2AC35FF7DE91875A03E5ED5 /* SessionModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionModelTests.swift; sourceTree = "<group>"; };
 		BB70ABF88ABB6E4EA620A427 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
@@ -151,7 +153,6 @@
 		C4AC6EC667FD9589409DC033 /* OpenCodeNexusIntegrationTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OpenCodeNexusIntegrationTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C98143E40A322565D17B50C5 /* ConnectionFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionFlowTests.swift; sourceTree = "<group>"; };
 		CD5BA6D13E4B9A704A3794A8 /* Part.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Part.swift; sourceTree = "<group>"; };
-		CE4614EE1C2588CE03AC4AE2 /* TerminalOutputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalOutputView.swift; sourceTree = "<group>"; };
 		D17BB1EC54969D76E5747EF2 /* MarkdownSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownSegment.swift; sourceTree = "<group>"; };
 		E3D36E2AA39FE21AAC30AB60 /* SSEStreamTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSEStreamTests.swift; sourceTree = "<group>"; };
 		E8942A263B53F5111925375A /* MessageModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageModelTests.swift; sourceTree = "<group>"; };
@@ -160,6 +161,17 @@
 		FDAE3761501B5A68009A3BF8 /* TerminalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalView.swift; sourceTree = "<group>"; };
 		FF0096CB445B09D44A6B6E6B /* APIModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIModels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0ECBFF2946CD184F7E436524 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				94BB5E75A84B08541FC2FA5C /* GhosttyTerminal in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		0902C529CA13F6B7AC0AACEF /* Views */ = {
@@ -180,7 +192,6 @@
 				5BEDF90B65945E061443F7CE /* ServerEditView.swift */,
 				1C3134FC2ADFD53140850495 /* ServerListView.swift */,
 				C355768023A130D92EB12564 /* SessionRow.swift */,
-				062B7DED4B51E2C91E7C5389 /* TerminalAccessoryView.swift */,
 				131BF98633178B7C41B89D50 /* Diff */,
 				8FFF657F026DECA0F68821A6 /* Markdown */,
 				5D8664221E338536EC1A8A94 /* Terminal */,
@@ -222,8 +233,10 @@
 		4C8B512E75B9EAAA0282793E /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7F2D55C69F90B6BD30FA7285 /* GhosttyTerminalSession.swift */,
 				716245A14730A65DB5B39CAD /* KeychainHelper.swift */,
 				9951D90FCF78841C56ECAE55 /* OpenCodeClient.swift */,
+				B106DBE21B222FA52B3C7508 /* PtyTransport.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -231,7 +244,6 @@
 		5D8664221E338536EC1A8A94 /* Terminal */ = {
 			isa = PBXGroup;
 			children = (
-				CE4614EE1C2588CE03AC4AE2 /* TerminalOutputView.swift */,
 				FDAE3761501B5A68009A3BF8 /* TerminalView.swift */,
 				76EC5E3440909F0602F21113 /* TerminalViewModel.swift */,
 			);
@@ -372,6 +384,7 @@
 			buildPhases = (
 				472B1783E1B3816D9FF7515B /* Sources */,
 				ABE20367EC7E73B10CF61B11 /* Resources */,
+				0ECBFF2946CD184F7E436524 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -379,6 +392,7 @@
 			);
 			name = OpenCodeNexus;
 			packageProductDependencies = (
+				6BBA8E4B381BFE48B3BFE567 /* GhosttyTerminal */,
 			);
 			productName = OpenCodeNexus;
 			productReference = A3D356E2268FC800E936544B /* OpenCodeNexus.app */;
@@ -446,6 +460,9 @@
 			);
 			mainGroup = E2700E6CE9E7BD1FCA24E59E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				7C4D5F1A73234A6DDDE18261 /* XCRemoteSwiftPackageReference "libghostty-spm" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 28DCE0B44E2EDDA3E4E173E6 /* Products */;
 			projectDirPath = "";
@@ -489,6 +506,7 @@
 				8C0E9F5292F3E86FC147D141 /* FileBrowserViewModel.swift in Sources */,
 				B41FE633E7F41E2D716AEEDF /* FileDiffView.swift in Sources */,
 				4A777661AF1C62AA7A1B602B /* FileViewerView.swift in Sources */,
+				7CF368A07747319392A4ADCE /* GhosttyTerminalSession.swift in Sources */,
 				4240D60027C5C9D768FB1273 /* HealthResponse.swift in Sources */,
 				256F5F07CFACDD25B736FEFE /* KeychainHelper.swift in Sources */,
 				EAF19810C5EF6E32C9E412CB /* MarkdownRenderer.swift in Sources */,
@@ -505,6 +523,7 @@
 				67F1E7D59D8300ABC13E5236 /* PermissionSheet.swift in Sources */,
 				C9AE2EB9FCCF091ED0F2B18B /* Project.swift in Sources */,
 				6C1D80FE2C4A4007A0929F41 /* Pty.swift in Sources */,
+				78BA8D332AD6C0981DFBA239 /* PtyTransport.swift in Sources */,
 				14123C80FB6221D151DD6BC3 /* QuestionSheet.swift in Sources */,
 				2A0F4D5F0A9BE0CFF03709B5 /* RootView.swift in Sources */,
 				4DDDACC9EF36F73FDDE47F51 /* SSEEvent.swift in Sources */,
@@ -516,8 +535,6 @@
 				194A8326CE8DA6AB6DA9FFB7 /* SessionRow.swift in Sources */,
 				7871F4A77396402C69DC5C10 /* SessionStatus.swift in Sources */,
 				4747BF8821DC647F65F44F7E /* SyntaxHighlighter.swift in Sources */,
-				16BEA05A85F379FBED24A8C6 /* TerminalAccessoryView.swift in Sources */,
-				9825B52F03B5D4E79D45AB3D /* TerminalOutputView.swift in Sources */,
 				3917653A22F1600FE7A48CF7 /* TerminalView.swift in Sources */,
 				306080D8A60FF2849BD458E7 /* TerminalViewModel.swift in Sources */,
 				76271146809D9CD63C763788 /* Theme.swift in Sources */,
@@ -789,7 +806,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = PCJU8QD9FN;
+				DEVELOPMENT_TEAM = V322926R9N;
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenCodeNexus/Info.plist;
@@ -811,7 +828,6 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = PCJU8QD9FN;
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenCodeNexus/Info.plist;
@@ -906,7 +922,6 @@
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = PCJU8QD9FN;
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenCodeNexus/Info.plist;
@@ -1051,6 +1066,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7C4D5F1A73234A6DDDE18261 /* XCRemoteSwiftPackageReference "libghostty-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Lakr233/libghostty-spm";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6BBA8E4B381BFE48B3BFE567 /* GhosttyTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7C4D5F1A73234A6DDDE18261 /* XCRemoteSwiftPackageReference "libghostty-spm" */;
+			productName = GhosttyTerminal;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = EC01B3C4C4A6754973C1EFB5 /* Project object */;
 }

@@ -98,6 +98,20 @@ final class OpenCodeClient: @unchecked Sendable {
         try validateResponse(response)
     }
 
+    private func putVoid(_ path: String, body: some Encodable, query: [URLQueryItem] = []) async throws {
+        var url = baseURL.appendingPathComponent(path)
+        if !query.isEmpty {
+            url = url.appending(queryItems: query)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeaders(to: &request)
+        request.httpBody = try JSONEncoder().encode(body)
+        let (_, response) = try await session.data(for: request)
+        try validateResponse(response)
+    }
+
     private func postEmpty(_ path: String, query: [URLQueryItem] = []) async throws {
         var url = baseURL.appendingPathComponent(path)
         if !query.isEmpty {
@@ -402,8 +416,28 @@ final class OpenCodeClient: @unchecked Sendable {
     }
 
     func resizePty(_ id: String, rows: Int, cols: Int, directory: String? = nil) async throws {
-        try await postVoid("pty/\(id)", body: ResizePtyBody(size: PtySize(rows: rows, cols: cols)), query: queryItems(directory: directory))
+        try await putVoid("pty/\(id)", body: ResizePtyBody(size: PtySize(rows: rows, cols: cols)), query: queryItems(directory: directory))
     }
+
+    func ptyConnectRequest(ptyID: String, directory: String? = nil) -> URLRequest {
+        let path = "pty/\(ptyID)/connect"
+        var url = baseURL.appendingPathComponent(path)
+        let query = queryItems(directory: directory)
+        if !query.isEmpty {
+            url = url.appending(queryItems: query)
+        }
+        if let scheme = url.scheme {
+            let wsScheme = scheme == "https" ? "wss" : "ws"
+            var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+            components.scheme = wsScheme
+            url = components.url!
+        }
+        var request = URLRequest(url: url)
+        addAuthHeaders(to: &request)
+        return request
+    }
+
+    var urlSession: URLSession { session }
 
     // MARK: - SSE
 
