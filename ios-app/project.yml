@@ -32,7 +32,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.agentic-codeflow.opencode-nexus
         INFOPLIST_FILE: OpenCodeNexus/Info.plist
-        CODE_SIGN_ENTITLEMENTS: OpenCodeNexus/OpenCodeNexus.entitlements
+
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_STYLE: Automatic
