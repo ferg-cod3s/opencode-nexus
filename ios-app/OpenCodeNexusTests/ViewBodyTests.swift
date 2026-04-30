@@ -52,18 +52,6 @@ final class ViewBodyTests: XCTestCase {
         evaluateBody(view)
     }
 
-    func testTerminalAccessoryViewBody() {
-        @State var text = "test command"
-        let view = TerminalAccessoryView(text: $text, onSubmit: {}, onNavigateHistory: { _ in })
-        evaluateBody(view)
-    }
-
-    func testTerminalAccessoryViewNoHistory() {
-        @State var text = ""
-        let view = TerminalAccessoryView(text: $text, onSubmit: {})
-        evaluateBody(view)
-    }
-
     func testReasoningViewBody() {
         let view = ReasoningView(text: "Let me think about this...")
         evaluateBody(view)

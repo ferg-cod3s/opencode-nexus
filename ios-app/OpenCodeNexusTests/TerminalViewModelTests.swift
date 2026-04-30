@@ -13,75 +13,85 @@ final class TerminalViewModelTests: XCTestCase {
     func testConfigureSetsProperties() {
         let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
         viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build")
-        viewModel.commandText = "echo hello"
-        XCTAssertFalse(viewModel.commandText.isEmpty)
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
     }
 
-    func testExecuteCommandRequiresClient() async {
+    func testStartTerminalRequiresClient() async {
         viewModel.configure(client: nil, sessionId: "sess-1", directory: nil, agent: nil)
-        viewModel.commandText = "echo hello"
-        await viewModel.executeCommand()
-        XCTAssertTrue(viewModel.outputLines.isEmpty)
+        await viewModel.startTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+        XCTAssertNotNil(viewModel.errorMessage)
     }
 
-    func testExecuteCommandIgnoresEmpty() async {
+    func testStartTerminalCreatesPtyAndConnects() async throws {
         let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
-        viewModel.configure(client: client, sessionId: "sess-1", directory: nil, agent: nil)
-        viewModel.commandText = "   "
-        await viewModel.executeCommand()
-        XCTAssertTrue(viewModel.outputLines.isEmpty)
+        let transport = MockPtyTransport()
+        let factory = MockPtyTransportFactory(transport: transport)
+        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build", transportFactory: factory)
+        await viewModel.startTerminal()
+        XCTAssertEqual(viewModel.connectionState, .connected)
+        XCTAssertNotNil(viewModel.terminalState)
     }
 
-    func testClearOutput() {
-        viewModel.outputLines = [TerminalLine(text: "test", type: .output)]
-        viewModel.clearOutput()
-        XCTAssertTrue(viewModel.outputLines.isEmpty)
+    func testStartTerminalFailureSetsErrorState() async {
+        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
+        let transport = MockPtyTransport(shouldFail: true)
+        let factory = MockPtyTransportFactory(transport: transport)
+        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build", transportFactory: factory)
+        await viewModel.startTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+        XCTAssertNotNil(viewModel.errorMessage)
     }
 
-    func testNavigateHistoryUpFromEmpty() {
-        XCTAssertNil(viewModel.navigateHistory(.up))
+    func testCloseTerminalDeletesPty() async throws {
+        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
+        let transport = MockPtyTransport()
+        let factory = MockPtyTransportFactory(transport: transport)
+        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build", transportFactory: factory)
+        await viewModel.startTerminal()
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.terminalState)
     }
 
-    func testNavigateHistoryDownFromEmpty() {
-        XCTAssertNil(viewModel.navigateHistory(.down))
+    func testStartTerminalIdempotent() async throws {
+        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
+        let transport = MockPtyTransport()
+        let factory = MockPtyTransportFactory(transport: transport)
+        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build", transportFactory: factory)
+        await viewModel.startTerminal()
+        await viewModel.startTerminal()
+        XCTAssertEqual(viewModel.connectionState, .connected)
+    }
+}
+
+private final class MockPtyTransport: PtyTransport, @unchecked Sendable {
+    private let shouldFail: Bool
+    private let continuation: AsyncThrowingStream<Data, Error>.Continuation
+    let output: AsyncThrowingStream<Data, Error>
+
+    init(shouldFail: Bool = false) {
+        self.shouldFail = shouldFail
+        var cont: AsyncThrowingStream<Data, Error>.Continuation!
+        self.output = AsyncThrowingStream { cont = $0 }
+        self.continuation = cont
     }
 
-    func testNavigateHistoryUpCyclesThroughHistory() {
-        viewModel.commandHistory = ["cmd1", "cmd2", "cmd3"]
-        let result1 = viewModel.navigateHistory(.up)
-        XCTAssertEqual(result1, "cmd1")
-        let result2 = viewModel.navigateHistory(.up)
-        XCTAssertEqual(result2, "cmd2")
-        let result3 = viewModel.navigateHistory(.up)
-        XCTAssertEqual(result3, "cmd3")
-    }
-
-    func testNavigateHistoryDownGoesBack() {
-        viewModel.commandHistory = ["cmd1", "cmd2"]
-        _ = viewModel.navigateHistory(.up)
-        _ = viewModel.navigateHistory(.up)
-        let down1 = viewModel.navigateHistory(.down)
-        XCTAssertEqual(down1, "cmd1")
-        let down2 = viewModel.navigateHistory(.down)
-        XCTAssertEqual(down2, "")
-        XCTAssertNil(viewModel.historyIndex)
-    }
-
-    func testNavigateHistoryUpStopsAtEnd() {
-        viewModel.commandHistory = ["cmd1"]
-        _ = viewModel.navigateHistory(.up)
-        let result = viewModel.navigateHistory(.up)
-        XCTAssertNil(result)
-        XCTAssertEqual(viewModel.historyIndex, 0)
-    }
-
-    func testHistoryLimitedTo100() {
-        for i in 0..<110 {
-            viewModel.commandHistory.insert("cmd\(i)", at: 0)
+    func connect(request: URLRequest) async throws {
+        if shouldFail {
+            throw NSError(domain: "test", code: -1, userInfo: [NSLocalizedDescriptionKey: "Connection failed"])
         }
-        while viewModel.commandHistory.count > 100 {
-            viewModel.commandHistory.removeLast()
-        }
-        XCTAssertLessThanOrEqual(viewModel.commandHistory.count, 100)
     }
+
+    func send(_ data: Data) async throws {}
+
+    func close() async {
+        continuation.finish()
+    }
+}
+
+private final class MockPtyTransportFactory: PtyTransportFactory, @unchecked Sendable {
+    private let transport: MockPtyTransport
+    init(transport: MockPtyTransport) { self.transport = transport }
+    func makeTransport() -> PtyTransport { transport }
 }
