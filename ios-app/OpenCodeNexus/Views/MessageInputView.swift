@@ -1,21 +1,171 @@
 import SwiftUI
+import PhotosUI
 
 struct MessageInputView: View {
     @Binding var text: String
+    @Binding var attachedFileParts: [MessagePartBody]
     let isSending: Bool
-    let onSend: () -> Void
+    let onSend: ([MessagePartBody]) -> Void
+    let onAbort: () -> Void
+    let onShellCommand: (String) -> Void
+    let commands: [CommandInfo]
+    let agents: [AgentInfo]
+    let onNavigateHistory: (ChatViewModel.HistoryDirection) -> Void
 
     @FocusState private var isFocused: Bool
+    @State private var showCommandPalette = false
+    @State private var showAgentPalette = false
+    @State private var selectedPhotoItem: PhotosPickerItem?
+
+    private var filteredCommands: [CommandInfo] {
+        guard text.hasPrefix("/") else { return [] }
+        let query = text.dropFirst().lowercased()
+        let parts = query.split(separator: " ", maxSplits: 1)
+        guard let first = parts.first else {
+            return Array(commands.prefix(8))
+        }
+        let cmdPart = String(first)
+        guard parts.count == 1 else { return [] }
+        return Array(commands.filter { $0.name.lowercased().hasPrefix(cmdPart) && $0.name.lowercased() != cmdPart }.prefix(8))
+    }
+
+    private var filteredAgents: [AgentInfo] {
+        guard let atRange = text.range(of: "@", options: .backwards) else { return [] }
+        let afterAt = text[atRange.upperBound...]
+        let query = afterAt.trimmingCharacters(in: .whitespaces)
+        guard !query.contains(" ") else { return [] }
+        return Array(agents.filter { $0.name.lowercased().hasPrefix(query.lowercased()) && $0.name.lowercased() != query.lowercased() }.prefix(8))
+    }
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 12) {
-            inputField
-
-            sendButton
+        VStack(spacing: 0) {
+            attachmentPreview
+            autocompletePalette
+            HStack(alignment: .bottom, spacing: 12) {
+                attachButton
+                inputField
+                actionButton
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .glassEffect(.regular)
+            .overlay { Theme.borderOverlay(radius: 0) }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .glassEffect(.regular)
+    }
+
+    private var attachmentPreview: some View {
+        Group {
+            if !attachedFileParts.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(Array(attachedFileParts.enumerated()), id: \.offset) { index, part in
+                            HStack(spacing: 4) {
+                                Image(systemName: "doc.fill")
+                                    .font(.caption2)
+                                Text(part.filename ?? part.text ?? part.mime ?? "file")
+                                    .font(.caption)
+                                    .lineLimit(1)
+                                Button {
+                                    attachedFileParts.remove(at: index)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(Theme.textBase)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .glassEffect(.regular, in: .rect(cornerRadius: 6))
+                            .overlay { Theme.borderOverlay(radius: 6) }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                }
+            }
+        }
+    }
+
+    private var autocompletePalette: some View {
+        Group {
+            if !filteredCommands.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(filteredCommands) { cmd in
+                            Button {
+                                selectCommand(cmd)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Text("/\(cmd.name)")
+                                        .font(.caption.weight(.medium))
+                                    if let desc = cmd.description {
+                                        Text(desc)
+                                            .font(.caption2)
+                                            .foregroundStyle(Theme.textBase)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial, in: .rect(cornerRadius: 6))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                }
+            } else if !filteredAgents.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(filteredAgents) { agent in
+                            Button {
+                                selectAgent(agent)
+                            } label: {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "person.fill")
+                                        .font(.caption2)
+                                    Text("@\(agent.name)")
+                                        .font(.caption.weight(.medium))
+                                    if let desc = agent.description {
+                                        Text(desc)
+                                            .font(.caption2)
+                                            .foregroundStyle(Theme.textBase)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(.ultraThinMaterial, in: .rect(cornerRadius: 6))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                }
+            }
+        }
+    }
+
+    private var attachButton: some View {
+        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+            Image(systemName: "paperclip")
+                .font(.body)
+                .foregroundStyle(Theme.textBase)
+                .frame(minWidth: 44, minHeight: 44)
+        }
+        .onChange(of: selectedPhotoItem) {
+            Task {
+                guard let item = selectedPhotoItem else { return }
+                if let data = try? await item.loadTransferable(type: Data.self) {
+                    let base64 = data.base64EncodedString()
+                    let mime = (item.itemIdentifier ?? "").hasSuffix("png") ? "image/png" : "image/jpeg"
+                    let filename = item.itemIdentifier ?? "image"
+                    let part = MessagePartBody(type: "file", mime: mime, url: "data:\(mime);base64,\(base64)", filename: filename)
+                    attachedFileParts.append(part)
+                }
+                selectedPhotoItem = nil
+            }
+        }
     }
 
     private var inputField: some View {
@@ -24,23 +174,36 @@ struct MessageInputView: View {
             .lineLimit(1...5)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .glassEffect(.regular, in: .capsule)
+            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+            .overlay { Theme.borderOverlay(radius: 12) }
             .focused($isFocused)
+            .onKeyPress(.upArrow) {
+                onNavigateHistory(.up)
+                return .handled
+            }
+            .onKeyPress(.downArrow) {
+                onNavigateHistory(.down)
+                return .handled
+            }
     }
 
-    private var sendButton: some View {
+    private var actionButton: some View {
         Button {
-            onSend()
+            if isSending {
+                onAbort()
+            } else {
+                sendOrAttach()
+            }
         } label: {
             ZStack {
                 Circle()
-                    .fill(canSend ? Color.blue : Color.gray.opacity(0.3))
+                    .fill(isSending ? Theme.errorCritical.opacity(0.8) : (canSend ? Theme.interactiveBlue : Color.gray.opacity(0.3)))
                     .frame(width: 36, height: 36)
 
                 if isSending {
-                    ProgressView()
-                        .tint(.white)
-                        .controlSize(.small)
+                    Image(systemName: "stop.fill")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.white)
                 } else {
                     Image(systemName: "arrow.up")
                         .font(.body.weight(.semibold))
@@ -49,11 +212,35 @@ struct MessageInputView: View {
             }
         }
         .glassEffect(.regular.interactive(), in: .circle)
-        .disabled(!canSend || isSending)
+        .disabled(!isSending && !canSend)
         .frame(minWidth: 44, minHeight: 44)
     }
 
     private var canSend: Bool {
-        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !attachedFileParts.isEmpty
+    }
+
+    private func sendOrAttach() {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("!") {
+            let command = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
+            if !command.isEmpty {
+                text = ""
+                onShellCommand(command)
+                return
+            }
+        }
+        let parts = attachedFileParts
+        attachedFileParts = []
+        onSend(parts)
+    }
+
+    private func selectCommand(_ cmd: CommandInfo) {
+        text = "/\(cmd.name) "
+    }
+
+    private func selectAgent(_ agent: AgentInfo) {
+        guard let atRange = text.range(of: "@", options: .backwards) else { return }
+        text.replaceSubrange(atRange.lowerBound..., with: "@\(agent.name) ")
     }
 }

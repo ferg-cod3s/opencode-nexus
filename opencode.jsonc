@@ -1,0 +1,28 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // This repo has large local/generated artifacts that make snapshot tracking
+  // block message processing for minutes. Git remains the source of rollback.
+  "snapshot": false,
+  "watcher": {
+    "ignore": [
+      "Xcode-beta.app/**",
+      "ios-app/build/**",
+      "**/.build/**",
+      ".opencode/node_modules/**",
+      "data/**"
+    ]
+  },
+
+  "mcp": {
+    "obsidian": {
+      "enabled": false
+    },
+    "github": {
+      "enabled": false
+    },
+    "ios-simulator": {
+      "enabled": false
+    }
+  }
+}

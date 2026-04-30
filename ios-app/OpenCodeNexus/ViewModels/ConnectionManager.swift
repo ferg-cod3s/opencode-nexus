@@ -1,88 +1,137 @@
 import SwiftUI
+import os
 
+@MainActor
 @Observable
 final class ConnectionManager {
-    var serverURL: String {
-        didSet { UserDefaults.standard.set(serverURL, forKey: "serverURL") }
-    }
-    var cfAccessClientId: String {
-        didSet { UserDefaults.standard.set(cfAccessClientId, forKey: "cfAccessClientId") }
-    }
-    var cfAccessClientSecret: String {
-        didSet { UserDefaults.standard.set(cfAccessClientSecret, forKey: "cfAccessClientSecret") }
-    }
+    private let logger = Logger(subsystem: "com.agentic-codeflow.opencode-nexus", category: "ConnectionManager")
+    let serverStore: ServerStore
     var isConnected = false
-    var isTesting = false
+    var isConnecting = false
     var testResult: TestResult?
 
     private(set) var client: OpenCodeClient?
+    private var healthPollTask: Task<Void, Never>?
 
     enum TestResult {
         case success(version: String)
         case failure(String)
     }
 
-    init() {
-        let defaults = UserDefaults.standard
-        self.serverURL = defaults.string(forKey: "serverURL") ?? "http://localhost:4096"
-        self.cfAccessClientId = defaults.string(forKey: "cfAccessClientId") ?? ""
-        self.cfAccessClientSecret = defaults.string(forKey: "cfAccessClientSecret") ?? ""
+    init(serverStore: ServerStore) {
+        self.serverStore = serverStore
     }
 
-    private var cfCredentials: (clientId: String, clientSecret: String)? {
-        let id = cfAccessClientId.trimmingCharacters(in: .whitespacesAndNewlines)
-        let secret = cfAccessClientSecret.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !id.isEmpty, !secret.isEmpty else { return nil }
-        return (id, secret)
-    }
-
-    func testConnection() async {
-        isTesting = true
+    func connect(to config: ServerConfig) async {
+        isConnecting = true
         testResult = nil
 
-        guard let url = resolveURL() else {
+        guard let url = resolveURL(config.url) else {
             testResult = .failure("Invalid URL")
-            isTesting = false
+            isConnecting = false
             return
         }
 
-        let testClient = makeClient(url: url)
+        let testClient = makeClient(for: config, url: url)
         do {
             let health = try await testClient.healthCheck()
             if health.healthy {
+                client = testClient
                 testResult = .success(version: health.version)
+                isConnected = true
+                serverStore.setActive(id: config.id)
+                serverStore.updateHealth(id: config.id, healthy: true)
+                startHealthPolling()
             } else {
                 testResult = .failure("Server reports unhealthy status")
+                serverStore.updateHealth(id: config.id, healthy: false)
             }
         } catch {
             testResult = .failure(error.localizedDescription)
+            serverStore.updateHealth(id: config.id, healthy: false)
         }
-        isTesting = false
+        isConnecting = false
     }
 
-    func connect() {
-        guard let url = resolveURL() else { return }
-        client = makeClient(url: url)
-        isConnected = true
+    func connectAndTest() async {
+        guard let config = serverStore.activeServer else {
+            testResult = .failure("No server configured")
+            return
+        }
+        await connect(to: config)
     }
 
     func disconnect() {
+        stopHealthPolling()
         client = nil
         isConnected = false
         testResult = nil
     }
 
-    private func makeClient(url: URL) -> OpenCodeClient {
-        if let creds = cfCredentials {
-            return OpenCodeClient(baseURL: url, cfAccessClientId: creds.clientId, cfAccessClientSecret: creds.clientSecret)
+    func testConnection(_ config: ServerConfig) async -> TestResult {
+        guard let url = resolveURL(config.url) else {
+            return .failure("Invalid URL")
         }
-        return OpenCodeClient(baseURL: url)
+        let testClient = makeClient(for: config, url: url)
+        do {
+            let health = try await testClient.healthCheck()
+            if health.healthy {
+                return .success(version: health.version)
+            } else {
+                return .failure("Server reports unhealthy status")
+            }
+        } catch {
+            return .failure(error.localizedDescription)
+        }
     }
 
-    private func resolveURL() -> URL? {
-        var urlString = serverURL.trimmingCharacters(in: .whitespacesAndNewlines)
+    func startHealthPolling(interval: TimeInterval = 10) {
+        stopHealthPolling()
+        healthPollTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(interval))
+                guard !Task.isCancelled else { return }
+                await pollAllServers()
+            }
+        }
+    }
+
+    func stopHealthPolling() {
+        healthPollTask?.cancel()
+        healthPollTask = nil
+    }
+
+    private func pollAllServers() async {
+        for config in serverStore.servers {
+            guard let url = resolveURL(config.url) else {
+                serverStore.updateHealth(id: config.id, healthy: false)
+                continue
+            }
+            let pollClient = makeClient(for: config, url: url)
+            do {
+                let health = try await pollClient.healthCheck()
+                serverStore.updateHealth(id: config.id, healthy: health.healthy)
+            } catch {
+                serverStore.updateHealth(id: config.id, healthy: false)
+            }
+        }
+    }
+
+    private func makeClient(for config: ServerConfig, url: URL) -> OpenCodeClient {
+        let secrets = config.secrets()
+        return OpenCodeClient(
+            baseURL: url,
+            cfAccessClientId: secrets.cfClientId,
+            cfAccessClientSecret: secrets.cfClientSecret,
+            username: config.username,
+            password: secrets.password
+        )
+    }
+
+    private func resolveURL(_ string: String) -> URL? {
+        var urlString = string.trimmingCharacters(in: .whitespacesAndNewlines)
         if !urlString.hasPrefix("http://") && !urlString.hasPrefix("https://") {
-            urlString = "http://" + urlString
+            urlString = "https://" + urlString
         }
         return URL(string: urlString)
     }

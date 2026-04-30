@@ -6,15 +6,49 @@ Native iOS client for OpenCode servers, built with SwiftUI and Liquid Glass (iOS
 
 ```bash
 # Build & run on simulator
-cd ios-app
-xcodebuild -project OpenCodeNexus.xcodeproj -scheme OpenCodeNexus \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+bun run ios:build
 
 # Install & launch (after build)
 xcrun simctl boot "iPhone 17 Pro" 2>/dev/null
 xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/OpenCodeNexus-*/Build/Products/Debug-iphonesimulator/OpenCodeNexus.app
 xcrun simctl launch booted com.agentic-codeflow.opencode-nexus
 ```
+
+Open the project in Xcode beta explicitly if `.xcodeproj` is associated with another editor:
+
+```bash
+open -a /Applications/Xcode-beta.app /Users/johnferguson/Github/opencode-nexus/ios-app/OpenCodeNexus.xcodeproj
+```
+
+## Physical iPhone Build Over SSH
+
+Use the project script for command-line device builds:
+
+```bash
+bun run ios:device
+```
+
+The script builds with Xcode beta, installs to the paired iPhone, and launches `com.agentic-codeflow.opencode-nexus`.
+
+If signing fails from SSH with `errSecInternalComponent`, prepare the keychain and rerun:
+
+```bash
+bun run ios:device:prepare-signing
+bun run ios:device
+```
+
+The script defaults to `/Applications/Xcode-beta.app/Contents/Developer` and device `00008140-000518440C7B001C`. It auto-detects a valid `Apple Development` signing identity and forces that SHA for repeatable SSH builds; if no development identity exists, run `./build-device.sh --default-signing --allow-provisioning-updates` to let Xcode refresh managed signing assets.
+
+Useful options:
+
+```bash
+bun run ios:device:clean
+bun run ios:device:build-only
+bun run ios:device:skip-launch
+bun run ios:device:fresh-signing
+```
+
+Full notes are in `ios-app/README.md`.
 
 ## Architecture
 
@@ -60,7 +94,11 @@ Full API docs: https://opencode.ai/docs/server/
 ```bash
 # Unit tests
 xcodebuild test -project OpenCodeNexus.xcodeproj -scheme OpenCodeNexus \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro'
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -derivedDataPath build/DerivedData/Simulator
+
+# Or from repo root
+bun run ios:test
 
 # Take screenshot
 xcrun simctl io booted screenshot screenshot.png
@@ -86,3 +124,7 @@ Focus on:
 - Following iOS 26 design patterns (Liquid Glass)
 - Async/await error handling
 - Keeping the API client in sync with OpenCode server changes
+
+## Notes
+
+Test change to demonstrate diff display.

@@ -3,7 +3,14 @@ import SwiftUI
 struct ConnectView: View {
     @Environment(ConnectionManager.self) private var connectionManager
     @FocusState private var isURLFocused: Bool
-    @State private var showCFAccess = false
+
+    @State private var url: String = "http://localhost:4096"
+    @State private var displayName: String = ""
+    @State private var username: String = ""
+    @State private var password: String = ""
+    @State private var showAdvanced = false
+    @State private var cfAccessClientId: String = ""
+    @State private var cfAccessClientSecret: String = ""
 
     var body: some View {
         NavigationStack {
@@ -19,7 +26,7 @@ struct ConnectView: View {
         LinearGradient(
             stops: [
                 .init(color: Color(.systemBackground), location: 0),
-                .init(color: .blue.opacity(0.08), location: 1)
+                .init(color: Theme.interactiveBlue.opacity(0.08), location: 1)
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -32,10 +39,12 @@ struct ConnectView: View {
             VStack(spacing: 36) {
                 Spacer().frame(height: 40)
                 headerSection
-                serverInputSection
+                urlSection
+                displaySection
+                authSection
                 cfAccessSection
                 testResultBanner
-                actionButtons
+                connectButton
                 Spacer()
             }
             .padding(.horizontal, 24)
@@ -47,12 +56,12 @@ struct ConnectView: View {
         VStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(.blue.opacity(0.12))
+                    .fill(Theme.brandYuzu.opacity(0.15))
                     .frame(width: 100, height: 100)
                     .glassEffect(.clear, in: .circle)
-                Image(systemName: "terminal.connected")
+                Image(systemName: "terminal.fill")
                     .font(.system(size: 44, weight: .light))
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(Theme.brandYuzu)
             }
 
             Text("OpenCode Nexus")
@@ -60,25 +69,24 @@ struct ConnectView: View {
 
             Text("Connect to your OpenCode server to manage AI coding sessions")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textBase)
                 .multilineTextAlignment(.center)
         }
     }
 
-    private var serverInputSection: some View {
+    private var urlSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Server URL")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.textBase)
                 .textCase(.uppercase)
                 .tracking(0.5)
 
             HStack(spacing: 12) {
                 Image(systemName: "link")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.textBase)
                     .font(.body)
-
-                TextField("http://localhost:4096", text: Bindable(connectionManager).serverURL)
+                TextField("http://localhost:4096", text: $url)
                     .font(.body)
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
@@ -88,6 +96,69 @@ struct ConnectView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
             .glassEffect(.regular, in: .rect(cornerRadius: 12))
+            .overlay { Theme.borderOverlay(radius: 12) }
+        }
+    }
+
+    private var displaySection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Display Name")
+                .font(.caption)
+                .foregroundStyle(Theme.textBase)
+                .textCase(.uppercase)
+                .tracking(0.5)
+
+            HStack(spacing: 12) {
+                Image(systemName: "tag")
+                    .foregroundStyle(Theme.textBase)
+                    .font(.body)
+                TextField("My Server", text: $displayName)
+                    .font(.body)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+            .overlay { Theme.borderOverlay(radius: 12) }
+        }
+    }
+
+    private var authSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Authentication")
+                .font(.caption)
+                .foregroundStyle(Theme.textBase)
+                .textCase(.uppercase)
+                .tracking(0.5)
+
+            HStack(spacing: 12) {
+                Image(systemName: "person")
+                    .foregroundStyle(Theme.textBase)
+                    .font(.body)
+                TextField("Username (optional)", text: $username)
+                    .font(.body)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+            .overlay { Theme.borderOverlay(radius: 12) }
+
+            HStack(spacing: 12) {
+                Image(systemName: "key.fill")
+                    .foregroundStyle(Theme.textBase)
+                    .font(.body)
+                SecureField("Password (optional)", text: $password)
+                    .font(.body)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .glassEffect(.regular, in: .rect(cornerRadius: 12))
+            .overlay { Theme.borderOverlay(radius: 12) }
         }
     }
 
@@ -95,37 +166,37 @@ struct ConnectView: View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
                 withAnimation(.easeInOut(duration: 0.25)) {
-                    showCFAccess.toggle()
+                    showAdvanced.toggle()
                 }
             } label: {
                 HStack {
-                    Image(systemName: "shield.locked.fill")
+                    Image(systemName: "lock.shield")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textBase)
                     Text("Advanced: Cloudflare Zero Trust")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.textBase)
                         .tracking(0.5)
                     Spacer()
                     Image(systemName: "chevron.right")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(showCFAccess ? 90 : 0))
+                        .foregroundStyle(Theme.textWeak)
+                        .rotationEffect(.degrees(showAdvanced ? 90 : 0))
                 }
             }
             .buttonStyle(.plain)
 
-            if showCFAccess {
+            if showAdvanced {
                 VStack(alignment: .leading, spacing: 10) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("CF-Access-Client-Id")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.textWeak)
                         HStack(spacing: 12) {
                             Image(systemName: "number")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textBase)
                                 .font(.body)
-                            TextField("Client ID", text: Bindable(connectionManager).cfAccessClientId)
+                            TextField("Client ID", text: $cfAccessClientId)
                                 .font(.body)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
@@ -133,17 +204,18 @@ struct ConnectView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
                         .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                        .overlay { Theme.borderOverlay(radius: 12) }
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text("CF-Access-Client-Secret")
                             .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(Theme.textWeak)
                         HStack(spacing: 12) {
                             Image(systemName: "key.fill")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(Theme.textBase)
                                 .font(.body)
-                            SecureField("Client Secret", text: Bindable(connectionManager).cfAccessClientSecret)
+                            SecureField("Client Secret", text: $cfAccessClientSecret)
                                 .font(.body)
                                 .textInputAutocapitalization(.never)
                                 .autocorrectionDisabled()
@@ -151,11 +223,12 @@ struct ConnectView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 14)
                         .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                        .overlay { Theme.borderOverlay(radius: 12) }
                     }
 
                     Text("Enter service token credentials from your Cloudflare Zero Trust dashboard")
                         .font(.caption2)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(Theme.textWeak)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -172,18 +245,19 @@ struct ConnectView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.title3)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Connection Successful")
+                        Text("Connected")
                             .font(.subheadline.weight(.semibold))
                         Text("Server version \(version)")
                             .font(.caption)
-                            .foregroundStyle(.green.opacity(0.8))
+                            .foregroundStyle(Theme.success.opacity(0.8))
                     }
                     Spacer()
                 }
-                .foregroundStyle(.green)
+                .foregroundStyle(Theme.success)
                 .padding()
                 .glassEffect(.regular, in: .rect(cornerRadius: 12))
-                .tint(.green)
+                .overlay { Theme.borderOverlay(radius: 12) }
+                .tint(Theme.success)
 
             case .failure(let message):
                 HStack(spacing: 10) {
@@ -194,58 +268,53 @@ struct ConnectView: View {
                             .font(.subheadline.weight(.semibold))
                         Text(message)
                             .font(.caption)
-                            .foregroundStyle(.red.opacity(0.8))
+                            .foregroundStyle(Theme.errorCritical.opacity(0.8))
                     }
                     Spacer()
                 }
-                .foregroundStyle(.red)
+                .foregroundStyle(Theme.errorCritical)
                 .padding()
                 .glassEffect(.regular, in: .rect(cornerRadius: 12))
-                .tint(.red)
+                .overlay { Theme.borderOverlay(radius: 12) }
+                .tint(Theme.errorCritical)
             }
         }
     }
 
-    private var actionButtons: some View {
-        VStack(spacing: 14) {
-            Button {
-                Task { await connectionManager.testConnection() }
-            } label: {
-                HStack(spacing: 10) {
-                    if connectionManager.isTesting {
-                        ProgressView()
-                            .tint(.primary)
-                            .controlSize(.regular)
-                    } else {
-                        Image(systemName: "antenna.radiowaves.left.and.right")
-                    }
-                    Text(connectionManager.isTesting ? "Testing..." : "Test Connection")
-                }
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 50)
-            }
-            .buttonStyle(.glass)
-            .disabled(connectionManager.isTesting)
-
-            let canConnect: Bool = {
-                if case .success = connectionManager.testResult { return true }
-                return false
-            }()
-
-            Button {
-                connectionManager.connect()
-            } label: {
-                HStack(spacing: 10) {
+    private var connectButton: some View {
+        Button {
+            let trimmedURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
+            let config = ServerConfig(
+                url: trimmedURL,
+                displayName: displayName.isEmpty ? (trimmedURL.contains("localhost") ? "Local Server" : nil) : displayName,
+                username: username.isEmpty ? nil : username,
+                password: password.isEmpty ? nil : password,
+                cfAccessClientId: cfAccessClientId.isEmpty ? nil : cfAccessClientId,
+                cfAccessClientSecret: cfAccessClientSecret.isEmpty ? nil : cfAccessClientSecret,
+                isDefault: connectionManager.serverStore.servers.isEmpty
+            )
+            connectionManager.serverStore.addServer(config)
+            Task { @MainActor in await connectionManager.connect(to: config) }
+        } label: {
+            HStack(spacing: 10) {
+                if connectionManager.isConnecting {
+                    ProgressView()
+                        .tint(Theme.buttonPrimaryText)
+                        .controlSize(.regular)
+                } else {
                     Image(systemName: "arrow.right.circle.fill")
-                    Text("Connect")
                 }
-                .font(.headline)
-                .frame(maxWidth: .infinity)
-                .frame(minHeight: 50)
+                Text(connectionManager.isConnecting ? "Connecting..." : "Connect")
             }
-            .buttonStyle(.glassProminent)
-            .disabled(!canConnect)
+            .font(.headline)
+            .foregroundStyle(Theme.buttonPrimaryText)
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 50)
+            .background {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Theme.buttonPrimaryBG)
+            }
         }
+        .disabled(connectionManager.isConnecting || url.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 }

@@ -1,7 +1,11 @@
 # Xcode
 *.xcodeproj/xcuserdata/
 *.xcworkspace/xcuserdata/
+**/*.xcodeproj/xcuserdata/
+**/*.xcworkspace/xcuserdata/
+xcuserdata/
 *.xcuserstate
+*.app/
 DerivedData/
 .build/
 Pods/
@@ -57,3 +61,5 @@ screenshots/
 *.temp
 tmp/
 temp/
+data/
+.opencode/plans/

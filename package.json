@@ -1,0 +1,20 @@
+{
+  "name": "opencode-nexus",
+  "private": true,
+  "packageManager": "bun@1.3.11",
+  "scripts": {
+    "ios:build": "cd ios-app && xcodebuild -project OpenCodeNexus.xcodeproj -scheme OpenCodeNexus -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath build/DerivedData/Simulator build",
+    "ios:test": "cd ios-app && xcodebuild test -project OpenCodeNexus.xcodeproj -scheme OpenCodeNexus -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath build/DerivedData/Simulator",
+    "ios:test:integration": "cd ios-app && xcodebuild test -project OpenCodeNexus.xcodeproj -scheme OpenCodeNexusIntegrationTests -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath build/DerivedData/Integration",
+    "ios:test:e2e": "cd ios-app && xcodebuild test -project OpenCodeNexus.xcodeproj -scheme OpenCodeNexusE2ETests -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -derivedDataPath build/DerivedData/E2E",
+    "ios:open": "open -a /Applications/Xcode-beta.app ios-app/OpenCodeNexus.xcodeproj",
+    "ios:device": "cd ios-app && ./build-device.sh",
+    "ios:device:build-only": "cd ios-app && ./build-device.sh --build-only",
+    "ios:device:clean": "cd ios-app && ./build-device.sh --clean",
+    "ios:device:fresh-signing": "cd ios-app && ./build-device.sh --default-signing --allow-provisioning-updates",
+    "ios:device:prepare-signing": "cd ios-app && ./build-device.sh --prepare-signing",
+    "ios:device:skip-launch": "cd ios-app && ./build-device.sh --skip-launch",
+    "ios:device:tailscale": "cd ios-app && ./build-device-tailscale.sh",
+    "ios:device:tailscale:prepare": "cd ios-app && ./prepare-tailscale-device.sh"
+  }
+}

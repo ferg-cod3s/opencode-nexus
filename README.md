@@ -14,17 +14,47 @@ A native iOS client for OpenCode servers, built with SwiftUI and Liquid Glass (i
 
 ## Quick Start
 
+Root-level Bun scripts wrap the common iOS commands:
+
+```bash
+bun run ios:build
+bun run ios:device
+```
+
 ```bash
 # Prerequisites: Xcode 26, iOS 26 simulator
 
 # Build and run
 cd ios-app
 xcodebuild -project OpenCodeNexus.xcodeproj -scheme OpenCodeNexus \
-  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -derivedDataPath build/DerivedData/Simulator build
 
 # Or open in Xcode
 open OpenCodeNexus.xcodeproj
 ```
+
+If `.xcodeproj` opens in another app, open it with Xcode beta explicitly:
+
+```bash
+open -a /Applications/Xcode-beta.app /Users/johnferguson/Github/opencode-nexus/ios-app/OpenCodeNexus.xcodeproj
+```
+
+## Build For A Physical iPhone
+
+The iOS app includes an SSH-friendly device build script:
+
+```bash
+bun run ios:device
+```
+
+That command builds with Xcode beta, installs to the paired iPhone, and launches `com.agentic-codeflow.opencode-nexus`. If SSH signing fails because the login keychain is locked, prepare signing first:
+
+```bash
+bun run ios:device:prepare-signing
+```
+
+See [ios-app/README.md](ios-app/README.md) for the full device workflow, Xcode beta checks, signing certificate notes, and troubleshooting.
 
 ## OpenCode Server
 
