@@ -41,6 +41,11 @@ final class OpenCodeClient: @unchecked Sendable {
         return items
     }
 
+    private func shellAgent(_ agent: String?) -> String {
+        let trimmed = agent?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? "build" : trimmed
+    }
+
     private func request<T: Decodable>(_ path: String, query: [URLQueryItem] = []) async throws -> T {
         var url = baseURL.appendingPathComponent(path)
         if !query.isEmpty {
@@ -91,6 +96,20 @@ final class OpenCodeClient: @unchecked Sendable {
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeaders(to: &request)
+        request.httpBody = try JSONEncoder().encode(body)
+        let (_, response) = try await session.data(for: request)
+        try validateResponse(response)
+    }
+
+    private func putVoid(_ path: String, body: some Encodable, query: [URLQueryItem] = []) async throws {
+        var url = baseURL.appendingPathComponent(path)
+        if !query.isEmpty {
+            url = url.appending(queryItems: query)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         addAuthHeaders(to: &request)
         request.httpBody = try JSONEncoder().encode(body)
@@ -213,8 +232,7 @@ final class OpenCodeClient: @unchecked Sendable {
     }
 
     func unshareSession(_ sessionId: String, directory: String? = nil) async throws -> Session {
-        let _: Bool = try await delete("session/\(sessionId)/share", query: queryItems(directory: directory))
-        return try await getSession(sessionId, directory: directory)
+        return try await delete("session/\(sessionId)/share", query: queryItems(directory: directory))
     }
 
     func getSessionDiff(_ sessionId: String, messageID: String? = nil, directory: String? = nil) async throws -> [FileDiff] {
@@ -285,7 +303,7 @@ final class OpenCodeClient: @unchecked Sendable {
     }
 
     func sendShellCommand(sessionId: String, command: String, model: ModelRefBody? = nil, agent: String? = nil, directory: String? = nil) async throws -> MessageEnvelope {
-        try await post("session/\(sessionId)/shell", body: ShellBody(command: command, model: model, agent: agent), query: queryItems(directory: directory))
+        try await post("session/\(sessionId)/shell", body: ShellBody(command: command, model: model, agent: shellAgent(agent)), query: queryItems(directory: directory))
     }
 
     func deleteMessage(sessionId: String, messageID: String, directory: String? = nil) async throws {
@@ -294,9 +312,9 @@ final class OpenCodeClient: @unchecked Sendable {
 
     // MARK: - Files
 
-    func listFiles(path: String? = nil) async throws -> [FileNode] {
-        var query: [URLQueryItem] = []
-        if let path { query.append(URLQueryItem(name: "path", value: path)) }
+    func listFiles(path: String? = nil, directory: String? = nil, workspace: String? = nil) async throws -> [FileNode] {
+        var query = queryItems(directory: directory, workspace: workspace)
+        query.append(URLQueryItem(name: "path", value: path ?? ""))
         return try await request("file", query: query)
     }
 
@@ -306,16 +324,20 @@ final class OpenCodeClient: @unchecked Sendable {
         return try await request("file/content", query: query)
     }
 
-    func getFileStatus() async throws -> [FileStatus] {
-        try await request("file/status")
+    func getFileStatus(directory: String? = nil, workspace: String? = nil) async throws -> [FileStatus] {
+        try await request("file/status", query: queryItems(directory: directory, workspace: workspace))
     }
 
-    func findText(pattern: String) async throws -> [SearchResult] {
-        try await request("find", query: [URLQueryItem(name: "pattern", value: pattern)])
+    func findText(pattern: String, directory: String? = nil, workspace: String? = nil) async throws -> [SearchResult] {
+        var query = queryItems(directory: directory, workspace: workspace)
+        query.append(URLQueryItem(name: "pattern", value: pattern))
+        return try await request("find", query: query)
     }
 
-    func findFiles(query: String) async throws -> [String] {
-        try await request("find/file", query: [URLQueryItem(name: "query", value: query)])
+    func findFiles(query: String, directory: String? = nil, workspace: String? = nil) async throws -> [String] {
+        var items = queryItems(directory: directory, workspace: workspace)
+        items.append(URLQueryItem(name: "query", value: query))
+        return try await request("find/file", query: items)
     }
 
     // MARK: - Permissions
@@ -328,8 +350,8 @@ final class OpenCodeClient: @unchecked Sendable {
         let _: Bool = try await post("session/\(sessionID)/permissions/\(permissionID)", body: PermissionReplyBody(response: response), query: queryItems(directory: directory))
     }
 
-    func replyQuestion(_ requestID: String, answers: [[String]]) async throws {
-        let _: Bool = try await post("question/\(requestID)/reply", body: QuestionReplyBody(answers: answers))
+    func replyQuestion(_ requestID: String, answers: [[String]], directory: String? = nil) async throws {
+        let _: Bool = try await post("question/\(requestID)/reply", body: QuestionReplyBody(answers: answers), query: queryItems(directory: directory))
     }
 
     func listQuestions(directory: String? = nil) async throws -> [Question] {
@@ -337,8 +359,8 @@ final class OpenCodeClient: @unchecked Sendable {
         return requests.map(\.question)
     }
 
-    func rejectQuestion(_ requestID: String) async throws {
-        let _: Bool = try await post("question/\(requestID)/reject", body: EmptyBody())
+    func rejectQuestion(_ requestID: String, directory: String? = nil) async throws {
+        let _: Bool = try await post("question/\(requestID)/reject", body: EmptyBody(), query: queryItems(directory: directory))
     }
 
     // MARK: - TUI
@@ -402,13 +424,17 @@ final class OpenCodeClient: @unchecked Sendable {
     }
 
     func resizePty(_ id: String, rows: Int, cols: Int, directory: String? = nil) async throws {
-        try await postVoid("pty/\(id)", body: ResizePtyBody(size: PtySize(rows: rows, cols: cols)), query: queryItems(directory: directory))
+        try await putVoid("pty/\(id)", body: ResizePtyBody(size: PtySize(rows: rows, cols: cols)), query: queryItems(directory: directory))
     }
 
     // MARK: - SSE
 
-    func eventStream() -> AsyncThrowingStream<SSEEvent, Error> {
-        let url = baseURL.appendingPathComponent("event")
+    func eventStream(directory: String? = nil, workspace: String? = nil) -> AsyncThrowingStream<SSEEvent, Error> {
+        var url = baseURL.appendingPathComponent("event")
+        let query = queryItems(directory: directory, workspace: workspace)
+        if !query.isEmpty {
+            url = url.appending(queryItems: query)
+        }
         var mutableRequest = URLRequest(url: url)
         mutableRequest.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         addAuthHeaders(to: &mutableRequest)
@@ -545,7 +571,7 @@ private struct CommandBody: Encodable {
 private struct ShellBody: Encodable {
     let command: String
     let model: ModelRefBody?
-    let agent: String?
+    let agent: String
 }
 
 private struct CreatePtyBody: Encodable {

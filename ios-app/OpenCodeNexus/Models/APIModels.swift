@@ -322,6 +322,47 @@ struct SearchResult: Codable {
     let path: String?
     let line: Int?
     let text: String?
+
+    init(path: String?, line: Int?, text: String?) {
+        self.path = path
+        self.line = line
+        self.text = text
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        path = try container.decodeStringOrTextObjectIfPresent(forKey: .path)
+        line = try container.decodeIfPresent(Int.self, forKey: .line) ?? container.decodeIfPresent(Int.self, forKey: .lineNumber)
+        text = try container.decodeStringOrTextObjectIfPresent(forKey: .text) ?? container.decodeStringOrTextObjectIfPresent(forKey: .lines)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(path, forKey: .path)
+        try container.encodeIfPresent(line, forKey: .line)
+        try container.encodeIfPresent(text, forKey: .text)
+    }
+
+    fileprivate enum CodingKeys: String, CodingKey {
+        case path
+        case line
+        case text
+        case lines
+        case lineNumber = "line_number"
+    }
+
+    fileprivate struct TextObject: Codable {
+        let text: String?
+    }
+}
+
+private extension KeyedDecodingContainer where Key == SearchResult.CodingKeys {
+    func decodeStringOrTextObjectIfPresent(forKey key: Key) throws -> String? {
+        if let value = try? decodeIfPresent(String.self, forKey: key) {
+            return value
+        }
+        return try decodeIfPresent(SearchResult.TextObject.self, forKey: key)?.text
+    }
 }
 
 struct TUIControlRequest: Codable, Identifiable {

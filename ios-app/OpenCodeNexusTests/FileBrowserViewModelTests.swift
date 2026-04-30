@@ -141,14 +141,41 @@ final class FileBrowserViewModelTests: XCTestCase {
     }
 
     @MainActor
+    func testSearchIncludesDirectoryForFindEndpoints() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+            if components.path == "/find/file" {
+                XCTAssertEqual(query["directory"], "/workspace/app")
+                XCTAssertEqual(query["query"], "swift")
+                return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+            }
+            if components.path == "/find" {
+                XCTAssertEqual(query["directory"], "/workspace/app")
+                XCTAssertEqual(query["pattern"], "swift")
+                return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+            }
+            XCTFail("Unexpected path: \(components.path)")
+            return (HTTPURLResponse(url: request.url!, statusCode: 404, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        let vm = FileBrowserViewModel(client: client, directory: "/workspace/app")
+        vm.searchText = "swift"
+        vm.search()
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertFalse(vm.isSearching)
+    }
+
+    @MainActor
     func testSearchClearsOnEmpty() {
         let vm = FileBrowserViewModel(client: client, directory: nil)
         vm.matchedFiles = ["test.swift"]
         vm.searchResults = [SearchResult(path: "test.swift", line: 1, text: "hello")]
+        vm.isSearching = true
         vm.searchText = ""
         vm.search()
         XCTAssertEqual(vm.matchedFiles.count, 0)
         XCTAssertEqual(vm.searchResults.count, 0)
+        XCTAssertFalse(vm.isSearching)
     }
 
     @MainActor
@@ -164,6 +191,40 @@ final class FileBrowserViewModelTests: XCTestCase {
         XCTAssertTrue(display[0].isDirectory)
         XCTAssertEqual(display[1].name, "a.swift")
         XCTAssertEqual(display[2].name, "b.swift")
+    }
+
+    @MainActor
+    func testDisplayFilesIsEmptyWhenCompletedSearchHasNoFilenameMatches() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+        }
+        let vm = FileBrowserViewModel(client: client, directory: nil)
+        vm.files = [
+            FileNode(name: "main.swift", path: "src/main.swift", absolute: "/project/src/main.swift", type: "file", ignored: false)
+        ]
+        vm.searchText = "missing"
+        vm.search()
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertTrue(vm.displayFiles.isEmpty)
+    }
+
+    @MainActor
+    func testDisplayFilesIncludesNestedMatchedFileMissingFromCurrentDirectoryListing() {
+        let vm = FileBrowserViewModel(client: client, directory: "/project")
+        vm.files = [
+            FileNode(name: "src", path: "src", absolute: "/project/src", type: "directory", ignored: false)
+        ]
+        vm.searchText = "main"
+        vm.matchedFiles = ["src/nested/main.swift"]
+
+        let display = vm.displayFiles
+
+        XCTAssertEqual(display.count, 1)
+        XCTAssertEqual(display[0].name, "main.swift")
+        XCTAssertEqual(display[0].path, "src/nested/main.swift")
+        XCTAssertEqual(display[0].absolute, "/project/src/nested/main.swift")
+        XCTAssertFalse(display[0].isDirectory)
+        XCTAssertFalse(display[0].ignored)
     }
 
     @MainActor

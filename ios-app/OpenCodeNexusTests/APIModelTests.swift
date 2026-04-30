@@ -311,6 +311,17 @@ final class APIModelTests: XCTestCase {
         XCTAssertNil(result.text)
     }
 
+    func testSearchResultDecodesCurrentOpenAPIShape() throws {
+        let json = """
+        {"path": {"text": "src/main.swift"}, "lines": {"text": "func hello() {"}, "line_number": 42}
+        """
+        let data = json.data(using: .utf8)!
+        let result = try JSONDecoder().decode(SearchResult.self, from: data)
+        XCTAssertEqual(result.path, "src/main.swift")
+        XCTAssertEqual(result.line, 42)
+        XCTAssertEqual(result.text, "func hello() {")
+    }
+
     // MARK: - Additional API Models
 
     func testPathInfoDecoding() throws {

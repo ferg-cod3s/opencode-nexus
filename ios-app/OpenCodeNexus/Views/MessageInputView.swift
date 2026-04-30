@@ -13,8 +13,6 @@ struct MessageInputView: View {
     let onNavigateHistory: (ChatViewModel.HistoryDirection) -> Void
 
     @FocusState private var isFocused: Bool
-    @State private var showCommandPalette = false
-    @State private var showAgentPalette = false
     @State private var selectedPhotoItem: PhotosPickerItem?
 
     private var filteredCommands: [CommandInfo] {
@@ -89,60 +87,62 @@ struct MessageInputView: View {
     private var autocompletePalette: some View {
         Group {
             if !filteredCommands.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(filteredCommands) { cmd in
-                            Button {
-                                selectCommand(cmd)
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Text("/\(cmd.name)")
-                                        .font(.caption.weight(.medium))
-                                    if let desc = cmd.description {
-                                        Text(desc)
-                                            .font(.caption2)
-                                            .foregroundStyle(Theme.textBase)
-                                            .lineLimit(1)
-                                    }
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(.ultraThinMaterial, in: .rect(cornerRadius: 6))
-                            }
+                autocompleteScrollView {
+                    ForEach(filteredCommands) { cmd in
+                        Button {
+                            selectCommand(cmd)
+                        } label: {
+                            autocompleteItem(title: "/\(cmd.name)", description: cmd.description)
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 6)
                 }
             } else if !filteredAgents.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(filteredAgents) { agent in
-                            Button {
-                                selectAgent(agent)
-                            } label: {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "person.fill")
-                                        .font(.caption2)
-                                    Text("@\(agent.name)")
-                                        .font(.caption.weight(.medium))
-                                    if let desc = agent.description {
-                                        Text(desc)
-                                            .font(.caption2)
-                                            .foregroundStyle(Theme.textBase)
-                                            .lineLimit(1)
-                                    }
-                                }
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 6)
-                                .background(.ultraThinMaterial, in: .rect(cornerRadius: 6))
+                autocompleteScrollView {
+                    ForEach(filteredAgents) { agent in
+                        Button {
+                            selectAgent(agent)
+                        } label: {
+                            autocompleteItem(title: "@\(agent.name)", description: agent.description) {
+                                Image(systemName: "person.fill")
+                                    .font(.caption2)
                             }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 6)
                 }
             }
+        }
+    }
+
+    private func autocompleteScrollView<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 6) {
+                content()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 6)
+        }
+    }
+
+    private func autocompleteItem<Icon: View>(title: String, description: String?, @ViewBuilder icon: () -> Icon) -> some View {
+        HStack(spacing: 4) {
+            icon()
+            Text(title)
+                .font(.caption.weight(.medium))
+            if let description {
+                Text(description)
+                    .font(.caption2)
+                    .foregroundStyle(Theme.textBase)
+                    .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.ultraThinMaterial, in: .rect(cornerRadius: 6))
+    }
+
+    private func autocompleteItem(title: String, description: String?) -> some View {
+        autocompleteItem(title: title, description: description) {
+            EmptyView()
         }
     }
 

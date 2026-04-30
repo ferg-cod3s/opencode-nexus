@@ -16,6 +16,7 @@ final class FileBrowserViewModel {
     var searchText = ""
     var currentPath: String?
     var navigationStack: [FileNode] = []
+    private var didCompleteFileSearch = false
 
     private let client: OpenCodeClient
     private let directory: String?
@@ -26,7 +27,13 @@ final class FileBrowserViewModel {
             return sortedFiles
         }
         if !matchedFiles.isEmpty {
-            return sortedFiles.filter { matchedFiles.contains($0.path) || matchedFiles.contains($0.absolute) }
+            let visibleMatches = sortedFiles.filter { matchedFiles.contains($0.path) || matchedFiles.contains($0.absolute) }
+            let visiblePaths = Set(visibleMatches.flatMap { [$0.path, $0.absolute] })
+            let missingMatches = matchedFiles.filter { !visiblePaths.contains($0) }
+            return visibleMatches + missingMatches.map(syntheticFileNode(for:))
+        }
+        if didCompleteFileSearch {
+            return []
         }
         return sortedFiles
     }
@@ -38,6 +45,20 @@ final class FileBrowserViewModel {
             }
             return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
         }
+    }
+
+    private func syntheticFileNode(for matchedPath: String) -> FileNode {
+        let name = matchedPath.split(separator: "/").last.map(String.init) ?? matchedPath
+        let absolute: String
+        if matchedPath.hasPrefix("/") {
+            absolute = matchedPath
+        } else if let directory {
+            let base = directory.hasSuffix("/") ? String(directory.dropLast()) : directory
+            absolute = "\(base)/\(matchedPath)"
+        } else {
+            absolute = matchedPath
+        }
+        return FileNode(name: name, path: matchedPath, absolute: absolute, type: "file", ignored: false)
     }
 
     var statusMap: [String: FileStatus] {
@@ -56,8 +77,8 @@ final class FileBrowserViewModel {
         errorMessage = nil
         currentPath = path
         do {
-            files = try await client.listFiles(path: path)
-            fileStatuses = try await client.getFileStatus()
+            files = try await client.listFiles(path: path, directory: directory)
+            fileStatuses = try await client.getFileStatus(directory: directory)
         } catch {
             logger.error("Failed to load files: \(error)")
             errorMessage = error.localizedDescription
@@ -87,33 +108,34 @@ final class FileBrowserViewModel {
         guard !query.isEmpty else {
             matchedFiles = []
             searchResults = []
+            didCompleteFileSearch = false
+            isSearching = false
             return
         }
+        let client = client
+        let directory = directory
+        let logger = logger
+        didCompleteFileSearch = false
         searchTask = Task {
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
             isSearching = true
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask {
-                    do {
-                        let results = try await self.client.findFiles(query: query)
-                        guard !Task.isCancelled else { return }
-                        await MainActor.run { self.matchedFiles = results }
-                    } catch {
-                        self.logger.warning("File name search failed: \(error)")
-                    }
-                }
-                group.addTask {
-                    do {
-                        let results = try await self.client.findText(pattern: query)
-                        guard !Task.isCancelled else { return }
-                        await MainActor.run { self.searchResults = results }
-                    } catch {
-                        self.logger.warning("Text search failed: \(error)")
-                    }
-                }
+            defer { isSearching = false }
+            do {
+                let results = try await client.findFiles(query: query, directory: directory)
+                guard !Task.isCancelled else { return }
+                matchedFiles = results
+                didCompleteFileSearch = true
+            } catch {
+                logger.warning("File name search failed: \(error)")
             }
-            isSearching = false
+            do {
+                let results = try await client.findText(pattern: query, directory: directory)
+                guard !Task.isCancelled else { return }
+                searchResults = results
+            } catch {
+                logger.warning("Text search failed: \(error)")
+            }
         }
     }
 }

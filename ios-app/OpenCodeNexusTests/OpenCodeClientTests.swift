@@ -209,6 +209,46 @@ final class OpenCodeClientTests: XCTestCase {
         )
     }
 
+    func testShellCommandDefaultsAgentToBuild() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_1/shell")
+            XCTAssertEqual(request.httpMethod, "POST")
+            let body = try! Self.jsonBody(from: request)
+            XCTAssertEqual(body["command"] as? String, "ls")
+            XCTAssertEqual(body["agent"] as? String, "build")
+            XCTAssertNil(body["model"])
+
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                    """
+                    {"info": {"id": "msg_new", "role": "assistant", "time": {"created": 0}}, "parts": []}
+                    """.data(using: .utf8)!)
+        }
+
+        _ = try await client.sendShellCommand(sessionId: "ses_1", command: "ls")
+    }
+
+    func testShellCommandUsesDefaultAgentForEmptyAgentAndEncodesModel() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            let body = try! Self.jsonBody(from: request)
+            let model = try XCTUnwrap(body["model"] as? [String: String])
+            XCTAssertEqual(body["agent"] as? String, "build")
+            XCTAssertEqual(model["providerID"], "openai")
+            XCTAssertEqual(model["modelID"], "gpt-4o")
+
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                    """
+                    {"info": {"id": "msg_new", "role": "assistant", "time": {"created": 0}}, "parts": []}
+                    """.data(using: .utf8)!)
+        }
+
+        _ = try await client.sendShellCommand(
+            sessionId: "ses_1",
+            command: "pwd",
+            model: ModelRefBody(providerID: "openai", modelID: "gpt-4o"),
+            agent: " "
+        )
+    }
+
     func testQuestionReplyBodyEncoding() async throws {
         MockURLProtocol.setRequestHandler { request in
             XCTAssertEqual(request.url?.path, "/question/que_1/reply")
@@ -220,6 +260,78 @@ final class OpenCodeClientTests: XCTestCase {
         }
 
         try await client.replyQuestion("que_1", answers: [["Yes", "Custom"]])
+    }
+
+    func testReplyQuestionIncludesDirectoryQuery() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            let query = Self.queryDictionary(from: components)
+            XCTAssertEqual(components.path, "/question/que_1/reply")
+            XCTAssertEqual(query["directory"], "/repo/app")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("true".utf8))
+        }
+
+        try await client.replyQuestion("que_1", answers: [["Yes"]], directory: "/repo/app")
+    }
+
+    func testRejectQuestionIncludesDirectoryQuery() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            let query = Self.queryDictionary(from: components)
+            XCTAssertEqual(components.path, "/question/que_1/reject")
+            XCTAssertEqual(query["directory"], "/repo/app")
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+
+        try await client.rejectQuestion("que_1", directory: "/repo/app")
+    }
+
+    func testResizePtyUsesPutAndAcceptsEmpty2xxResponse() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/pty/pty_1")
+            XCTAssertEqual(request.httpMethod, "PUT")
+            let body = try! Self.jsonBody(from: request)
+            let size = try XCTUnwrap(body["size"] as? [String: Int])
+            XCTAssertEqual(size["rows"], 40)
+            XCTAssertEqual(size["cols"], 120)
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+
+        try await client.resizePty("pty_1", rows: 40, cols: 120)
+    }
+
+    func testUnshareSessionReturnsDeleteResponseWithoutSecondGet() async throws {
+        let paths = Mutex<[String]>([])
+        MockURLProtocol.setRequestHandler { request in
+            paths.withLock { $0.append(request.url!.path) }
+            XCTAssertEqual(request.httpMethod, "DELETE")
+            XCTAssertEqual(request.url?.path, "/session/ses_1/share")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(#"{"id":"ses_1","projectID":"proj_1","directory":"/repo","title":"Unshared","version":"1.0.0","time":{"created":1,"updated":2}}"#.utf8))
+        }
+
+        let session = try await client.unshareSession("ses_1")
+
+        XCTAssertEqual(session.id, "ses_1")
+        XCTAssertEqual(session.title, "Unshared")
+        XCTAssertEqual(paths.withLock { $0 }, ["/session/ses_1/share"])
+    }
+
+    func testEventStreamIncludesDirectoryAndWorkspaceQuery() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            let query = Self.queryDictionary(from: components)
+            XCTAssertEqual(components.path, "/event")
+            XCTAssertEqual(query["directory"], "/repo/app")
+            XCTAssertEqual(query["workspace"], "main")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Accept"), "text/event-stream")
+            let body = "data: {\"type\":\"server.heartbeat\"}\n\n"
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(body.utf8))
+        }
+
+        var iterator = client.eventStream(directory: "/repo/app", workspace: "main").makeAsyncIterator()
+        let event = try await iterator.next()
+
+        XCTAssertEqual(event?.type, "server.heartbeat")
     }
 
     func testTUIEndpointsUseExpectedPathsAndBodies() async throws {
@@ -290,6 +402,45 @@ final class OpenCodeClientTests: XCTestCase {
         }
         let content = try await client.getFileContent(path: "Sources/App.swift", directory: "/repo", workspace: "main")
         XCTAssertEqual(content.content, "hi")
+    }
+
+    func testListFilesIncludesExplicitRootPathDirectoryAndWorkspaceQuery() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            let query = Self.queryDictionary(from: components)
+            XCTAssertEqual(components.path, "/file")
+            XCTAssertEqual(query["path"], "")
+            XCTAssertEqual(query["directory"], "/repo")
+            XCTAssertEqual(query["workspace"], "main")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+        }
+
+        _ = try await client.listFiles(directory: "/repo", workspace: "main")
+    }
+
+    func testListFilesIncludesNestedPathQuery() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            let query = Self.queryDictionary(from: components)
+            XCTAssertEqual(components.path, "/file")
+            XCTAssertEqual(query["path"], "Sources")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+        }
+
+        _ = try await client.listFiles(path: "Sources")
+    }
+
+    func testGetFileStatusIncludesDirectoryAndWorkspaceQuery() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            let query = Self.queryDictionary(from: components)
+            XCTAssertEqual(components.path, "/file/status")
+            XCTAssertEqual(query["directory"], "/repo")
+            XCTAssertEqual(query["workspace"], "main")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+        }
+
+        _ = try await client.getFileStatus(directory: "/repo", workspace: "main")
     }
 
     func testCreateSessionBodyEncoding() async throws {
@@ -437,6 +588,152 @@ final class OpenCodeClientTests: XCTestCase {
 
     // MARK: - Error Descriptions
 
+    func testGetSessionStatusURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/status")
+            let json = """
+            {"ses_1": {"status": "idle"}}
+            """
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data(json.utf8))
+        }
+        let result = try await client.getSessionStatus()
+        XCTAssertEqual(result["ses_1"]?.status, "idle")
+    }
+
+    func testGetChildrenURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_1/children")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+        }
+        _ = try await client.getChildren("ses_1")
+    }
+
+    func testForkSessionBody() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_1/fork")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("""
+            {"id":"forked","slug":"forked","version":"1.0.0","projectID":"p","directory":"/","title":"Fork","time":{"created":1,"updated":1}}
+            """.utf8))
+        }
+        _ = try await client.forkSession("ses_1", messageID: "msg_1")
+    }
+
+    func testShareSessionURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            if request.httpMethod == "POST" {
+                XCTAssertEqual(request.url?.path, "/session/ses_1/share")
+                return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("true".utf8))
+            }
+            XCTAssertEqual(request.url?.path, "/session/ses_1")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("""
+            {"id":"ses_1","slug":"ses_1","version":"1.0.0","projectID":"p","directory":"/","title":"Shared","time":{"created":1,"updated":1}}
+            """.utf8))
+        }
+        _ = try await client.shareSession("ses_1")
+    }
+
+    func testSummarizeSessionURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_1/summarize")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("true".utf8))
+        }
+        try await client.summarizeSession("ses_1")
+    }
+
+    func testRevertMessageURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_1/revert")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("true".utf8))
+        }
+        try await client.revertMessage("ses_1", messageID: "msg_1", partID: "part_1")
+    }
+
+    func testDeleteSessionURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_1")
+            XCTAssertEqual(request.httpMethod, "DELETE")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("true".utf8))
+        }
+        let result = try await client.deleteSession(id: "ses_1")
+        XCTAssertTrue(result)
+    }
+
+    func testAbortSessionURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_1/abort")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("{}".utf8))
+        }
+        try await client.abortSession(sessionId: "ses_1")
+    }
+
+    func testDeleteMessageURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_1/message/msg_1")
+            XCTAssertEqual(request.httpMethod, "DELETE")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("true".utf8))
+        }
+        try await client.deleteMessage(sessionId: "ses_1", messageID: "msg_1")
+    }
+
+    func testFindTextURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/find")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+        }
+        _ = try await client.findText(pattern: "func test")
+    }
+
+    func testFindFilesURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/find/file")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+        }
+        _ = try await client.findFiles(query: "*.swift")
+    }
+
+    func testUpdateSessionBody() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_1")
+            XCTAssertEqual(request.httpMethod, "PATCH")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("""
+            {"id":"ses_1","slug":"ses_1","version":"1.0.0","projectID":"p","directory":"/","title":"New Title","time":{"created":1,"updated":1}}
+            """.utf8))
+        }
+        _ = try await client.updateSession("ses_1", title: "New Title")
+    }
+
+    func testBasicAuthHeaderInjection() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let authClient = OpenCodeClient(
+            baseURL: URL(string: "http://localhost:4096")!,
+            username: "user",
+            password: "pass",
+            configuration: config
+        )
+        MockURLProtocol.setRequestHandler { request in
+            let authHeader = request.value(forHTTPHeaderField: "Authorization")
+            XCTAssertNotNil(authHeader)
+            XCTAssertTrue(authHeader?.hasPrefix("Basic ") == true)
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("""
+            {"id":"s","slug":"s","version":"1.0.0","projectID":"p","directory":"/","title":"T","time":{"created":1,"updated":1}}
+            """.utf8))
+        }
+        _ = try await authClient.getSession("s")
+    }
+
+    func testListProjectsURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/project")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, Data("[]".utf8))
+        }
+        _ = try await client.listProjects()
+    }
+
     func testOpenCodeErrorDescriptions() {
         XCTAssertEqual(OpenCodeError.invalidResponse.errorDescription, "Invalid server response")
         XCTAssertEqual(OpenCodeError.httpError(429).errorDescription, "Server error (HTTP 429)")
@@ -463,6 +760,10 @@ final class OpenCodeClientTests: XCTestCase {
             return [:]
         }
         return try JSONSerialization.jsonObject(with: data) as! [String: Any]
+    }
+
+    private static func queryDictionary(from components: URLComponents) -> [String: String] {
+        Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
     }
 }
 

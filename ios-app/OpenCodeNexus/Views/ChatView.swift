@@ -4,23 +4,32 @@ import os
 struct ChatView: View {
     @Environment(ConnectionManager.self) private var connectionManager
     @State private var chatVM = ChatViewModel()
-    @State private var showNewSession = false
+    @State private var activeSheet: ActiveChatSheet?
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var collapsedDirectories: Set<String> = []
-    @State private var showPermissionSheet = false
-    @State private var showQuestionSheet = false
-    @State private var showDiffView = false
-    @State private var showTerminal = false
-    @State private var showFileBrowser = false
-    @State private var showFileViewer = false
     @State private var viewingFilePath: String?
     @State private var presentedQuestionIDs: Set<String> = []
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            sidebar
+            ChatSidebarView(
+                chatVM: chatVM,
+                collapsedDirectories: $collapsedDirectories,
+                onDisconnect: { connectionManager.disconnect() },
+                onNewSession: {
+                    chatVM.prepareNewSession()
+                    activeSheet = .newSession
+                }
+            )
         } detail: {
-            detailPane
+            ChatDetailContainer(
+                chatVM: chatVM,
+                onShowPermissions: { activeSheet = .permissions },
+                onShowDiffs: { activeSheet = .diffs },
+                onShowQuestion: { activeSheet = .questions },
+                onShowFileBrowser: { activeSheet = .fileBrowser },
+                onShowTerminal: { activeSheet = .terminal }
+            )
         }
         .task {
             let logger = Logger(subsystem: "com.agentic-codeflow.opencode-nexus", category: "ChatView")
@@ -39,20 +48,22 @@ struct ChatView: View {
             if let id = chatVM.selectedSessionId {
                 Task { await chatVM.selectSession(id) }
                 if chatVM.pendingPermissions.contains(where: { $0.sessionID == id }) {
-                    showPermissionSheet = true
+                    activeSheet = .permissions
                 }
             }
         }
         .onChange(of: chatVM.pendingPermissions.count) {
             if let id = chatVM.selectedSessionId,
                chatVM.pendingPermissions.contains(where: { $0.sessionID == id }) {
-                showPermissionSheet = true
+                activeSheet = .permissions
             }
         }
-        .onChange(of: chatVM.pendingQuestions.count) {
+        .onChange(of: chatVM.pendingQuestions) {
+            let pendingQuestionIDs = Set(chatVM.pendingQuestions.map(\.id))
+            presentedQuestionIDs.formIntersection(pendingQuestionIDs)
             guard let newQuestion = chatVM.selectedPendingQuestions.first(where: { !presentedQuestionIDs.contains($0.id) }) else { return }
             presentedQuestionIDs.insert(newQuestion.id)
-            showQuestionSheet = true
+            activeSheet = .questions
         }
         .onDisappear {
             chatVM.stopEventStream()
@@ -70,13 +81,19 @@ struct ChatView: View {
                 Text(chatVM.errorMessage ?? "")
             }
         )
-        .sheet(isPresented: $showNewSession) {
+        .sheet(item: $activeSheet) { sheet in
+            sheetContent(for: sheet)
+        }
+    }
+
+    @ViewBuilder
+    private func sheetContent(for sheet: ActiveChatSheet) -> some View {
+        switch sheet {
+        case .newSession:
             NewSessionView(chatVM: chatVM)
-        }
-        .sheet(isPresented: $showPermissionSheet) {
+        case .permissions:
             PermissionSheet(chatVM: chatVM)
-        }
-        .sheet(isPresented: $showQuestionSheet) {
+        case .questions:
             QuestionSheet(
                 questions: chatVM.selectedPendingQuestions,
                 onAnswer: { question, answers in
@@ -86,49 +103,43 @@ struct ChatView: View {
                     Task { await chatVM.rejectQuestion(question) }
                 }
             )
-        }
-        .sheet(isPresented: $showDiffView) {
+        case .diffs:
             DiffSheet(
                 diffs: chatVM.fileDiffs,
                 client: chatVM.client,
                 directory: chatVM.directory(for: chatVM.selectedSessionId),
                 onOpenFile: { path in
-                    showDiffView = false
                     viewingFilePath = path
-                    showFileViewer = true
+                    activeSheet = .fileViewer
                 },
                 onAttachPath: { path in
                     chatVM.attachedParts.append(MessagePartBody(type: "text", text: path))
-                    showDiffView = false
+                    activeSheet = nil
                 }
             )
-        }
-        .sheet(isPresented: $showTerminal) {
+        case .terminal:
             TerminalView(
                 client: chatVM.client,
                 sessionId: chatVM.selectedSessionId,
                 directory: chatVM.directory(for: chatVM.selectedSessionId),
                 agent: chatVM.selectedAgent ?? "coder"
             )
-        }
-        .sheet(isPresented: $showFileBrowser) {
+        case .fileBrowser:
             if let client = chatVM.client {
                 FileBrowserView(
                     client: client,
                     directory: chatVM.directory(for: chatVM.selectedSessionId),
                     onOpenFile: { path in
-                        showFileBrowser = false
                         viewingFilePath = path
-                        showFileViewer = true
+                        activeSheet = .fileViewer
                     },
                     onAttachFile: { path, _ in
                         chatVM.attachedParts.append(MessagePartBody(type: "text", text: path))
-                        showFileBrowser = false
+                        activeSheet = nil
                     }
                 )
             }
-        }
-        .sheet(isPresented: $showFileViewer) {
+        case .fileViewer:
             if let client = chatVM.client, let path = viewingFilePath {
                 FileViewerView(
                     client: client,
@@ -140,14 +151,33 @@ struct ChatView: View {
                         } else {
                             chatVM.attachedParts.append(MessagePartBody(type: "text", text: path))
                         }
-                        showFileViewer = false
+                        activeSheet = nil
                     }
                 )
             }
         }
     }
+}
 
-    private var sidebar: some View {
+private enum ActiveChatSheet: String, Identifiable {
+    case newSession
+    case permissions
+    case questions
+    case diffs
+    case terminal
+    case fileBrowser
+    case fileViewer
+
+    var id: String { rawValue }
+}
+
+private struct ChatSidebarView: View {
+    let chatVM: ChatViewModel
+    @Binding var collapsedDirectories: Set<String>
+    let onDisconnect: () -> Void
+    let onNewSession: () -> Void
+
+    var body: some View {
         Group {
             if chatVM.sessions.isEmpty && !chatVM.isLoadingSessions {
                 ContentUnavailableView(
@@ -261,12 +291,12 @@ struct ChatView: View {
             ToolbarItem(placement: .topBarLeading) {
                 Menu {
                     Button {
-                        connectionManager.disconnect()
+                        onDisconnect()
                     } label: {
                         Label("Disconnect", systemImage: "arrow.uturn.backward")
                     }
                     Button {
-                        connectionManager.disconnect()
+                        onDisconnect()
                     } label: {
                         Label("Switch Server", systemImage: "server.rack")
                     }
@@ -276,8 +306,7 @@ struct ChatView: View {
             }
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    chatVM.prepareNewSession()
-                    showNewSession = true
+                    onNewSession()
                 } label: {
                     Image(systemName: "plus.circle.fill")
                 }
@@ -287,9 +316,18 @@ struct ChatView: View {
             await chatVM.loadSessions()
         }
     }
+}
+
+private struct ChatDetailContainer: View {
+    let chatVM: ChatViewModel
+    let onShowPermissions: () -> Void
+    let onShowDiffs: () -> Void
+    let onShowQuestion: () -> Void
+    let onShowFileBrowser: () -> Void
+    let onShowTerminal: () -> Void
 
     @ViewBuilder
-    private var detailPane: some View {
+    var body: some View {
         if let session = chatVM.selectedSession {
             MessageListView(
                 session: session,
@@ -313,9 +351,9 @@ struct ChatView: View {
                 todos: chatVM.todos,
                 hasPermission: chatVM.pendingPermissions.contains { $0.sessionID == session.id },
                 hasQuestion: !chatVM.selectedPendingQuestions.isEmpty,
-                onShowPermissions: { showPermissionSheet = true },
-                onShowDiffs: { showDiffView = true },
-                onShowQuestion: { showQuestionSheet = true },
+                onShowPermissions: onShowPermissions,
+                onShowDiffs: onShowDiffs,
+                onShowQuestion: onShowQuestion,
                 hasMoreMessages: chatVM.hasMoreMessages,
                 onLoadMoreMessages: { Task { await chatVM.loadMoreMessages() } },
                 availableModels: chatVM.availableModels,
@@ -336,20 +374,20 @@ struct ChatView: View {
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {
                     Button {
-                        showFileBrowser = true
+                        onShowFileBrowser()
                     } label: {
                         Image(systemName: "folder")
                     }
 
                     Button {
-                        showTerminal = true
+                        onShowTerminal()
                     } label: {
                         Image(systemName: "terminal")
                     }
 
                     if !chatVM.fileDiffs.isEmpty {
                         Button {
-                            showDiffView = true
+                            onShowDiffs()
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "doc.badge.gearshape")
@@ -359,7 +397,7 @@ struct ChatView: View {
                     }
                     if !chatVM.selectedPendingPermissions.isEmpty {
                         Button {
-                            showPermissionSheet = true
+                            onShowPermissions()
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "exclamationmark.shield")
@@ -370,7 +408,7 @@ struct ChatView: View {
                     }
                     if !chatVM.selectedPendingQuestions.isEmpty {
                         Button {
-                            showQuestionSheet = true
+                            onShowQuestion()
                         } label: {
                             HStack(spacing: 4) {
                                 Image(systemName: "questionmark.circle")

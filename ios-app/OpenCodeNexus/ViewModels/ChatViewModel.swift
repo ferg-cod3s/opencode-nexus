@@ -10,6 +10,14 @@ final class ChatViewModel {
     }
     var selectedSessionId: String? {
         didSet {
+            if isRestoringSelectionDuringSend { return }
+            if selectedSessionId == nil && isSending {
+                isRestoringSelectionDuringSend = true
+                selectedSessionId = oldValue
+                isRestoringSelectionDuringSend = false
+                logger.warning("Prevented selectedSessionId from being nilled during active send")
+                return
+            }
             if selectedSessionId != oldValue {
                 saveDraft(for: oldValue)
                 isSending = false
@@ -19,10 +27,12 @@ final class ChatViewModel {
                 fileDiffs = []
                 restoreDraft(for: selectedSessionId)
                 refreshPendingStateForSelectedSession()
-            }
-            if selectedSessionId == nil && isSending {
-                selectedSessionId = oldValue
-                logger.warning("Prevented selectedSessionId from being nilled during active send")
+                let newId = selectedSessionId
+                let staleIds = pendingOptimisticMessages
+                    .filter { $0.value.sessionID != newId }.map(\.key)
+                for id in staleIds {
+                    pendingOptimisticMessages[id] = nil
+                }
             }
         }
     }
@@ -75,12 +85,13 @@ final class ChatViewModel {
     private var sessionPageLimit = 50
     private var messagePageLimit = 50
     private let pageSize = 50
-    private var pendingOptimisticMessages: [String: PendingOptimisticMessage] = [:]
+    var pendingOptimisticMessages: [String: PendingOptimisticMessage] = [:]
     private var draftStore = DraftStore()
     private var drafts: [String: PromptDraft] = [:]
     private var permissionsBySession: [String: [Permission]] = [:]
     private var questionsBySession: [String: [Question]] = [:]
     private var bufferedDeltas: [String: [BufferedDelta]] = [:]
+    private var isRestoringSelectionDuringSend = false
 
     @ObservationIgnored
     private var _cachedGroups: [(name: String, directory: String, sessions: [Session])]?
@@ -315,18 +326,20 @@ final class ChatViewModel {
             await loadProjects()
         }
         let directories = projectDirectories.map(\.path)
+        let sessionLimit = sessionPageLimit
         logger.info("loadSessions: querying \(directories.count) directories: \(directories)")
         if directories.isEmpty {
             logger.warning("loadSessions: no directories to query — projectDirectories returned empty")
         }
+        let directoriesToQuery: [String?] = directories.isEmpty ? [nil] : directories
         let results = await withTaskGroup(of: (label: String, sessions: [Session], error: String?).self, returning: [(label: String, sessions: [Session], error: String?)].self) { group in
-            for directory in directories {
+            for directory in directoriesToQuery {
                 group.addTask {
                     do {
-                        let sessions = try await client.listSessions(directory: directory, roots: true, limit: self.sessionPageLimit)
-                        return (label: directory, sessions: sessions, error: nil)
+                        let sessions = try await client.listSessions(directory: directory, roots: true, limit: sessionLimit)
+                        return (label: directory ?? "default", sessions: sessions, error: nil)
                     } catch {
-                        return (label: directory, sessions: [], error: error.localizedDescription)
+                        return (label: directory ?? "default", sessions: [], error: error.localizedDescription)
                     }
                 }
             }
@@ -347,16 +360,22 @@ final class ChatViewModel {
         if allSessions.isEmpty && failures.count == results.count {
             errorMessage = "Failed to load sessions: \(failures.first ?? "Unknown error")"
         }
-        hasMoreSessions = results.contains { $0.sessions.count >= sessionPageLimit }
+        hasMoreSessions = results.contains { $0.sessions.count >= sessionLimit }
         let afterArchived = allSessions.filter { $0.time.archived == nil }
         logger.info("loadSessions: after archived filter = \(afterArchived.count) (removed \(allSessions.count - afterArchived.count))")
         var seen = Set<String>()
-        let fresh = afterArchived.filter { session in
+        var fresh = afterArchived.filter { session in
             guard !seen.contains(session.id) else { return false }
             seen.insert(session.id)
             return true
         }
         logger.info("loadSessions: after dedup filter = \(fresh.count) (removed \(afterArchived.count - fresh.count))")
+        if isSending,
+           let selectedSessionId,
+           !fresh.contains(where: { $0.id == selectedSessionId }),
+           let selectedSession {
+            fresh.append(selectedSession)
+        }
         sessions = fresh
         if let selectedSessionId, !sessions.contains(where: { $0.id == selectedSessionId }), !isSending {
             self.selectedSessionId = nil
@@ -381,13 +400,14 @@ final class ChatViewModel {
         let sessionsToFetch = sessions.filter { $0.summary == nil }
         guard !sessionsToFetch.isEmpty else { return }
         logger.info("enrichSessionsWithSummary: fetching details for \(sessionsToFetch.count) sessions without summary")
+        let logger = logger
         let updatedSessions = await withTaskGroup(of: Session?.self, returning: [Session].self) { group in
             for session in sessionsToFetch {
                 group.addTask {
                     do {
                         return try await client.getSession(session.id, directory: session.directory)
                     } catch {
-                        self.logger.warning("enrichSessionsWithSummary: failed to fetch \(session.id): \(error.localizedDescription)")
+                        logger.warning("enrichSessionsWithSummary: failed to fetch \(session.id): \(error.localizedDescription)")
                         return nil
                     }
                 }
@@ -610,6 +630,7 @@ final class ChatViewModel {
     }
 
     func sendMessage(attachedParts: [MessagePartBody] = []) async {
+        guard !isSending else { return }
         let partsToSend = attachedParts.isEmpty ? self.attachedParts : attachedParts
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let client, let sessionId = selectedSessionId, !text.isEmpty || !partsToSend.isEmpty else { return }
@@ -657,6 +678,12 @@ final class ChatViewModel {
                 guard let self, self.isSending, self.selectedSessionId == sessionId else { return }
                 self.isSending = false
                 self.isStreamingDeltas = false
+                let stale = self.pendingOptimisticMessages.filter { $0.value.sessionID == sessionId }
+                for (id, _) in stale {
+                    self.messages.removeAll { $0.id == id }
+                    self.pendingOptimisticMessages[id] = nil
+                }
+                self.errorMessage = "Request timed out after 120 seconds"
             }
         } catch {
             messages.removeAll { $0.id == optimisticId }
@@ -900,13 +927,20 @@ final class ChatViewModel {
     }
 
     func reconciledMessages(loaded: [MessageEnvelope], existing: [MessageEnvelope], sessionId: String) -> [MessageEnvelope] {
+        let fiveMinutesAgo = Int64(Date().timeIntervalSince1970 * 1000) - 300_000
+        let expiredIds = pendingOptimisticMessages.filter { $0.value.created < fiveMinutesAgo }.map(\.key)
+        for id in expiredIds {
+            pendingOptimisticMessages[id] = nil
+        }
         let serverIds = Set(loaded.map(\.id))
         for id in pendingOptimisticMessages.keys where serverIds.contains(id) {
             pendingOptimisticMessages[id] = nil
         }
         for pending in pendingOptimisticMessages.values where pending.sessionID == sessionId {
             if loaded.contains(where: { message in
-                message.info.isUser && messageText(message) == pending.text && message.info.time.created >= pending.created - 300_000
+                guard message.info.isUser else { return false }
+                if messageText(message) == pending.text { return true }
+                return abs(message.info.time.created - pending.created) < 60_000
             }) {
                 pendingOptimisticMessages[pending.id] = nil
             }
@@ -927,7 +961,7 @@ final class ChatViewModel {
     func answerQuestion(_ question: Question, answers: [[String]]) async {
         guard let client else { return }
         do {
-            try await client.replyQuestion(question.id, answers: answers)
+            try await client.replyQuestion(question.id, answers: answers, directory: directory(for: question.sessionID))
             removeQuestion(question)
         } catch {
             errorMessage = error.localizedDescription
@@ -937,7 +971,7 @@ final class ChatViewModel {
     func rejectQuestion(_ question: Question) async {
         guard let client else { return }
         do {
-            try await client.rejectQuestion(question.id)
+            try await client.rejectQuestion(question.id, directory: directory(for: question.sessionID))
             removeQuestion(question)
         } catch {
             errorMessage = error.localizedDescription
@@ -955,7 +989,7 @@ final class ChatViewModel {
         mergeQuestions(loadedQuestions.filter { $0.sessionID == sessionId })
     }
 
-    private func mergePermissions(_ permissions: [Permission]) {
+    func mergePermissions(_ permissions: [Permission]) {
         for permission in permissions {
             var list = permissionsBySession[permission.sessionID] ?? []
             if !list.contains(where: { $0.id == permission.id }) {
@@ -966,7 +1000,7 @@ final class ChatViewModel {
         refreshPendingStateForSelectedSession()
     }
 
-    private func mergeQuestions(_ questions: [Question]) {
+    func mergeQuestions(_ questions: [Question]) {
         for question in questions {
             var list = questionsBySession[question.sessionID] ?? []
             if !list.contains(where: { $0.id == question.id }) {
@@ -979,6 +1013,11 @@ final class ChatViewModel {
 
     private func removeQuestion(_ question: Question) {
         questionsBySession[question.sessionID]?.removeAll { $0.id == question.id }
+        refreshPendingStateForSelectedSession()
+    }
+
+    private func removeQuestion(requestID: String, sessionID: String) {
+        questionsBySession[sessionID]?.removeAll { $0.id == requestID }
         refreshPendingStateForSelectedSession()
     }
 
@@ -1121,6 +1160,15 @@ final class ChatViewModel {
                eventSessionID == selectedSessionId {
                 isSending = false
                 isStreamingDeltas = false
+                let stale = pendingOptimisticMessages.filter { $0.value.sessionID == eventSessionID }
+                for (id, _) in stale {
+                    messages.removeAll { $0.id == id }
+                    pendingOptimisticMessages[id] = nil
+                }
+                errorMessage = event.properties?["error"]?.stringValue
+                    ?? event.properties?["message"]?.stringValue
+                    ?? "Session error occurred"
+                Task { await loadMessages() }
             }
 
         case "session.diff":
@@ -1150,6 +1198,13 @@ final class ChatViewModel {
                     questions: items.isEmpty ? [fallbackQuestionInfo(props)] : items
                 )
                 mergeQuestions([question])
+            }
+
+        case "question.replied", "question.rejected":
+            if let props = event.properties,
+               let requestID = props["requestID"]?.stringValue,
+               let sessionID = event.sessionID ?? props["sessionID"]?.stringValue {
+                removeQuestion(requestID: requestID, sessionID: sessionID)
             }
 
         case "todo.updated":
@@ -1275,7 +1330,7 @@ final class ChatViewModel {
     }
 }
 
-private struct PendingOptimisticMessage {
+struct PendingOptimisticMessage {
     let id: String
     let sessionID: String
     let text: String
