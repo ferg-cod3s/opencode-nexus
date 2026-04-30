@@ -34,31 +34,20 @@ final class ConnectionManagerTests: XCTestCase {
         let config = ServerConfig(url: "not a valid url with spaces")
         await manager.connect(to: config)
         XCTAssertFalse(manager.isConnected)
-        if case .failure(let message) = manager.testResult {
-            XCTAssertEqual(message, "Invalid URL")
-        } else {
-            XCTFail("Expected failure result")
-        }
+        let desc = String(describing: manager.testResult)
+        XCTAssertTrue(desc.contains("Invalid URL"), "Expected 'Invalid URL' in \(desc)")
     }
 
     func testConnectAndTestNoServer() async {
         XCTAssertTrue(store.servers.isEmpty)
         await manager.connectAndTest()
-        if case .failure(let message) = manager.testResult {
-            XCTAssertEqual(message, "No server configured")
-        } else {
-            XCTFail("Expected failure")
-        }
+        let desc = String(describing: manager.testResult)
+        XCTAssertTrue(desc.contains("No server configured"), "Expected 'No server configured' in \(desc)")
     }
 
     func testTestConnectionSuccess() async {
         let config = ServerConfig(url: "http://localhost:4096")
-        let result = await manager.testConnection(config)
-        if case .failure = result {
-            // Expected in test env without server
-        } else if case .success = result {
-            // Would succeed if server running
-        }
+        let _ = await manager.testConnection(config)
     }
 
     func testIsConnectingSetDuringConnect() async {

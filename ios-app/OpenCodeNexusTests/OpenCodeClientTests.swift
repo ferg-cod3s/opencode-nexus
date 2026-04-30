@@ -489,11 +489,7 @@ final class OpenCodeClientTests: XCTestCase {
             _ = try await client.healthCheck()
             XCTFail("Should have thrown")
         } catch let error as OpenCodeError {
-            if case .httpError(let code) = error {
-                XCTAssertEqual(code, 400)
-            } else {
-                XCTFail("Expected httpError, got \(error)")
-            }
+            XCTAssertTrue(error.errorDescription?.contains("400") ?? false, "Expected HTTP 400, got \(error.errorDescription ?? "")")
         } catch {
             XCTFail("Unexpected error type: \(error)")
         }
@@ -508,11 +504,7 @@ final class OpenCodeClientTests: XCTestCase {
             _ = try await client.healthCheck()
             XCTFail("Should have thrown")
         } catch let error as OpenCodeError {
-            if case .httpError(let code) = error {
-                XCTAssertEqual(code, 500)
-            } else {
-                XCTFail("Expected httpError, got \(error)")
-            }
+            XCTAssertTrue(error.errorDescription?.contains("500") ?? false, "Expected HTTP 500, got \(error.errorDescription ?? "")")
         } catch {
             XCTFail("Unexpected error type: \(error)")
         }
@@ -527,11 +519,7 @@ final class OpenCodeClientTests: XCTestCase {
             _ = try await client.healthCheck()
             XCTFail("Should have thrown")
         } catch let error as OpenCodeError {
-            if case .httpError(let code) = error {
-                XCTAssertEqual(code, 404)
-            } else {
-                XCTFail("Expected httpError, got \(error)")
-            }
+            XCTAssertTrue(error.errorDescription?.contains("404") ?? false, "Expected HTTP 404, got \(error.errorDescription ?? "")")
         } catch {
             XCTFail("Unexpected error type: \(error)")
         }

@@ -899,15 +899,8 @@ final class ChatViewModelTests: XCTestCase {
     }
 
     private func encodeJSONValue(_ value: JSONValue) -> Any {
-        switch value {
-        case .string(let v): return v
-        case .int(let v): return v
-        case .double(let v): return v
-        case .bool(let v): return v
-        case .null: return NSNull()
-        case .array(let arr): return arr.map(encodeJSONValue)
-        case .object(let dict): return dict.mapValues(encodeJSONValue)
-        }
+        let encoded = try! JSONEncoder().encode(value)
+        return try! JSONSerialization.jsonObject(with: encoded, options: .fragmentsAllowed)
     }
 
     private func makeMessageEnvelope(id: String) -> MessageEnvelope {

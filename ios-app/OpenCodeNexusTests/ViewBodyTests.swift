@@ -5,55 +5,38 @@ import XCTest
 @MainActor
 final class ViewBodyTests: XCTestCase {
 
-    // MARK: - Simple Views (No Environment Dependencies)
-
-    func testMessageBubbleBody() {
-        let message = MessageEnvelope(
-            info: MessageInfo(id: "1", isUser: true, isAssistant: false, agent: nil, modelID: nil,
-                              threadID: nil, invitations: [], cost: nil, tokens: nil,
-                              time: MessageInfo.Time(created: 0, updated: nil, relativeString: ""), error: nil),
-            parts: [MessagePartBody(type: "text", text: "Hello")]
-        )
+    func testMessageBubbleBody() throws {
+        let message = try decodeMessageEnvelope(id: "1", role: "user", text: "Hello")
         let view = MessageBubble(message: message)
         evaluateBody(view)
     }
 
-    func testSessionRowBody() {
-        let session = Session(id: "1", title: "Test", directory: "/test", workspaceName: "W",
-                              created: Date(), updated: Date())
+    func testSessionRowBody() throws {
+        let session = try decodeSession(id: "1", title: "Test")
         let view = SessionRow(session: session)
         evaluateBody(view)
     }
 
-    func testSessionRowWithStatus() {
-        let session = Session(id: "1", title: "Test", directory: "/test", workspaceName: "W",
-                              created: Date(), updated: Date())
-        let view = SessionRow(session: session, status: SessionStatus(status: "busy"),
-                              hasPermission: true, hasQuestion: true)
-        evaluateBody(view)
-    }
-
     func testDiffLineViewBody() {
-        let line = DiffLine(type: .addition, content: "added code", oldLineNumber: nil, newLineNumber: 5)
+        let line = DiffLine(id: 0, type: .addition, content: "added code", oldLineNumber: nil, newLineNumber: 5)
         let view = DiffLineView(line: line)
         evaluateBody(view)
     }
 
     func testDiffLineViewDeletion() {
-        let line = DiffLine(type: .deletion, content: "removed code", oldLineNumber: 3, newLineNumber: nil)
+        let line = DiffLine(id: 1, type: .deletion, content: "removed code", oldLineNumber: 3, newLineNumber: nil)
         let view = DiffLineView(line: line)
         evaluateBody(view)
     }
 
     func testDiffLineViewHeader() {
-        let line = DiffLine(type: .header, content: "@@ -1,3 +1,4 @@", oldLineNumber: 1, newLineNumber: 1)
+        let line = DiffLine(id: 2, type: .header, content: "@@ -1,3 +1,4 @@", oldLineNumber: 1, newLineNumber: 1)
         let view = DiffLineView(line: line)
         evaluateBody(view)
     }
 
-    func testFileDiffViewBody() {
-        let diff = FileDiff(newFile: "test.swift", oldFile: "test.swift", additions: 1, deletions: 0,
-                             changes: [["+ new line"]])
+    func testFileDiffViewBody() throws {
+        let diff = try decodeFileDiff()
         let lines = DiffParser.parse("+ new line")
         let view = FileDiffView(diff: diff, diffLines: lines)
         evaluateBody(view)
@@ -100,36 +83,20 @@ final class ViewBodyTests: XCTestCase {
         evaluateBody(view)
     }
 
-    func testTypingIndicatorBody() {
-        let view = TypingIndicator()
-        evaluateBody(view)
-    }
-
-    // MARK: - Tool Output Views
-
-    func testBashToolViewBody() {
-        let view = BashToolView(input: ["command": .string("ls -la")], output: "file1.txt\nfile2.txt")
-        evaluateBody(view)
-    }
-
-    func testFileReadToolViewBody() {
-        let view = FileReadToolView(input: ["path": .string("/test/file.swift")], output: "let x = 1")
-        evaluateBody(view)
-    }
-
-    func testFileEditToolViewBody() {
-        let view = FileEditToolView(input: ["path": .string("/test/file.swift")])
-        evaluateBody(view)
+    func testToolOutputViews() {
+        let bashView = BashToolView(input: ["command": .string("ls")], output: "out")
+        evaluateBody(bashView)
+        let readView = FileReadToolView(input: ["path": .string("/f")], output: "code")
+        evaluateBody(readView)
+        let editView = FileEditToolView(input: ["path": .string("/f")])
+        evaluateBody(editView)
+        let writeView = WriteToolView(input: ["path": .string("/f")])
+        evaluateBody(writeView)
     }
 
     func testSearchToolViewBody() {
         let view = SearchToolView(input: ["query": .string("func test")], output: "found",
                                    icon: "magnifyingglass", color: .blue)
-        evaluateBody(view)
-    }
-
-    func testWriteToolViewBody() {
-        let view = WriteToolView(input: ["path": .string("/test/new.swift")])
         evaluateBody(view)
     }
 
@@ -149,8 +116,6 @@ final class ViewBodyTests: XCTestCase {
         evaluateBody(view)
     }
 
-    // MARK: - Model/Agent Picker
-
     func testInlineModelPickerBody() {
         @State var selection: ModelRefBody? = nil
         let view = InlineModelPicker(
@@ -162,23 +127,16 @@ final class ViewBodyTests: XCTestCase {
         evaluateBody(view)
     }
 
-    func testInlineAgentPickerBody() {
+    func testInlineAgentPickerBody() throws {
         @State var selection: String? = nil
-        let view = InlineAgentPicker(
-            agents: [AgentInfo(id: "build", name: "Build", description: "Build agent", tools: nil, model: nil)],
-            selection: $selection
-        )
+        let agent = try JSONDecoder().decode(AgentInfo.self, from: Data("{\"name\": \"build\", \"description\": \"Build agent\"}".utf8))
+        let view = InlineAgentPicker(agents: [agent], selection: $selection)
         evaluateBody(view)
     }
 
     func testModelPickerBody() {
         @State var selection: ModelRefBody? = nil
-        let view = ModelPicker(
-            models: [],
-            providers: [],
-            defaults: [:],
-            selection: $selection
-        )
+        let view = ModelPicker(models: [], providers: [], defaults: [:], selection: $selection)
         evaluateBody(view)
     }
 
@@ -187,8 +145,6 @@ final class ViewBodyTests: XCTestCase {
         let view = AgentPicker(agents: [], selection: $selection)
         evaluateBody(view)
     }
-
-    // MARK: - Markdown Utilities
 
     func testMarkdownRendererRender() {
         let segments = MarkdownRenderer.render("Hello **world**\n```\ncode\n```\nMore text")
@@ -215,8 +171,6 @@ final class ViewBodyTests: XCTestCase {
         XCTAssertFalse(result.characters.isEmpty)
     }
 
-    // MARK: - DiffParser Integration
-
     func testDiffParserFullDiff() {
         let diff = """
         --- a/old.swift
@@ -233,5 +187,28 @@ final class ViewBodyTests: XCTestCase {
         XCTAssertTrue(lines.contains(where: { $0.type == .addition }))
         XCTAssertTrue(lines.contains(where: { $0.type == .deletion }))
         XCTAssertTrue(lines.contains(where: { $0.type == .context }))
+    }
+}
+
+private extension ViewBodyTests {
+    func decodeSession(id: String, title: String) throws -> Session {
+        let json = """
+        {"id": "\(id)", "title": "\(title)", "directory": "/test", "time": {"created": 1000}}
+        """
+        return try JSONDecoder().decode(Session.self, from: Data(json.utf8))
+    }
+
+    func decodeMessageEnvelope(id: String, role: String, text: String) throws -> MessageEnvelope {
+        let json = """
+        {"info": {"id": "\(id)", "role": "\(role)", "time": {"created": 1000}}, "parts": [{"type": "text", "text": "\(text)"}]}
+        """
+        return try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+    }
+
+    func decodeFileDiff() throws -> FileDiff {
+        let json = """
+        {"file": "test.swift", "before": "old.swift", "after": "test.swift", "additions": 1, "deletions": 0}
+        """
+        return try JSONDecoder().decode(FileDiff.self, from: Data(json.utf8))
     }
 }

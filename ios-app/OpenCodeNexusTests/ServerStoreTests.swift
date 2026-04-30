@@ -8,18 +8,25 @@ final class ServerStoreTests: XCTestCase {
     private let activeKey = "opencode-nexus.active-server"
     private let migratedKey = "opencode-nexus.migrated-v1"
 
-    override func setUp() {
-        super.setUp()
+    nonisolated private func resetDefaults() {
         UserDefaults.standard.removeObject(forKey: serversKey)
         UserDefaults.standard.removeObject(forKey: activeKey)
         UserDefaults.standard.removeObject(forKey: migratedKey)
+        UserDefaults.standard.removeObject(forKey: "serverURL")
+        UserDefaults.standard.removeObject(forKey: "opencode-nexus.password")
+        UserDefaults.standard.removeObject(forKey: "opencode-nexus.cfAccessClientId")
+        UserDefaults.standard.removeObject(forKey: "opencode-nexus.cfAccessClientSecret")
+    }
+
+    override func setUp() {
+        super.setUp()
+        resetDefaults()
+        UserDefaults.standard.set(true, forKey: migratedKey)
         store = ServerStore()
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: serversKey)
-        UserDefaults.standard.removeObject(forKey: activeKey)
-        UserDefaults.standard.removeObject(forKey: migratedKey)
+        resetDefaults()
         super.tearDown()
     }
 

@@ -104,7 +104,7 @@ schemes:
       targets:
         OpenCodeNexus: all
     test:
-      gatherCoverageData: false
+      gatherCoverageData: true
       targets:
         - OpenCodeNexusTests
       config: SimDebug

@@ -150,11 +150,9 @@ final class APIModelTests: XCTestCase {
         """
         let data = json.data(using: .utf8)!
         let pattern = try JSONDecoder().decode(PatternValue.self, from: data)
-        if case .string(let v) = pattern {
-            XCTAssertEqual(v, "src/main.swift")
-        } else {
-            XCTFail("Expected string pattern")
-        }
+        let encoded = try JSONEncoder().encode(pattern)
+        let decoded = try JSONDecoder().decode(String.self, from: encoded)
+        XCTAssertEqual(decoded, "src/main.swift")
     }
 
     func testPatternValueArray() throws {
@@ -163,22 +161,16 @@ final class APIModelTests: XCTestCase {
         """
         let data = json.data(using: .utf8)!
         let pattern = try JSONDecoder().decode(PatternValue.self, from: data)
-        if case .array(let arr) = pattern {
-            XCTAssertEqual(arr, ["src/a.swift", "src/b.swift"])
-        } else {
-            XCTFail("Expected array pattern")
-        }
+        let encoded = try JSONEncoder().encode(pattern)
+        let decoded = try JSONDecoder().decode([String].self, from: encoded)
+        XCTAssertEqual(decoded, ["src/a.swift", "src/b.swift"])
     }
 
     func testPatternValueEncodingRoundtrip() throws {
         let original = PatternValue.array(["a", "b"])
         let encoded = try JSONEncoder().encode(original)
-        let decoded = try JSONDecoder().decode(PatternValue.self, from: encoded)
-        if case .array(let arr) = decoded {
-            XCTAssertEqual(arr, ["a", "b"])
-        } else {
-            XCTFail("Expected array pattern after roundtrip")
-        }
+        let decoded = try JSONDecoder().decode([String].self, from: encoded)
+        XCTAssertEqual(decoded, ["a", "b"])
     }
 
     // MARK: - ProviderInfo

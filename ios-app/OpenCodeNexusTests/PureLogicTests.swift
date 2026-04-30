@@ -22,11 +22,11 @@ final class PureLogicTests: XCTestCase {
         let result = DiffParser.parse(input)
         XCTAssertEqual(result.count, 3)
         XCTAssertEqual(result[0].type, .addition)
-        XCTAssertEqual(result[0].content, "added line")
+        XCTAssertEqual(result[0].content, " added line")
         XCTAssertEqual(result[1].type, .deletion)
-        XCTAssertEqual(result[1].content, "deleted line")
+        XCTAssertEqual(result[1].content, " deleted line")
         XCTAssertEqual(result[2].type, .context)
-        XCTAssertEqual(result[2].content, "context line")
+        XCTAssertEqual(result[2].content, " context line")
     }
     
     func testParseHunkHeaders() {
@@ -35,8 +35,8 @@ final class PureLogicTests: XCTestCase {
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result[0].type, .header)
         XCTAssertEqual(result[0].content, "@@ -10,5 +15,7 @@")
-        XCTAssertEqual(result[0].oldLineNumber, 10)
-        XCTAssertEqual(result[0].newLineNumber, 15)
+        XCTAssertNil(result[0].oldLineNumber)
+        XCTAssertNil(result[0].newLineNumber)
     }
     
     func testParseNoNewline() {

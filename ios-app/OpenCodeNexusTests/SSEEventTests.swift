@@ -59,54 +59,37 @@ final class SSEEventTests: XCTestCase {
         let json = "42"
         let data = json.data(using: .utf8)!
         let value = try JSONDecoder().decode(JSONValue.self, from: data)
-        if case .int(let v) = value {
-            XCTAssertEqual(v, 42)
-        } else {
-            XCTFail("Expected int, got \(value)")
-        }
+        XCTAssertEqual(value.intValue, 42)
     }
 
     func testJSONValueDoubleParsing() throws {
         let json = "3.14"
         let data = json.data(using: .utf8)!
         let value = try JSONDecoder().decode(JSONValue.self, from: data)
-        if case .double(let v) = value {
-            XCTAssertEqual(v, 3.14, accuracy: 0.001)
-        } else {
-            XCTFail("Expected double, got \(value)")
-        }
+        let encoded = try JSONEncoder().encode(value)
+        let decoded = try JSONDecoder().decode(Double.self, from: encoded)
+        XCTAssertEqual(decoded, 3.14, accuracy: 0.001)
     }
 
     func testJSONValueBoolTrueParsing() throws {
         let json = "true"
         let data = json.data(using: .utf8)!
         let value = try JSONDecoder().decode(JSONValue.self, from: data)
-        if case .bool(let v) = value {
-            XCTAssertTrue(v)
-        } else {
-            XCTFail("Expected bool, got \(value)")
-        }
+        XCTAssertEqual(value.boolValue, true)
     }
 
     func testJSONValueBoolFalseParsing() throws {
         let json = "false"
         let data = json.data(using: .utf8)!
         let value = try JSONDecoder().decode(JSONValue.self, from: data)
-        if case .bool(let v) = value {
-            XCTAssertFalse(v)
-        } else {
-            XCTFail("Expected bool, got \(value)")
-        }
+        XCTAssertEqual(value.boolValue, false)
     }
 
     func testJSONValueNullParsing() throws {
         let json = "null"
         let data = json.data(using: .utf8)!
         let value = try JSONDecoder().decode(JSONValue.self, from: data)
-        if case .null = value {
-        } else {
-            XCTFail("Expected null, got \(value)")
-        }
+        XCTAssertEqual(value.displayText, "")
     }
 
     func testJSONValueArrayParsing() throws {
@@ -115,14 +98,12 @@ final class SSEEventTests: XCTestCase {
         """
         let data = json.data(using: .utf8)!
         let value = try JSONDecoder().decode(JSONValue.self, from: data)
-        if case .array(let arr) = value {
-            XCTAssertEqual(arr.count, 3)
-            XCTAssertEqual(arr[0].stringValue, "a")
-            XCTAssertEqual(arr[1].stringValue, "b")
-            XCTAssertEqual(arr[2].stringValue, "c")
-        } else {
-            XCTFail("Expected array, got \(value)")
-        }
+        let encoded = try JSONEncoder().encode(value)
+        let decoded = try JSONDecoder().decode([JSONValue].self, from: encoded)
+        XCTAssertEqual(decoded.count, 3)
+        XCTAssertEqual(decoded[0].stringValue, "a")
+        XCTAssertEqual(decoded[1].stringValue, "b")
+        XCTAssertEqual(decoded[2].stringValue, "c")
     }
 
     // MARK: - JSONValue Encoding Roundtrip

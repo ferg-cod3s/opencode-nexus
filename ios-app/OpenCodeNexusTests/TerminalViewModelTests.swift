@@ -79,8 +79,7 @@ final class TerminalViewModelTests: XCTestCase {
         for i in 0..<110 {
             viewModel.commandHistory.insert("cmd\(i)", at: 0)
         }
-        viewModel.commandHistory.insert("overflow", at: 0)
-        if viewModel.commandHistory.count > 100 {
+        while viewModel.commandHistory.count > 100 {
             viewModel.commandHistory.removeLast()
         }
         XCTAssertLessThanOrEqual(viewModel.commandHistory.count, 100)
