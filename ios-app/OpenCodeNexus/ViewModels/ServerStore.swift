@@ -58,7 +58,7 @@ final class ServerStore {
         if activeServerId == id {
             activeServerId = servers.first?.id
         }
-        if removed.isDefault, let first = servers.first {
+        if removed.isDefault, !servers.isEmpty {
             servers[0].isDefault = true
         }
         save()

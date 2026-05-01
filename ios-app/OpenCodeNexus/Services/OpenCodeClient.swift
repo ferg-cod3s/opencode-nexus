@@ -52,18 +52,14 @@ final class OpenCodeClient: @unchecked Sendable {
             url = url.appending(queryItems: query)
         }
         var request = URLRequest(url: url)
+        request.httpMethod = "GET"
         addAuthHeaders(to: &request)
         let (data, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, data: data)
         if data.isEmpty, T.self == Bool.self {
             return true as! T
         }
-        do {
-            return try JSONDecoder().decode(T.self, from: data)
-        } catch {
-            logger.error("Decoding failed for \(path): \(error)")
-            throw OpenCodeError.decodingError(String(describing: error))
-        }
+        return try JSONDecoder().decode(T.self, from: data)
     }
 
     private func post<T: Decodable, B: Encodable>(_ path: String, body: B, query: [URLQueryItem] = []) async throws -> T {
@@ -77,7 +73,7 @@ final class OpenCodeClient: @unchecked Sendable {
         addAuthHeaders(to: &request)
         request.httpBody = try JSONEncoder().encode(body)
         let (data, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, data: data)
         if data.isEmpty, T.self == Bool.self {
             return true as! T
         }
@@ -100,7 +96,7 @@ final class OpenCodeClient: @unchecked Sendable {
         addAuthHeaders(to: &request)
         request.httpBody = try JSONEncoder().encode(body)
         let (_, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, data: nil)
     }
 
     private func putVoid(_ path: String, body: some Encodable, query: [URLQueryItem] = []) async throws {
@@ -114,7 +110,7 @@ final class OpenCodeClient: @unchecked Sendable {
         addAuthHeaders(to: &request)
         request.httpBody = try JSONEncoder().encode(body)
         let (_, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, data: nil)
     }
 
     private func postEmpty(_ path: String, query: [URLQueryItem] = []) async throws {
@@ -126,7 +122,7 @@ final class OpenCodeClient: @unchecked Sendable {
         request.httpMethod = "POST"
         addAuthHeaders(to: &request)
         let (_, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, data: nil)
     }
 
     private func patch<T: Decodable, B: Encodable>(_ path: String, body: B, query: [URLQueryItem] = []) async throws -> T {
@@ -140,7 +136,7 @@ final class OpenCodeClient: @unchecked Sendable {
         addAuthHeaders(to: &request)
         request.httpBody = try JSONEncoder().encode(body)
         let (data, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, data: data)
         if data.isEmpty, T.self == Bool.self {
             return true as! T
         }
@@ -156,7 +152,7 @@ final class OpenCodeClient: @unchecked Sendable {
         request.httpMethod = "DELETE"
         addAuthHeaders(to: &request)
         let (data, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, data: data)
         if data.isEmpty, T.self == Bool.self {
             return true as! T
         }
@@ -295,7 +291,7 @@ final class OpenCodeClient: @unchecked Sendable {
         addAuthHeaders(to: &request)
         request.httpBody = try JSONEncoder().encode(SendMessageBody(messageID: messageID, parts: messageParts, model: model, agent: agent))
         let (_, response) = try await session.data(for: request)
-        try validateResponse(response)
+        try validateResponse(response, data: nil)
     }
 
     func sendCommand(sessionId: String, command: String, arguments: String = "", model: ModelRefBody? = nil, agent: String? = nil, directory: String? = nil) async throws -> MessageEnvelope {
@@ -473,15 +469,35 @@ final class OpenCodeClient: @unchecked Sendable {
                         throw OpenCodeError.invalidResponse
                     }
                     clientLogger.info("SSE: stream connected")
+                    var parser = SSEParser()
                     for try await line in bytes.lines {
                         guard !Task.isCancelled else { break }
-                        if line.hasPrefix("data: ") {
-                            let jsonString = String(line.dropFirst(6))
-                            if let jsonData = jsonString.data(using: .utf8),
-                                let event = try? JSONDecoder().decode(SSEEvent.self, from: jsonData) {
-                                continuation.yield(event)
+                        switch parser.processLine(line) {
+                        case .event(let event):
+                            if event.type == "done" {
+                                clientLogger.info("SSE: received done event")
+                                continuation.finish()
+                                return
                             }
+                            continuation.yield(event)
+                        case .malformed(let data):
+                            clientLogger.warning("SSE: malformed event, data: \(data.prefix(200))")
+                        case .none:
+                            break
                         }
+                    }
+                    // Flush any remaining buffered event
+                    switch parser.flush() {
+                    case .event(let event):
+                        if event.type == "done" {
+                            clientLogger.info("SSE: received done event at stream end")
+                        } else {
+                            continuation.yield(event)
+                        }
+                    case .malformed(let data):
+                        clientLogger.warning("SSE: malformed event at stream end, data: \(data.prefix(200))")
+                    case .none:
+                        break
                     }
                     clientLogger.info("SSE: stream ended")
                     continuation.finish()
@@ -498,13 +514,14 @@ final class OpenCodeClient: @unchecked Sendable {
 
     // MARK: - Validation
 
-    private func validateResponse(_ response: URLResponse) throws {
+    private func validateResponse(_ response: URLResponse, data: Data? = nil) throws {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw OpenCodeError.invalidResponse
         }
         guard (200...299).contains(httpResponse.statusCode) else {
             logger.error("HTTP \(httpResponse.statusCode) for \(response.url?.path ?? "unknown")")
-            throw OpenCodeError.httpError(httpResponse.statusCode)
+            let bodySnippet = data.flatMap { String(data: $0.prefix(512), encoding: .utf8) }
+            throw OpenCodeError.httpError(httpResponse.statusCode, bodySnippet)
         }
     }
 }
@@ -614,14 +631,19 @@ private struct PtySize: Encodable {
 
 enum OpenCodeError: LocalizedError {
     case invalidResponse
-    case httpError(Int)
+    case httpError(Int, String?)
     case decodingError(String)
 
     var errorDescription: String? {
         switch self {
-        case .invalidResponse: "Invalid server response"
-        case .httpError(let code): "Server error (HTTP \(code))"
-        case .decodingError(let detail): "Failed to parse response: \(detail)"
+        case .invalidResponse: return "Invalid server response"
+        case .httpError(let code, let bodySnippet):
+            if let snippet = bodySnippet {
+                return "Server error (HTTP \(code)): \(snippet)"
+            } else {
+                return "Server error (HTTP \(code))"
+            }
+        case .decodingError(let detail): return "Failed to parse response: \(detail)"
         }
     }
 }

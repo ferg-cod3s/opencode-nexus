@@ -70,6 +70,7 @@ struct MessageInputView: View {
                                         .font(.caption2)
                                         .foregroundStyle(Theme.textBase)
                                 }
+                                .accessibilityLabel("Remove attachment")
                             }
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -94,6 +95,7 @@ struct MessageInputView: View {
                         } label: {
                             autocompleteItem(title: "/\(cmd.name)", description: cmd.description)
                         }
+                        .accessibilityLabel("Command: \(cmd.name)")
                     }
                 }
             } else if !filteredAgents.isEmpty {
@@ -107,6 +109,7 @@ struct MessageInputView: View {
                                     .font(.caption2)
                             }
                         }
+                        .accessibilityLabel("Agent: \(agent.name)")
                     }
                 }
             }
@@ -153,6 +156,7 @@ struct MessageInputView: View {
                 .foregroundStyle(Theme.textBase)
                 .frame(minWidth: 44, minHeight: 44)
         }
+        .accessibilityLabel("Attach file or photo")
         .onChange(of: selectedPhotoItem) {
             Task {
                 guard let item = selectedPhotoItem else { return }
@@ -214,6 +218,7 @@ struct MessageInputView: View {
         .glassEffect(.regular.interactive(), in: .circle)
         .disabled(!isSending && !canSend)
         .frame(minWidth: 44, minHeight: 44)
+        .accessibilityLabel(isSending ? "Abort message" : "Send message")
     }
 
     private var canSend: Bool {
