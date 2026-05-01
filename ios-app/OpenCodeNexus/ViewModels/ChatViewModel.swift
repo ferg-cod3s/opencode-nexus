@@ -1116,6 +1116,16 @@ final class ChatViewModel {
             logger.info("SSE: message.part.delta for session \(eventSessionID), message \(event.messageID ?? "nil")")
             applyDelta(event)
 
+        case "message.created":
+            guard let eventSessionID = event.sessionID,
+                  eventSessionID == selectedSessionId else { return }
+            if let messageData = event.properties?["message"],
+               let data = try? JSONEncoder().encode(messageData),
+               let envelope = try? JSONDecoder().decode(MessageEnvelope.self, from: data) {
+                messages.append(envelope)
+                isSending = false
+            }
+
         case "message.updated", "message.part.updated":
             guard let eventSessionID = event.sessionID,
                   eventSessionID == selectedSessionId else { return }
@@ -1171,15 +1181,29 @@ final class ChatViewModel {
                     messages.removeAll { $0.id == id }
                     pendingOptimisticMessages[id] = nil
                 }
-                errorMessage = event.properties?["error"]?.stringValue
-                    ?? event.properties?["message"]?.stringValue
-                    ?? "Session error occurred"
+                if let errorString = event.properties?["error"]?.stringValue {
+                    errorMessage = errorString
+                } else if let errorObj = event.properties?["error"]?.objectValue,
+                          let msg = errorObj["message"]?.stringValue {
+                    errorMessage = msg
+                } else if let messageString = event.properties?["message"]?.stringValue {
+                    errorMessage = messageString
+                } else {
+                    errorMessage = "Session error occurred"
+                }
                 Task { await loadMessages() }
             }
 
         case "session.diff":
             if event.sessionID == selectedSessionId {
                 Task { await loadSessionDiffs() }
+            }
+
+        case "tui.request":
+            if let props = event.properties,
+               let data = try? JSONEncoder().encode(props),
+               let req = try? JSONDecoder().decode(TUIControlRequest.self, from: data) {
+                nextTUIRequest = req
             }
 
         case "permission.asked":

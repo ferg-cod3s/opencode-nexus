@@ -22,7 +22,10 @@ struct MarkdownRenderer {
             }
 
             let language = match.output.1.isEmpty ? nil : String(match.output.1)
-            let source = String(match.output.2)
+            var source = String(match.output.2)
+            if source.hasSuffix("\n") {
+                source.removeLast()
+            }
             segments.append(.codeBlock(language: language, source: source))
             currentIndex = match.range.upperBound
         }

@@ -223,7 +223,7 @@ struct SearchToolView: View {
         }
     }
 
-    private func parseResults(_ output: String) -> [ToolSearchResult] {
+    func parseResults(_ output: String) -> [ToolSearchResult] {
         output.components(separatedBy: "\n").compactMap { line in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             guard !trimmed.isEmpty else { return nil }

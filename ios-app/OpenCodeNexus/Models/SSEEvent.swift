@@ -11,6 +11,22 @@ struct SSEEvent: Decodable, Sendable, Equatable {
     var messageID: String? {
         properties?["messageID"]?.stringValue
     }
+
+    init(type: String, properties: [String: JSONValue]?) {
+        self.type = type
+        self.properties = properties
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        type = try container.decode(String.self, forKey: .type)
+        properties = try container.decodeIfPresent([String: JSONValue].self, forKey: .properties)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case type
+        case properties
+    }
 }
 
 enum JSONValue: Codable, Sendable, Equatable {

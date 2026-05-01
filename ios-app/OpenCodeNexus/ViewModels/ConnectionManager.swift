@@ -19,8 +19,11 @@ final class ConnectionManager {
         case failure(String)
     }
 
-    init(serverStore: ServerStore) {
+    var urlSessionConfiguration: URLSessionConfiguration?
+
+    init(serverStore: ServerStore, urlSessionConfiguration: URLSessionConfiguration? = nil) {
         self.serverStore = serverStore
+        self.urlSessionConfiguration = urlSessionConfiguration
     }
 
     func connect(to config: ServerConfig) async {
@@ -146,7 +149,8 @@ final class ConnectionManager {
             cfAccessClientId: secrets.cfClientId,
             cfAccessClientSecret: secrets.cfClientSecret,
             username: config.username,
-            password: secrets.password
+            password: secrets.password,
+            configuration: urlSessionConfiguration ?? .default
         )
     }
 

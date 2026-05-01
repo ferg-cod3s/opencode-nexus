@@ -370,6 +370,139 @@ final class APIModelTests: XCTestCase {
         XCTAssertEqual(cmd.description, "Edit a file")
     }
 
+    // MARK: - Permission
+
+    func testPermissionDecodingMinimal() throws {
+        let json = """
+        {"id":"perm1","sessionID":"sess1","messageID":"msg1","title":"Test Permission","time":{"created":1000}}
+        """
+        let perm = try JSONDecoder().decode(Permission.self, from: Data(json.utf8))
+        XCTAssertEqual(perm.id, "perm1")
+        XCTAssertEqual(perm.type, "permission")
+        XCTAssertNil(perm.pattern)
+    }
+
+    func testPermissionDecodingWithPattern() throws {
+        let json = """
+        {"id":"perm1","sessionID":"sess1","messageID":"msg1","type":"write","pattern":"*.swift","title":"Write Permission","time":{"created":1000}}
+        """
+        let perm = try JSONDecoder().decode(Permission.self, from: Data(json.utf8))
+        XCTAssertEqual(perm.type, "write")
+        if case .string(let val) = perm.pattern {
+            XCTAssertEqual(val, "*.swift")
+        } else {
+            XCTFail("Expected string pattern")
+        }
+    }
+
+    func testPermissionDecodingWithPatternsArray() throws {
+        let json = """
+        {"id":"perm1","sessionID":"sess1","messageID":"msg1","type":"write","patterns":["*.swift","*.md"],"title":"Write Permission","time":{"created":1000}}
+        """
+        let perm = try JSONDecoder().decode(Permission.self, from: Data(json.utf8))
+        if case .array(let arr) = perm.pattern {
+            XCTAssertEqual(arr, ["*.swift", "*.md"])
+        } else {
+            XCTFail("Expected array pattern")
+        }
+    }
+
+    func testPermissionEncoding() throws {
+        let json = """
+        {"id":"perm1","sessionID":"sess1","messageID":"msg1","type":"write","pattern":"*.swift","title":"Write Permission","time":{"created":1000}}
+        """
+        let perm = try JSONDecoder().decode(Permission.self, from: Data(json.utf8))
+        let data = try JSONEncoder().encode(perm)
+        let decoded = try JSONDecoder().decode(Permission.self, from: data)
+        XCTAssertEqual(decoded.id, "perm1")
+    }
+
+    // MARK: - QuestionInfo & QuestionOption
+
+    func testQuestionInfoDecoding() throws {
+        let json = """
+        {"question":"What is your name?","header":"Name","options":[{"label":"John","description":"John Doe"}],"multiple":false,"custom":false}
+        """
+        let info = try JSONDecoder().decode(QuestionInfo.self, from: Data(json.utf8))
+        XCTAssertEqual(info.question, "What is your name?")
+        XCTAssertEqual(info.header, "Name")
+        XCTAssertEqual(info.options.count, 1)
+        XCTAssertEqual(info.options.first?.label, "John")
+        XCTAssertFalse(info.multiple)
+        XCTAssertFalse(info.custom)
+    }
+
+    func testQuestionInfoDecodingWithDefaults() throws {
+        let json = """
+        {"question":"What?"}
+        """
+        let info = try JSONDecoder().decode(QuestionInfo.self, from: Data(json.utf8))
+        XCTAssertEqual(info.question, "What?")
+        XCTAssertEqual(info.header, "Question")
+        XCTAssertTrue(info.options.isEmpty)
+        XCTAssertFalse(info.multiple)
+        XCTAssertTrue(info.custom)
+    }
+
+    func testQuestionOptionDecoding() throws {
+        let json = """
+        {"label":"Yes","description":"Confirm"}
+        """
+        let opt = try JSONDecoder().decode(QuestionOption.self, from: Data(json.utf8))
+        XCTAssertEqual(opt.label, "Yes")
+        XCTAssertEqual(opt.description, "Confirm")
+    }
+
+    func testQuestionInfoEncoding() throws {
+        let info = QuestionInfo(
+            question: "Q", header: "H",
+            options: [QuestionOption(label: "A", description: "B")],
+            multiple: true, custom: false
+        )
+        let data = try JSONEncoder().encode(info)
+        let decoded = try JSONDecoder().decode(QuestionInfo.self, from: data)
+        XCTAssertEqual(decoded.question, "Q")
+        XCTAssertTrue(decoded.multiple)
+    }
+
+    // MARK: - SearchResult
+
+    func testSearchResultDecodingMinimal() throws {
+        let json = """
+        {"path":"test.swift","line":42,"text":"func test()"}
+        """
+        let result = try JSONDecoder().decode(SearchResult.self, from: Data(json.utf8))
+        XCTAssertEqual(result.path, "test.swift")
+        XCTAssertEqual(result.line, 42)
+        XCTAssertEqual(result.text, "func test()")
+    }
+
+    func testSearchResultDecodingWithTextObject() throws {
+        let json = """
+        {"path":"test.swift","line":42,"text":{"text":"func test()"}}
+        """
+        let result = try JSONDecoder().decode(SearchResult.self, from: Data(json.utf8))
+        XCTAssertEqual(result.text, "func test()")
+    }
+
+    func testSearchResultEncoding() throws {
+        let result = SearchResult(path: "a.swift", line: 1, text: "code")
+        let data = try JSONEncoder().encode(result)
+        let decoded = try JSONDecoder().decode(SearchResult.self, from: data)
+        XCTAssertEqual(decoded.path, "a.swift")
+    }
+
+    // MARK: - TUIControlRequest
+
+    func testTUIControlRequestDecoding() throws {
+        let json = """
+        {"path":"/test","body":{"key":"value"}}
+        """
+        let req = try JSONDecoder().decode(TUIControlRequest.self, from: Data(json.utf8))
+        XCTAssertEqual(req.path, "/test")
+        XCTAssertEqual(req.id, "/test")
+    }
+
     // MARK: - Helpers
 
     private func makeProject(worktree: String) throws -> Project {

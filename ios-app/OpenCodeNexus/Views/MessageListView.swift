@@ -152,14 +152,14 @@ struct MessageListView: View {
         }
     }
 
-    private struct TUIQuestion {
+    struct TUIQuestion {
         let header: String
         let question: String
         let options: [(label: String, description: String)]
         let multiple: Bool
     }
 
-    private func extractQuestions(from body: JSONValue) -> [TUIQuestion] {
+    func extractQuestions(from body: JSONValue) -> [TUIQuestion] {
         guard case .object(let obj) = body else { return [] }
         let questionsArray: [JSONValue]?
         if case .array(let arr) = obj["questions"] {
@@ -187,7 +187,7 @@ struct MessageListView: View {
         }
     }
 
-    private func buildResponse(for question: TUIQuestion, selected: String) -> [String: JSONValue] {
+    func buildResponse(for question: TUIQuestion, selected: String) -> [String: JSONValue] {
         let answers: [JSONValue] = question.multiple
             ? [.array([.string(selected)])]
             : [.array([.string(selected)])]

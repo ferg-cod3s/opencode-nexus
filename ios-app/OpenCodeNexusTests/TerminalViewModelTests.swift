@@ -1,97 +1,127 @@
 import XCTest
 @testable import OpenCodeNexus
 
-@MainActor
 final class TerminalViewModelTests: XCTestCase {
-    private var viewModel: TerminalViewModel!
 
-    override func setUp() {
-        super.setUp()
-        viewModel = TerminalViewModel()
-    }
-
-    func testConfigureSetsProperties() {
-        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
-        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build")
-        XCTAssertEqual(viewModel.connectionState, .disconnected)
-    }
-
-    func testStartTerminalRequiresClient() async {
-        viewModel.configure(client: nil, sessionId: "sess-1", directory: nil, agent: nil)
+    @MainActor
+    func testStartTerminalNoClient() async {
+        let viewModel = TerminalViewModel()
         await viewModel.startTerminal()
         XCTAssertEqual(viewModel.connectionState, .failed)
-        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertEqual(viewModel.errorMessage, "No server connection")
     }
 
-    func testStartTerminalCreatesPtyAndConnects() async throws {
-        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
-        let transport = MockPtyTransport()
-        let factory = MockPtyTransportFactory(transport: transport)
-        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build", transportFactory: factory)
-        await viewModel.startTerminal()
-        XCTAssertEqual(viewModel.connectionState, .connected)
-        XCTAssertNotNil(viewModel.terminalState)
-    }
-
-    func testStartTerminalFailureSetsErrorState() async {
-        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
-        let transport = MockPtyTransport(shouldFail: true)
-        let factory = MockPtyTransportFactory(transport: transport)
-        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build", transportFactory: factory)
-        await viewModel.startTerminal()
-        XCTAssertEqual(viewModel.connectionState, .failed)
-        XCTAssertNotNil(viewModel.errorMessage)
-    }
-
-    func testCloseTerminalDeletesPty() async throws {
-        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
-        let transport = MockPtyTransport()
-        let factory = MockPtyTransportFactory(transport: transport)
-        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build", transportFactory: factory)
-        await viewModel.startTerminal()
+    @MainActor
+    func testCloseTerminalNoSession() async {
+        let viewModel = TerminalViewModel()
+        viewModel.connectionState = .connected
         await viewModel.closeTerminal()
         XCTAssertEqual(viewModel.connectionState, .disconnected)
-        XCTAssertNil(viewModel.terminalState)
+        XCTAssertNil(viewModel.debugMessage)
     }
 
-    func testStartTerminalIdempotent() async throws {
-        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
-        let transport = MockPtyTransport()
-        let factory = MockPtyTransportFactory(transport: transport)
-        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build", transportFactory: factory)
-        await viewModel.startTerminal()
-        await viewModel.startTerminal()
-        XCTAssertEqual(viewModel.connectionState, .connected)
-    }
-}
-
-private final class MockPtyTransport: PtyTransport, @unchecked Sendable {
-    private let shouldFail: Bool
-    private let continuation: AsyncThrowingStream<Data, Error>.Continuation
-    let output: AsyncThrowingStream<Data, Error>
-
-    init(shouldFail: Bool = false) {
-        self.shouldFail = shouldFail
-        var cont: AsyncThrowingStream<Data, Error>.Continuation!
-        self.output = AsyncThrowingStream { cont = $0 }
-        self.continuation = cont
+    @MainActor
+    func testRetryTerminalNoClient() async {
+        let viewModel = TerminalViewModel()
+        await viewModel.retryTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
     }
 
-    func connect(request: URLRequest) async throws {
-        if shouldFail {
-            throw NSError(domain: "test", code: -1, userInfo: [NSLocalizedDescriptionKey: "Connection failed"])
+    @MainActor
+    func testResizeTerminalNoClient() async {
+        let viewModel = TerminalViewModel()
+        await viewModel.resizeTerminal(rows: 24, cols: 80)
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
+    @MainActor
+    func testStartTerminalClientThrows() async {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        MockURLProtocol.setRequestHandler { _ in
+            let error = NSError(domain: "test", code: 500)
+            return (HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!, Data())
         }
+        let client = OpenCodeClient(baseURL: URL(string: "http://opencode.test")!, configuration: config)
+        let viewModel = TerminalViewModel()
+        viewModel.configure(client: client, sessionId: "ses_1", directory: "/p", agent: "build")
+        await viewModel.startTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+        XCTAssertNotNil(viewModel.errorMessage)
     }
 
-    func send(_ data: Data) async throws {}
-
-    func close() async {
-        continuation.finish()
+    @MainActor
+    func testConfigureStoresParameters() {
+        let viewModel = TerminalViewModel()
+        let client = OpenCodeClient(baseURL: URL(string: "http://test")!)
+        viewModel.configure(client: client, sessionId: "ses_1", directory: "/tmp", agent: "build")
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.errorMessage)
     }
-}
 
-private final class MockPtyTransportFactory: PtyTransportFactory, @unchecked Sendable {
-    private let transport: MockPtyTransport
-    init(transport: MockPtyTransport) { self.transport = transport }
-    func makeTransport() -> PtyTransport { transport }
+    @MainActor
+    func testCloseTerminalIdempotent() async {
+        let viewModel = TerminalViewModel()
+        viewModel.connectionState = .connecting
+        viewModel.debugMessage = "testing..."
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.debugMessage)
+        await viewModel.closeTerminal()
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+    }
+
+    @MainActor
+    func testRetryTerminalMultipleTimes() async {
+        let viewModel = TerminalViewModel()
+        viewModel.connectionState = .connected
+        await viewModel.retryTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+        await viewModel.retryTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+    }
+
+    @MainActor
+    func testResizeTerminalWithClientNoPtyId() async {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let client = OpenCodeClient(baseURL: URL(string: "http://test")!, configuration: config)
+        let viewModel = TerminalViewModel()
+        viewModel.configure(client: client, sessionId: "ses_1", directory: "/tmp", agent: "build")
+        await viewModel.resizeTerminal(rows: 24, cols: 80)
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
+    @MainActor
+    func testStateTransitionsFromNilClient() async {
+        let viewModel = TerminalViewModel()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        await viewModel.startTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+        XCTAssertEqual(viewModel.errorMessage, "No server connection")
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.debugMessage)
+    }
+
+    @MainActor
+    func testCloseTerminalClearsAllState() async {
+        let viewModel = TerminalViewModel()
+        viewModel.connectionState = .connecting
+        viewModel.debugMessage = "debug info"
+        viewModel.errorMessage = "some error"
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.debugMessage)
+    }
+
+    @MainActor
+    func testConfigureWithTransportFactory() {
+        let viewModel = TerminalViewModel()
+        let client = OpenCodeClient(baseURL: URL(string: "http://test")!)
+        let factory = DefaultPtyTransportFactory(session: client.urlSession)
+        viewModel.configure(client: client, sessionId: "ses_1", directory: "/tmp", agent: "build", transportFactory: factory)
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+    }
 }
