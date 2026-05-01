@@ -11,6 +11,7 @@ final class ConnectionManager {
     var testResult: TestResult?
 
     private(set) var client: OpenCodeClient?
+    private var connectTask: Task<Void, Never>?
     private var healthPollTask: Task<Void, Never>?
 
     enum TestResult {
@@ -23,34 +24,53 @@ final class ConnectionManager {
     }
 
     func connect(to config: ServerConfig) async {
-        isConnecting = true
-        testResult = nil
+        connectTask?.cancel()
+        let task = Task {
+            isConnecting = true
+            testResult = nil
 
-        guard let url = resolveURL(config.url) else {
-            testResult = .failure("Invalid URL")
-            isConnecting = false
-            return
-        }
+            guard !Task.isCancelled else {
+                isConnecting = false
+                return
+            }
 
-        let testClient = makeClient(for: config, url: url)
-        do {
-            let health = try await testClient.healthCheck()
-            if health.healthy {
-                client = testClient
-                testResult = .success(version: health.version)
-                isConnected = true
-                serverStore.setActive(id: config.id)
-                serverStore.updateHealth(id: config.id, healthy: true)
-                startHealthPolling()
-            } else {
-                testResult = .failure("Server reports unhealthy status")
+            guard let url = resolveURL(config.url) else {
+                testResult = .failure("Invalid URL")
+                isConnecting = false
+                return
+            }
+
+            let testClient = makeClient(for: config, url: url)
+            do {
+                let health = try await testClient.healthCheck()
+                guard !Task.isCancelled else {
+                    isConnecting = false
+                    return
+                }
+                if health.healthy {
+                    client = testClient
+                    testResult = .success(version: health.version)
+                    isConnected = true
+                    serverStore.setActive(id: config.id)
+                    serverStore.updateHealth(id: config.id, healthy: true)
+                    startHealthPolling()
+                } else {
+                    testResult = .failure("Server reports unhealthy status")
+                    serverStore.updateHealth(id: config.id, healthy: false)
+                }
+            } catch {
+                guard !Task.isCancelled else {
+                    isConnecting = false
+                    return
+                }
+                testResult = .failure(error.localizedDescription)
                 serverStore.updateHealth(id: config.id, healthy: false)
             }
-        } catch {
-            testResult = .failure(error.localizedDescription)
-            serverStore.updateHealth(id: config.id, healthy: false)
+            isConnecting = false
         }
-        isConnecting = false
+        connectTask = task
+        defer { connectTask = nil }
+        await task.value
     }
 
     func connectAndTest() async {
@@ -62,6 +82,8 @@ final class ConnectionManager {
     }
 
     func disconnect() {
+        connectTask?.cancel()
+        connectTask = nil
         stopHealthPolling()
         client = nil
         isConnected = false

@@ -41,7 +41,11 @@ final class URLSessionPtyTransport: PtyTransport, @unchecked Sendable {
 
     func send(_ data: Data) async throws {
         guard let task = webSocketTask else { return }
-        try await task.send(.data(data))
+        if let text = String(data: data, encoding: .utf8) {
+            try await task.send(.string(text))
+        } else {
+            try await task.send(.data(data))
+        }
     }
 
     func close() async {

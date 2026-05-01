@@ -253,6 +253,8 @@ struct ToolCallView: View {
                 }
             }
             .buttonStyle(.plain)
+            .frame(minHeight: 44)
+            .accessibilityLabel("\(toolName) tool, \(isExpanded ? "expanded" : "collapsed")")
 
             if isExpanded {
                 toolContent
@@ -365,6 +367,8 @@ struct ReasoningView: View {
                     .foregroundStyle(Theme.textBase)
                 }
                 .buttonStyle(.plain)
+                .frame(minHeight: 44)
+                .accessibilityLabel("Reasoning, \(isExpanded ? "expanded" : "collapsed")")
 
                 if isExpanded {
                     Text(text)
