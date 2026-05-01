@@ -92,6 +92,7 @@ struct LanguageDef {
 
 struct SyntaxHighlighter {
     static func highlight(_ source: String, language: String?) -> AttributedString {
+        guard !source.isEmpty else { return AttributedString(source) }
         guard let langDef = LanguageDef.languageDef(for: language) else {
             return AttributedString(source)
         }

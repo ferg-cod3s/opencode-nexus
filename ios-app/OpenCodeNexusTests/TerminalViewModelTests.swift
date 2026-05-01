@@ -1,87 +1,127 @@
 import XCTest
 @testable import OpenCodeNexus
 
-@MainActor
 final class TerminalViewModelTests: XCTestCase {
-    private var viewModel: TerminalViewModel!
 
-    override func setUp() {
-        super.setUp()
-        viewModel = TerminalViewModel()
+    @MainActor
+    func testStartTerminalNoClient() async {
+        let viewModel = TerminalViewModel()
+        await viewModel.startTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+        XCTAssertEqual(viewModel.errorMessage, "No server connection")
     }
 
-    func testConfigureSetsProperties() {
-        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
-        viewModel.configure(client: client, sessionId: "sess-1", directory: "/tmp", agent: "build")
-        viewModel.commandText = "echo hello"
-        XCTAssertFalse(viewModel.commandText.isEmpty)
+    @MainActor
+    func testCloseTerminalNoSession() async {
+        let viewModel = TerminalViewModel()
+        viewModel.connectionState = .connected
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.debugMessage)
     }
 
-    func testExecuteCommandRequiresClient() async {
-        viewModel.configure(client: nil, sessionId: "sess-1", directory: nil, agent: nil)
-        viewModel.commandText = "echo hello"
-        await viewModel.executeCommand()
-        XCTAssertTrue(viewModel.outputLines.isEmpty)
+    @MainActor
+    func testRetryTerminalNoClient() async {
+        let viewModel = TerminalViewModel()
+        await viewModel.retryTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
     }
 
-    func testExecuteCommandIgnoresEmpty() async {
-        let client = OpenCodeClient(baseURL: URL(string: "http://localhost:4096")!)
-        viewModel.configure(client: client, sessionId: "sess-1", directory: nil, agent: nil)
-        viewModel.commandText = "   "
-        await viewModel.executeCommand()
-        XCTAssertTrue(viewModel.outputLines.isEmpty)
+    @MainActor
+    func testResizeTerminalNoClient() async {
+        let viewModel = TerminalViewModel()
+        await viewModel.resizeTerminal(rows: 24, cols: 80)
+        XCTAssertNil(viewModel.errorMessage)
     }
 
-    func testClearOutput() {
-        viewModel.outputLines = [TerminalLine(text: "test", type: .output)]
-        viewModel.clearOutput()
-        XCTAssertTrue(viewModel.outputLines.isEmpty)
-    }
-
-    func testNavigateHistoryUpFromEmpty() {
-        XCTAssertNil(viewModel.navigateHistory(.up))
-    }
-
-    func testNavigateHistoryDownFromEmpty() {
-        XCTAssertNil(viewModel.navigateHistory(.down))
-    }
-
-    func testNavigateHistoryUpCyclesThroughHistory() {
-        viewModel.commandHistory = ["cmd1", "cmd2", "cmd3"]
-        let result1 = viewModel.navigateHistory(.up)
-        XCTAssertEqual(result1, "cmd1")
-        let result2 = viewModel.navigateHistory(.up)
-        XCTAssertEqual(result2, "cmd2")
-        let result3 = viewModel.navigateHistory(.up)
-        XCTAssertEqual(result3, "cmd3")
-    }
-
-    func testNavigateHistoryDownGoesBack() {
-        viewModel.commandHistory = ["cmd1", "cmd2"]
-        _ = viewModel.navigateHistory(.up)
-        _ = viewModel.navigateHistory(.up)
-        let down1 = viewModel.navigateHistory(.down)
-        XCTAssertEqual(down1, "cmd1")
-        let down2 = viewModel.navigateHistory(.down)
-        XCTAssertEqual(down2, "")
-        XCTAssertNil(viewModel.historyIndex)
-    }
-
-    func testNavigateHistoryUpStopsAtEnd() {
-        viewModel.commandHistory = ["cmd1"]
-        _ = viewModel.navigateHistory(.up)
-        let result = viewModel.navigateHistory(.up)
-        XCTAssertNil(result)
-        XCTAssertEqual(viewModel.historyIndex, 0)
-    }
-
-    func testHistoryLimitedTo100() {
-        for i in 0..<110 {
-            viewModel.commandHistory.insert("cmd\(i)", at: 0)
+    @MainActor
+    func testStartTerminalClientThrows() async {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        MockURLProtocol.setRequestHandler { _ in
+            let error = NSError(domain: "test", code: 500)
+            return (HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!, Data())
         }
-        while viewModel.commandHistory.count > 100 {
-            viewModel.commandHistory.removeLast()
-        }
-        XCTAssertLessThanOrEqual(viewModel.commandHistory.count, 100)
+        let client = OpenCodeClient(baseURL: URL(string: "http://opencode.test")!, configuration: config)
+        let viewModel = TerminalViewModel()
+        viewModel.configure(client: client, sessionId: "ses_1", directory: "/p", agent: "build")
+        await viewModel.startTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    @MainActor
+    func testConfigureStoresParameters() {
+        let viewModel = TerminalViewModel()
+        let client = OpenCodeClient(baseURL: URL(string: "http://test")!)
+        viewModel.configure(client: client, sessionId: "ses_1", directory: "/tmp", agent: "build")
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
+    @MainActor
+    func testCloseTerminalIdempotent() async {
+        let viewModel = TerminalViewModel()
+        viewModel.connectionState = .connecting
+        viewModel.debugMessage = "testing..."
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.debugMessage)
+        await viewModel.closeTerminal()
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+    }
+
+    @MainActor
+    func testRetryTerminalMultipleTimes() async {
+        let viewModel = TerminalViewModel()
+        viewModel.connectionState = .connected
+        await viewModel.retryTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+        await viewModel.retryTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+    }
+
+    @MainActor
+    func testResizeTerminalWithClientNoPtyId() async {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let client = OpenCodeClient(baseURL: URL(string: "http://test")!, configuration: config)
+        let viewModel = TerminalViewModel()
+        viewModel.configure(client: client, sessionId: "ses_1", directory: "/tmp", agent: "build")
+        await viewModel.resizeTerminal(rows: 24, cols: 80)
+        XCTAssertNil(viewModel.errorMessage)
+    }
+
+    @MainActor
+    func testStateTransitionsFromNilClient() async {
+        let viewModel = TerminalViewModel()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        await viewModel.startTerminal()
+        XCTAssertEqual(viewModel.connectionState, .failed)
+        XCTAssertEqual(viewModel.errorMessage, "No server connection")
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.debugMessage)
+    }
+
+    @MainActor
+    func testCloseTerminalClearsAllState() async {
+        let viewModel = TerminalViewModel()
+        viewModel.connectionState = .connecting
+        viewModel.debugMessage = "debug info"
+        viewModel.errorMessage = "some error"
+        await viewModel.closeTerminal()
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
+        XCTAssertNil(viewModel.debugMessage)
+    }
+
+    @MainActor
+    func testConfigureWithTransportFactory() {
+        let viewModel = TerminalViewModel()
+        let client = OpenCodeClient(baseURL: URL(string: "http://test")!)
+        let factory = DefaultPtyTransportFactory(session: client.urlSession)
+        viewModel.configure(client: client, sessionId: "ses_1", directory: "/tmp", agent: "build", transportFactory: factory)
+        XCTAssertEqual(viewModel.connectionState, .disconnected)
     }
 }

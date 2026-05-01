@@ -86,7 +86,7 @@ struct MessageBubble: View {
         .padding(.leading, 4)
     }
 
-    private func formatTokenCount(_ count: Int) -> String {
+    func formatTokenCount(_ count: Int) -> String {
         if count >= 1000 {
             return String(format: "%.1fk", Double(count) / 1000.0)
         }

@@ -221,6 +221,12 @@ struct ProviderInfo: Codable, Identifiable {
     let name: String?
     let models: [String: ProviderModelInfo]?
 
+    init(id: String, name: String? = nil, models: [String: ProviderModelInfo]? = nil) {
+        self.id = id
+        self.name = name
+        self.models = models
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)

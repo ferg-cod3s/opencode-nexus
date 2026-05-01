@@ -11,8 +11,116 @@ final class ViewBodyTests: XCTestCase {
         evaluateBody(view)
     }
 
+    func testMessageBubbleWithTokens() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}, "tokens": {"input": 500, "output": 1500}, "cost": 0.0023, "modelID": "gpt-4", "agent": "build"}, "parts": [{"type": "text", "text": "Hello"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithError() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}, "error": {"name": "TestError", "data": {"message": "fail"}}}, "parts": [{"type": "text", "text": "Hello"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithToolPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "tool", "tool": "search", "text": "results"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithReasoningPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "reasoning", "text": "thinking..."}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithPatchPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "patch", "text": "diff"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithAgentPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "agent", "name": "coder"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithCompactionPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "compaction"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithRetryPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "retry", "error": {"name": "Err", "data": {"message": "retrying"}}, "attempt": 2}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
     func testSessionRowBody() throws {
         let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session)
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithStatus() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session, status: SessionStatus(status: "busy"))
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithPermission() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session, hasPermission: true)
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithQuestion() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session, hasQuestion: true)
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithShare() throws {
+        let json = """
+        {"id": "1", "title": "Test", "directory": "/test", "time": {"created": 1000}, "share": {"url": "https://share.link"}}
+        """
+        let session = try JSONDecoder().decode(Session.self, from: Data(json.utf8))
+        let view = SessionRow(session: session)
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithSummary() throws {
+        let json = """
+        {"id": "1", "title": "Test", "directory": "/test", "time": {"created": 1000}, "summary": {"additions": 10, "deletions": 5, "files": 2}}
+        """
+        let session = try JSONDecoder().decode(Session.self, from: Data(json.utf8))
         let view = SessionRow(session: session)
         evaluateBody(view)
     }
@@ -49,18 +157,6 @@ final class ViewBodyTests: XCTestCase {
 
     func testCodeBlockViewNoLanguage() {
         let view = CodeBlockView(language: nil, source: "plain text code")
-        evaluateBody(view)
-    }
-
-    func testTerminalAccessoryViewBody() {
-        @State var text = "test command"
-        let view = TerminalAccessoryView(text: $text, onSubmit: {}, onNavigateHistory: { _ in })
-        evaluateBody(view)
-    }
-
-    func testTerminalAccessoryViewNoHistory() {
-        @State var text = ""
-        let view = TerminalAccessoryView(text: $text, onSubmit: {})
         evaluateBody(view)
     }
 
@@ -146,6 +242,99 @@ final class ViewBodyTests: XCTestCase {
         evaluateBody(view)
     }
 
+    func testMessageListViewBody() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let message = try decodeMessageEnvelope(id: "1", role: "user", text: "Hello")
+        @State var inputText = ""
+        @State var attachedParts: [MessagePartBody] = []
+        @State var selectedModel: ModelRefBody? = nil
+        @State var selectedAgent: String? = nil
+        let view = MessageListView(
+            session: session,
+            messages: [message],
+            isLoading: false,
+            isSending: false,
+            inputText: $inputText,
+            attachedParts: $attachedParts,
+            onSend: { _ in },
+            onAbort: { },
+            onFork: { _ in },
+            onDelete: { _ in },
+            onRevert: { _, _ in },
+            diffs: [],
+            todos: [],
+            hasPermission: false,
+            hasQuestion: false,
+            onShowPermissions: { },
+            onShowDiffs: { },
+            onShowQuestion: { },
+            hasMoreMessages: false,
+            onLoadMoreMessages: { },
+            availableModels: [],
+            availableAgents: [],
+            availableProviders: [],
+            providerDefaults: [:],
+            availableCommands: [],
+            selectedModel: $selectedModel,
+            selectedAgent: $selectedAgent,
+            onNavigateHistory: { _ in },
+            onShellCommand: { _ in },
+            nextTUIRequest: nil,
+            onQueueFollowUp: { },
+            onSubmitQueuedPrompt: { },
+            onClearQueuedPrompt: { },
+            onRespondToTUIRequest: { _ in }
+        )
+        evaluateBody(view)
+    }
+
+    func testMessageListViewWithBanners() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let message = try decodeMessageEnvelope(id: "1", role: "user", text: "Hello")
+        @State var inputText = ""
+        @State var attachedParts: [MessagePartBody] = []
+        @State var selectedModel: ModelRefBody? = nil
+        @State var selectedAgent: String? = nil
+        let diff = try decodeFileDiff()
+        let view = MessageListView(
+            session: session,
+            messages: [message],
+            isLoading: false,
+            isSending: true,
+            inputText: $inputText,
+            attachedParts: $attachedParts,
+            onSend: { _ in },
+            onAbort: { },
+            onFork: { _ in },
+            onDelete: { _ in },
+            onRevert: { _, _ in },
+            diffs: [diff],
+            todos: [],
+            hasPermission: true,
+            hasQuestion: true,
+            onShowPermissions: { },
+            onShowDiffs: { },
+            onShowQuestion: { },
+            hasMoreMessages: true,
+            onLoadMoreMessages: { },
+            availableModels: [("openai", "gpt-4", "GPT-4")],
+            availableAgents: [AgentInfo(name: "Build", description: nil, mode: nil, builtIn: nil, permission: nil)],
+            availableProviders: [],
+            providerDefaults: [:],
+            availableCommands: [CommandInfo(name: "commit", description: "Commit changes")],
+            selectedModel: $selectedModel,
+            selectedAgent: $selectedAgent,
+            onNavigateHistory: { _ in },
+            onShellCommand: { _ in },
+            nextTUIRequest: nil,
+            onQueueFollowUp: { },
+            onSubmitQueuedPrompt: { },
+            onClearQueuedPrompt: { },
+            onRespondToTUIRequest: { _ in }
+        )
+        evaluateBody(view)
+    }
+
     func testMarkdownRendererRender() {
         let segments = MarkdownRenderer.render("Hello **world**\n```\ncode\n```\nMore text")
         XCTAssertFalse(segments.isEmpty)
@@ -190,12 +379,509 @@ final class ViewBodyTests: XCTestCase {
     }
 }
 
-private extension ViewBodyTests {
+extension ViewBodyTests {
     func decodeSession(id: String, title: String) throws -> Session {
         let json = """
         {"id": "\(id)", "title": "\(title)", "directory": "/test", "time": {"created": 1000}}
         """
         return try JSONDecoder().decode(Session.self, from: Data(json.utf8))
+    }
+
+    func testMessageBubbleUserMessage() throws {
+        let message = try decodeMessageEnvelope(id: "1", role: "user", text: "Hello")
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleEmptyText() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "text", "text": ""}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleStepStartPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "step-start", "text": "step"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleStepFinishPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "step-finish", "text": "step"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleFilePart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "file", "filename": "test.swift", "text": "code"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleSnapshotPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "snapshot", "text": "snap"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleSubtaskPart() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "subtask", "text": "sub"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleMultipleParts() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "text", "text": "Hello"}, {"type": "tool", "tool": "search", "text": "results"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageListViewEmpty() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        @State var inputText = ""
+        @State var attachedParts: [MessagePartBody] = []
+        @State var selectedModel: ModelRefBody? = nil
+        @State var selectedAgent: String? = nil
+        let view = MessageListView(
+            session: session,
+            messages: [],
+            isLoading: true,
+            isSending: false,
+            inputText: $inputText,
+            attachedParts: $attachedParts,
+            onSend: { _ in },
+            onAbort: { },
+            onFork: { _ in },
+            onDelete: { _ in },
+            onRevert: { _, _ in },
+            diffs: [],
+            todos: [],
+            hasPermission: false,
+            hasQuestion: false,
+            onShowPermissions: { },
+            onShowDiffs: { },
+            onShowQuestion: { },
+            hasMoreMessages: false,
+            onLoadMoreMessages: { },
+            availableModels: [],
+            availableAgents: [],
+            availableProviders: [],
+            providerDefaults: [:],
+            availableCommands: [],
+            selectedModel: $selectedModel,
+            selectedAgent: $selectedAgent,
+            onNavigateHistory: { _ in },
+            onShellCommand: { _ in },
+            nextTUIRequest: nil,
+            onQueueFollowUp: { },
+            onSubmitQueuedPrompt: { },
+            onClearQueuedPrompt: { },
+            onRespondToTUIRequest: { _ in }
+        )
+        evaluateBody(view)
+    }
+
+    func testMessageListViewSendingWithTUI() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let message = try decodeMessageEnvelope(id: "1", role: "user", text: "Hello")
+        @State var inputText = ""
+        @State var attachedParts: [MessagePartBody] = []
+        @State var selectedModel: ModelRefBody? = nil
+        @State var selectedAgent: String? = nil
+        let view = MessageListView(
+            session: session,
+            messages: [message],
+            isLoading: false,
+            isSending: true,
+            inputText: $inputText,
+            attachedParts: $attachedParts,
+            onSend: { _ in },
+            onAbort: { },
+            onFork: { _ in },
+            onDelete: { _ in },
+            onRevert: { _, _ in },
+            diffs: [],
+            todos: [Todo(id: "1", content: "Todo", status: "pending", priority: "high")],
+            hasPermission: true,
+            hasQuestion: true,
+            onShowPermissions: { },
+            onShowDiffs: { },
+            onShowQuestion: { },
+            hasMoreMessages: true,
+            onLoadMoreMessages: { },
+            availableModels: [("openai", "gpt-4", "GPT-4")],
+            availableAgents: [AgentInfo(name: "Build", description: nil, mode: nil, builtIn: nil, permission: nil)],
+            availableProviders: [ProviderInfo(id: "openai", name: "OpenAI", models: nil)],
+            providerDefaults: ["openai": "gpt-4"],
+            availableCommands: [CommandInfo(name: "commit", description: "Commit changes")],
+            selectedModel: $selectedModel,
+            selectedAgent: $selectedAgent,
+            onNavigateHistory: { _ in },
+            onShellCommand: { _ in },
+            nextTUIRequest: TUIControlRequest(path: "/test", body: JSONValue.object(["text": .string("hello")])),
+            onQueueFollowUp: { },
+            onSubmitQueuedPrompt: { },
+            onClearQueuedPrompt: { },
+            onRespondToTUIRequest: { _ in }
+        )
+        evaluateBody(view)
+    }
+
+    func testModelPickerWithModels() {
+        @State var selection: ModelRefBody? = nil
+        let view = ModelPicker(
+            models: [("openai", "gpt-4", "GPT-4"), ("anthropic", "claude", "Claude")],
+            providers: [ProviderInfo(id: "openai", name: "OpenAI", models: nil), ProviderInfo(id: "anthropic", name: "Anthropic", models: nil)],
+            defaults: ["openai": "gpt-4"],
+            selection: $selection
+        )
+        evaluateBody(view)
+    }
+
+    func testAgentPickerWithAgents() {
+        @State var selection: String? = nil
+        let view = AgentPicker(
+            agents: [AgentInfo(name: "build", description: "Build", mode: "primary", builtIn: false, permission: nil)],
+            selection: $selection
+        )
+        evaluateBody(view)
+    }
+
+    func testInlineModelPickerWithSelection() {
+        @State var selection: ModelRefBody? = ModelRefBody(providerID: "openai", modelID: "gpt-4")
+        let view = InlineModelPicker(
+            models: [("openai", "gpt-4", "GPT-4"), ("anthropic", "claude", "Claude")],
+            providers: [ProviderInfo(id: "openai", name: "OpenAI", models: nil), ProviderInfo(id: "anthropic", name: "Anthropic", models: nil)],
+            defaults: ["openai": "gpt-4"],
+            selection: $selection
+        )
+        evaluateBody(view)
+    }
+
+    func testInlineAgentPickerWithSelection() {
+        @State var selection: String? = "build"
+        let view = InlineAgentPicker(
+            agents: [AgentInfo(name: "build", description: "Build", mode: "primary", builtIn: false, permission: nil)],
+            selection: $selection
+        )
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithBusyStatus() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session, status: SessionStatus(status: "busy"))
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithIdleStatus() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session, status: SessionStatus(status: "idle"))
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithRetryStatus() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session, status: SessionStatus(status: "retry"))
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithWaitingStatus() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session, status: SessionStatus(status: "waiting-for-input"))
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithFailedStatus() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session, status: SessionStatus(status: "error"))
+        evaluateBody(view)
+    }
+
+    func testSessionRowWithBothPermissionAndQuestion() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let view = SessionRow(session: session, hasPermission: true, hasQuestion: true)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithModelAndZeroTokens() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}, "tokens": {"input": 0, "output": 0}, "modelID": "gpt-4"}, "parts": [{"type": "text", "text": "Hello"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithCostZero() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}, "cost": 0}, "parts": [{"type": "text", "text": "Hello"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithRetryNoAttempt() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "retry", "error": {"name": "Err", "data": {"message": "retrying"}}}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithAgentNoName() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"type": "agent"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageBubbleWithPartId() throws {
+        let json = """
+        {"info": {"id": "1", "role": "assistant", "time": {"created": 1000}}, "parts": [{"id": "part-1", "type": "text", "text": "Hello"}]}
+        """
+        let message = try JSONDecoder().decode(MessageEnvelope.self, from: Data(json.utf8))
+        let view = MessageBubble(message: message)
+        evaluateBody(view)
+    }
+
+    func testMessageListViewWithDiffsAndTodos() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let message = try decodeMessageEnvelope(id: "1", role: "user", text: "Hello")
+        let diff = try decodeFileDiff()
+        @State var inputText = ""
+        @State var attachedParts: [MessagePartBody] = []
+        @State var selectedModel: ModelRefBody? = nil
+        @State var selectedAgent: String? = nil
+        let view = MessageListView(
+            session: session,
+            messages: [message],
+            isLoading: false,
+            isSending: false,
+            inputText: $inputText,
+            attachedParts: $attachedParts,
+            onSend: { _ in },
+            onAbort: { },
+            onFork: { _ in },
+            onDelete: { _ in },
+            onRevert: { _, _ in },
+            diffs: [diff],
+            todos: [Todo(id: "1", content: "Todo", status: "completed", priority: "high")],
+            hasPermission: false,
+            hasQuestion: false,
+            onShowPermissions: { },
+            onShowDiffs: { },
+            onShowQuestion: { },
+            hasMoreMessages: false,
+            onLoadMoreMessages: { },
+            availableModels: [],
+            availableAgents: [],
+            availableProviders: [],
+            providerDefaults: [:],
+            availableCommands: [],
+            selectedModel: $selectedModel,
+            selectedAgent: $selectedAgent,
+            onNavigateHistory: { _ in },
+            onShellCommand: { _ in },
+            nextTUIRequest: nil,
+            onQueueFollowUp: { },
+            onSubmitQueuedPrompt: { },
+            onClearQueuedPrompt: { },
+            onRespondToTUIRequest: { _ in }
+        )
+        evaluateBody(view)
+    }
+
+    func testMessageListViewEmptyNotLoading() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        @State var inputText = ""
+        @State var attachedParts: [MessagePartBody] = []
+        @State var selectedModel: ModelRefBody? = nil
+        @State var selectedAgent: String? = nil
+        let view = MessageListView(
+            session: session,
+            messages: [],
+            isLoading: false,
+            isSending: false,
+            inputText: $inputText,
+            attachedParts: $attachedParts,
+            onSend: { _ in },
+            onAbort: { },
+            onFork: { _ in },
+            onDelete: { _ in },
+            onRevert: { _, _ in },
+            diffs: [],
+            todos: [],
+            hasPermission: false,
+            hasQuestion: false,
+            onShowPermissions: { },
+            onShowDiffs: { },
+            onShowQuestion: { },
+            hasMoreMessages: false,
+            onLoadMoreMessages: { },
+            availableModels: [],
+            availableAgents: [],
+            availableProviders: [],
+            providerDefaults: [:],
+            availableCommands: [],
+            selectedModel: $selectedModel,
+            selectedAgent: $selectedAgent,
+            onNavigateHistory: { _ in },
+            onShellCommand: { _ in },
+            nextTUIRequest: nil,
+            onQueueFollowUp: { },
+            onSubmitQueuedPrompt: { },
+            onClearQueuedPrompt: { },
+            onRespondToTUIRequest: { _ in }
+        )
+        evaluateBody(view)
+    }
+
+    func testMessageListViewWithAssistantMessage() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let message = try decodeMessageEnvelope(id: "1", role: "assistant", text: "Hello")
+        @State var inputText = ""
+        @State var attachedParts: [MessagePartBody] = []
+        @State var selectedModel: ModelRefBody? = nil
+        @State var selectedAgent: String? = nil
+        let view = MessageListView(
+            session: session,
+            messages: [message],
+            isLoading: false,
+            isSending: false,
+            inputText: $inputText,
+            attachedParts: $attachedParts,
+            onSend: { _ in },
+            onAbort: { },
+            onFork: { _ in },
+            onDelete: { _ in },
+            onRevert: { _, _ in },
+            diffs: [],
+            todos: [],
+            hasPermission: false,
+            hasQuestion: false,
+            onShowPermissions: { },
+            onShowDiffs: { },
+            onShowQuestion: { },
+            hasMoreMessages: true,
+            onLoadMoreMessages: { },
+            availableModels: [],
+            availableAgents: [],
+            availableProviders: [],
+            providerDefaults: [:],
+            availableCommands: [],
+            selectedModel: $selectedModel,
+            selectedAgent: $selectedAgent,
+            onNavigateHistory: { _ in },
+            onShellCommand: { _ in },
+            nextTUIRequest: nil,
+            onQueueFollowUp: { },
+            onSubmitQueuedPrompt: { },
+            onClearQueuedPrompt: { },
+            onRespondToTUIRequest: { _ in }
+        )
+        evaluateBody(view)
+    }
+
+    func testMessageListViewWithTUIQuestions() throws {
+        let session = try decodeSession(id: "1", title: "Test")
+        let message = try decodeMessageEnvelope(id: "1", role: "user", text: "Hello")
+        @State var inputText = ""
+        @State var attachedParts: [MessagePartBody] = []
+        @State var selectedModel: ModelRefBody? = nil
+        @State var selectedAgent: String? = nil
+        let tuiBody = JSONValue.object([
+            "questions": .array([
+                .object([
+                    "header": .string("Test Header"),
+                    "question": .string("Test Question"),
+                    "options": .array([
+                        .object(["label": .string("Yes"), "description": .string("Yes desc")]),
+                        .object(["label": .string("No"), "description": .string("No desc")])
+                    ]),
+                    "multiple": .bool(false)
+                ])
+            ])
+        ])
+        let view = MessageListView(
+            session: session,
+            messages: [message],
+            isLoading: false,
+            isSending: false,
+            inputText: $inputText,
+            attachedParts: $attachedParts,
+            onSend: { _ in },
+            onAbort: { },
+            onFork: { _ in },
+            onDelete: { _ in },
+            onRevert: { _, _ in },
+            diffs: [],
+            todos: [],
+            hasPermission: false,
+            hasQuestion: false,
+            onShowPermissions: { },
+            onShowDiffs: { },
+            onShowQuestion: { },
+            hasMoreMessages: false,
+            onLoadMoreMessages: { },
+            availableModels: [],
+            availableAgents: [],
+            availableProviders: [],
+            providerDefaults: [:],
+            availableCommands: [],
+            selectedModel: $selectedModel,
+            selectedAgent: $selectedAgent,
+            onNavigateHistory: { _ in },
+            onShellCommand: { _ in },
+            nextTUIRequest: TUIControlRequest(path: "/test", body: tuiBody),
+            onQueueFollowUp: { },
+            onSubmitQueuedPrompt: { },
+            onClearQueuedPrompt: { },
+            onRespondToTUIRequest: { _ in }
+        )
+        evaluateBody(view)
+    }
+
+    func testModelPickerExpanded() {
+        @State var selection: ModelRefBody? = ModelRefBody(providerID: "openai", modelID: "gpt-4")
+        let view = ModelPicker(
+            models: [("openai", "gpt-4", "GPT-4")],
+            providers: [ProviderInfo(id: "openai", name: "OpenAI", models: nil)],
+            defaults: [:],
+            selection: $selection
+        )
+        evaluateBody(view)
+    }
+
+    func testTerminalViewModelStateTransitions() {
+        let viewModel = TerminalViewModel()
+        viewModel.connectionState = .connecting
+        viewModel.debugMessage = "Connecting"
+        viewModel.errorMessage = "Error"
+        XCTAssertEqual(viewModel.connectionState, .connecting)
     }
 
     func decodeMessageEnvelope(id: String, role: String, text: String) throws -> MessageEnvelope {

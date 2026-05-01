@@ -1,13 +1,13 @@
 import SwiftUI
 
-private struct ModelGroup: Identifiable {
+struct ModelGroup: Identifiable {
     let providerID: String
     let providerName: String
     let models: [(providerID: String, modelID: String, name: String)]
     var id: String { providerID }
 }
 
-private func groupedModels(_ models: [(providerID: String, modelID: String, name: String)], providers: [ProviderInfo]) -> [ModelGroup] {
+func groupedModels(_ models: [(providerID: String, modelID: String, name: String)], providers: [ProviderInfo]) -> [ModelGroup] {
     let providerNames = Dictionary(uniqueKeysWithValues: providers.compactMap { p in
         p.name.map { (p.id, $0) }
     })
