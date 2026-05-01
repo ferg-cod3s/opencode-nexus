@@ -14,7 +14,7 @@ keychain="${KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
 keychain_timeout="${KEYCHAIN_TIMEOUT:-21600}"
 signing_cert_sha="${SIGNING_CERT_SHA:-auto}"
 disable_debug_dylib="${DISABLE_DEBUG_DYLIB:-1}"
-allow_provisioning_updates=0
+allow_provisioning_updates=1
 prepare_signing=0
 install_app=1
 launch_app=1
@@ -222,14 +222,12 @@ xcodebuild_args=(
   -derivedDataPath "$derived_data"
 )
 
-if (( allow_provisioning_updates )); then
-  xcodebuild_args+=(-allowProvisioningUpdates)
-fi
-
 if [[ -n "$signing_cert_sha" ]]; then
   printf "Forcing signing certificate %s...\n" "$signing_cert_sha"
   xcodebuild_args+=("OTHER_CODE_SIGN_FLAGS=--sign $signing_cert_sha")
 fi
+
+xcodebuild_args+=(-allowProvisioningUpdates)
 
 if (( disable_debug_dylib )); then
   xcodebuild_args+=(ENABLE_DEBUG_DYLIB=NO)

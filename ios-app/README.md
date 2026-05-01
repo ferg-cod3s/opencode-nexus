@@ -41,6 +41,8 @@ From the repo root:
 bun run ios:device
 ```
 
+Normal SSH device builds should use `bun run ios:device`.
+
 Use `build-device.sh` to build, install, and launch on the paired iPhone from an SSH session:
 
 ```bash
@@ -56,7 +58,16 @@ The script defaults to:
 | Device | `00008140-000518440C7B001C` |
 | Bundle ID | `com.agentic-codeflow.opencode-nexus` |
 | Derived data | `ios-app/build/DerivedData` |
+| Team | `PCJU8QD9FN` |
 | Signing cert | Auto-detected `Apple Development` identity |
+
+Provisioning profiles on this machine are for team `PCJU8QD9FN`.
+
+After signing or team changes in `project.yml`, regenerate the Xcode project:
+
+```bash
+cd ios-app && xcodegen generate
+```
 
 Useful options:
 
@@ -71,7 +82,7 @@ bun run ios:device:fresh-signing
 ./build-device.sh --device DEVICE_UDID
 ```
 
-`--prepare-signing` unlocks the login keychain and grants `codesign` access for SSH builds. Use it when `xcodebuild` fails during signing with `errSecInternalComponent` or when the keychain has relocked.
+`--prepare-signing` unlocks the login keychain and grants `codesign` access for SSH builds. Use it only when `xcodebuild` fails during signing with keychain access errors such as `errSecInternalComponent` or when the keychain has relocked. Do not use it for provisioning or team mismatches.
 
 For non-interactive SSH use, provide the keychain password through the environment:
 
@@ -85,7 +96,7 @@ Do not commit shell history or logs that contain `KEYCHAIN_PASSWORD`.
 
 The script defaults to `SIGNING_CERT_SHA=auto`. In auto mode it finds the first valid `Apple Development` signing identity in the login keychain and forces that SHA with `OTHER_CODE_SIGN_FLAGS=--sign ...`. This keeps command-line builds repeatable and avoids Xcode choosing stale duplicate identities.
 
-If no Apple Development identity exists, the script falls back to Xcode managed signing by enabling `-allowProvisioningUpdates`. This lets Xcode create or download fresh signing assets for the configured Apple account.
+The script passes `-allowProvisioningUpdates` for device builds. This lets Xcode create or download fresh signing assets for the configured Apple account while keeping the existing signing-certificate selection behavior.
 
 The script also sets:
 
@@ -162,6 +173,8 @@ If signing fails from SSH:
 ./build-device.sh --prepare-signing
 ./build-device.sh
 ```
+
+Use this only for keychain access failures such as `errSecInternalComponent`, not when provisioning assets belong to the wrong team.
 
 If install fails with `0xe8008018`, remove the rejected development certificate from the login keychain, then run:
 

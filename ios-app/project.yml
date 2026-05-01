@@ -42,7 +42,7 @@ targets:
         ENABLE_TESTABILITY: YES
       configs:
         Debug:
-          DEVELOPMENT_TEAM: V322926R9N
+          DEVELOPMENT_TEAM: PCJU8QD9FN
           CODE_SIGN_IDENTITY: Apple Development
         SimDebug:
           CODE_SIGNING_ALLOWED: NO
@@ -64,7 +64,7 @@ targets:
         BUNDLE_LOADER: $(TEST_HOST)
       configs:
         Debug:
-          DEVELOPMENT_TEAM: V322926R9N
+          DEVELOPMENT_TEAM: PCJU8QD9FN
         SimDebug:
           CODE_SIGNING_ALLOWED: NO
           CODE_SIGNING_REQUIRED: NO
@@ -84,7 +84,7 @@ targets:
         BUNDLE_LOADER: $(TEST_HOST)
       configs:
         Debug:
-          DEVELOPMENT_TEAM: V322926R9N
+          DEVELOPMENT_TEAM: PCJU8QD9FN
         SimDebug:
           CODE_SIGNING_ALLOWED: NO
           CODE_SIGNING_REQUIRED: NO
@@ -101,7 +101,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
       configs:
         Debug:
-          DEVELOPMENT_TEAM: V322926R9N
+          DEVELOPMENT_TEAM: PCJU8QD9FN
         SimDebug:
           CODE_SIGNING_ALLOWED: NO
           CODE_SIGNING_REQUIRED: NO
