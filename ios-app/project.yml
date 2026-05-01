@@ -3,6 +3,10 @@ configs:
   Debug: debug
   SimDebug: debug
   Release: release
+packages:
+  libghostty-spm:
+    url: https://github.com/Lakr233/libghostty-spm
+    from: 1.0.0
 options:
   bundleIdPrefix: com.agentic-codeflow
   deploymentTarget:
@@ -21,11 +25,14 @@ targets:
     platform: iOS
     sources:
       - path: OpenCodeNexus
-    dependencies: []
+    dependencies:
+      - package: libghostty-spm
+        product: GhosttyTerminal
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.agentic-codeflow.opencode-nexus
         INFOPLIST_FILE: OpenCodeNexus/Info.plist
+
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_STYLE: Automatic
@@ -35,7 +42,7 @@ targets:
         ENABLE_TESTABILITY: YES
       configs:
         Debug:
-          DEVELOPMENT_TEAM: V322926R9N
+          DEVELOPMENT_TEAM: PCJU8QD9FN
           CODE_SIGN_IDENTITY: Apple Development
         SimDebug:
           CODE_SIGNING_ALLOWED: NO
@@ -57,7 +64,7 @@ targets:
         BUNDLE_LOADER: $(TEST_HOST)
       configs:
         Debug:
-          DEVELOPMENT_TEAM: V322926R9N
+          DEVELOPMENT_TEAM: PCJU8QD9FN
         SimDebug:
           CODE_SIGNING_ALLOWED: NO
           CODE_SIGNING_REQUIRED: NO
@@ -77,7 +84,7 @@ targets:
         BUNDLE_LOADER: $(TEST_HOST)
       configs:
         Debug:
-          DEVELOPMENT_TEAM: V322926R9N
+          DEVELOPMENT_TEAM: PCJU8QD9FN
         SimDebug:
           CODE_SIGNING_ALLOWED: NO
           CODE_SIGNING_REQUIRED: NO
@@ -94,7 +101,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
       configs:
         Debug:
-          DEVELOPMENT_TEAM: V322926R9N
+          DEVELOPMENT_TEAM: PCJU8QD9FN
         SimDebug:
           CODE_SIGNING_ALLOWED: NO
           CODE_SIGNING_REQUIRED: NO

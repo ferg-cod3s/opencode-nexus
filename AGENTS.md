@@ -30,6 +30,14 @@ bun run ios:device
 
 The script builds with Xcode beta, installs to the paired iPhone, and launches `com.agentic-codeflow.opencode-nexus`.
 
+Signing notes for this machine:
+
+- Apple team: `PCJU8QD9FN`
+- The provisioning profiles installed on this machine are for team `PCJU8QD9FN`
+- After signing or team changes in `ios-app/project.yml`, regenerate the project with `cd ios-app && xcodegen generate`
+- `ios-app/build-device.sh` passes `-allowProvisioningUpdates` for device builds
+- The normal SSH device build command is `bun run ios:device`
+
 If signing fails from SSH with `errSecInternalComponent`, prepare the keychain and rerun:
 
 ```bash
@@ -37,7 +45,9 @@ bun run ios:device:prepare-signing
 bun run ios:device
 ```
 
-The script defaults to `/Applications/Xcode-beta.app/Contents/Developer` and device `00008140-000518440C7B001C`. It auto-detects a valid `Apple Development` signing identity and forces that SHA for repeatable SSH builds; if no development identity exists, run `./build-device.sh --default-signing --allow-provisioning-updates` to let Xcode refresh managed signing assets.
+Use `prepare-signing` only for keychain access errors such as `errSecInternalComponent`, not for provisioning or team mismatches.
+
+The script defaults to `/Applications/Xcode-beta.app/Contents/Developer` and device `00008140-000518440C7B001C`. It auto-detects a valid `Apple Development` signing identity and forces that SHA for repeatable SSH builds. Device builds also pass `-allowProvisioningUpdates` so Xcode can refresh managed signing assets for team `PCJU8QD9FN` when needed.
 
 Useful options:
 

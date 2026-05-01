@@ -3,6 +3,11 @@ import XCTest
 
 final class ServerConfigTests: XCTestCase {
 
+    override func setUp() {
+        super.setUp()
+        KeychainHelper.setInMemoryMode(true)
+    }
+
     func testInitSetsDefaultValues() {
         let config = ServerConfig(url: "http://localhost:4096")
         XCTAssertFalse(config.isDefault)
@@ -12,23 +17,19 @@ final class ServerConfigTests: XCTestCase {
         XCTAssertNil(config.username)
     }
 
-    func testInitWithPasswordSetsHasPassword() throws {
+    func testInitWithPasswordSetsHasPassword() {
         let config = ServerConfig(url: "http://localhost:4096", password: "secret")
         XCTAssertTrue(config.hasPassword)
-        let loaded = config.password
-        try XCTSkipIf(loaded == nil, "Keychain unavailable in test environment")
-        XCTAssertEqual(loaded, "secret")
+        XCTAssertEqual(config.password, "secret")
         KeychainHelper.delete(key: "serverConfig.\(config.id.uuidString).password")
     }
 
-    func testInitWithCFAccessSetsHasCFAccess() throws {
+    func testInitWithCFAccessSetsHasCFAccess() {
         let config = ServerConfig(url: "http://localhost:4096",
                                    cfAccessClientId: "cf-id",
                                    cfAccessClientSecret: "cf-secret")
         XCTAssertTrue(config.hasCFAccess)
-        let loaded = config.cfAccessClientId
-        try XCTSkipIf(loaded == nil, "Keychain unavailable in test environment")
-        XCTAssertEqual(loaded, "cf-id")
+        XCTAssertEqual(config.cfAccessClientId, "cf-id")
         KeychainHelper.delete(key: "serverConfig.\(config.id.uuidString).cfClientId")
         KeychainHelper.delete(key: "serverConfig.\(config.id.uuidString).cfClientSecret")
     }
@@ -61,13 +62,12 @@ final class ServerConfigTests: XCTestCase {
         XCTAssertNil(secrets.cfClientSecret)
     }
 
-    func testSecretsReturnsValuesWhenFlagsTrue() throws {
+    func testSecretsReturnsValuesWhenFlagsTrue() {
         let config = ServerConfig(url: "http://localhost:4096",
                                    password: "pw",
                                    cfAccessClientId: "cf-id",
                                    cfAccessClientSecret: "cf-secret")
         let secrets = config.secrets()
-        try XCTSkipIf(secrets.password == nil, "Keychain unavailable in test environment")
         XCTAssertEqual(secrets.password, "pw")
         XCTAssertEqual(secrets.cfClientId, "cf-id")
         XCTAssertEqual(secrets.cfClientSecret, "cf-secret")

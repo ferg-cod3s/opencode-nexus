@@ -7,6 +7,7 @@ final class KeychainHelperTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
+        KeychainHelper.setInMemoryMode(true)
         KeychainHelper.delete(key: testKey)
     }
 
@@ -15,11 +16,9 @@ final class KeychainHelperTests: XCTestCase {
         super.tearDown()
     }
 
-    func testSaveAndLoad() throws {
+    func testSaveAndLoad() {
         KeychainHelper.save(key: testKey, value: "test-value-123")
-        let loaded = KeychainHelper.load(key: testKey)
-        try XCTSkipIf(loaded == nil, "Keychain unavailable in this test environment")
-        XCTAssertEqual(loaded, "test-value-123")
+        XCTAssertEqual(KeychainHelper.load(key: testKey), "test-value-123")
     }
 
     func testLoadNonexistentReturnsNil() {
@@ -27,32 +26,26 @@ final class KeychainHelperTests: XCTestCase {
         XCTAssertNil(loaded)
     }
 
-    func testDeleteRemovesValue() throws {
+    func testDeleteRemovesValue() {
         KeychainHelper.save(key: testKey, value: "to-be-deleted")
-        try XCTSkipIf(KeychainHelper.load(key: testKey) == nil, "Keychain unavailable in this test environment")
         KeychainHelper.delete(key: testKey)
         XCTAssertNil(KeychainHelper.load(key: testKey))
     }
 
-    func testSaveOverwritesExisting() throws {
+    func testSaveOverwritesExisting() {
         KeychainHelper.save(key: testKey, value: "first-value")
-        try XCTSkipIf(KeychainHelper.load(key: testKey) == nil, "Keychain unavailable in this test environment")
         KeychainHelper.save(key: testKey, value: "second-value")
         XCTAssertEqual(KeychainHelper.load(key: testKey), "second-value")
     }
 
-    func testEmptyStringIsSavedAndLoaded() throws {
+    func testEmptyStringIsSavedAndLoaded() {
         KeychainHelper.save(key: testKey, value: "")
-        let loaded = KeychainHelper.load(key: testKey)
-        try XCTSkipIf(loaded == nil && KeychainHelper.load(key: testKey) == nil, "Keychain unavailable in this test environment")
-        XCTAssertEqual(loaded, "")
+        XCTAssertEqual(KeychainHelper.load(key: testKey), "")
     }
 
-    func testSpecialCharactersArePreserved() throws {
+    func testSpecialCharactersArePreserved() {
         let specialValue = "!@#$%^&*()_+-=[]{}|;':\",./<>?"
         KeychainHelper.save(key: testKey, value: specialValue)
-        let loaded = KeychainHelper.load(key: testKey)
-        try XCTSkipIf(loaded == nil, "Keychain unavailable in this test environment")
-        XCTAssertEqual(loaded, specialValue)
+        XCTAssertEqual(KeychainHelper.load(key: testKey), specialValue)
     }
 }

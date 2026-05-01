@@ -1,4 +1,5 @@
 import SwiftUI
+import GhosttyTerminal
 
 struct TerminalView: View {
     let client: OpenCodeClient?
@@ -10,53 +11,46 @@ struct TerminalView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                if !terminalVM.outputLines.isEmpty {
-                    ScrollViewReader { proxy in
-                        TerminalOutputView(lines: terminalVM.outputLines, proxy: proxy)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .onChange(of: terminalVM.outputLines.count) { _, _ in
-                                if let lastId = terminalVM.outputLines.last?.id {
-                                    withAnimation { proxy.scrollTo(lastId, anchor: .bottom) }
-                                }
-                            }
+            ZStack {
+                if let state = terminalVM.terminalState, terminalVM.connectionState == .connected {
+                    TerminalSurfaceView(context: state)
+                        .overlay {
+                            TerminalFocusHelper()
+                        }
+                } else if terminalVM.connectionState == .failed {
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                            .foregroundStyle(.secondary)
+                        Text("Connection Failed")
+                            .font(.headline)
+                        Text(terminalVM.errorMessage ?? "Unknown error")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
+                        Button("Retry") {
+                            Task { await terminalVM.retryTerminal() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                } else if terminalVM.connectionState == .connecting {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Connecting...")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        if let msg = terminalVM.debugMessage {
+                            Text(msg)
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
+                        }
                     }
                 } else {
                     ContentUnavailableView("Terminal", systemImage: "terminal", description: Text("Run shell commands on the server"))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-
-                Divider()
-
-                HStack(spacing: 8) {
-                    Text("$")
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Theme.interactiveBlue)
-
-                    TextField("Shell command...", text: $terminalVM.commandText)
-                        .font(.system(.body, design: .monospaced))
-                        .onSubmit { Task { await terminalVM.executeCommand() } }
-
-                    Button {
-                        Task { await terminalVM.executeCommand() }
-                    } label: {
-                        Image(systemName: "play.fill")
-                            .font(.caption)
-                            .foregroundStyle(Theme.textStrong)
-                            .frame(width: 32, height: 32)
-                            .background(Theme.interactiveBlue.opacity(0.2))
-                            .clipShape(Circle())
-                    }
-                    .disabled(terminalVM.commandText.trimmingCharacters(in: .whitespaces).isEmpty || terminalVM.isRunning)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-
-                TerminalAccessoryView(text: $terminalVM.commandText, onSubmit: { Task { await terminalVM.executeCommand() } }, onNavigateHistory: { direction in
-                    if let result = terminalVM.navigateHistory(direction) {
-                        terminalVM.commandText = result
-                    }
-                })
             }
             .navigationTitle("Terminal")
             .navigationBarTitleDisplayMode(.inline)
@@ -64,17 +58,56 @@ struct TerminalView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                 }
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        terminalVM.clearOutput()
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                }
             }
         }
         .onAppear {
             terminalVM.configure(client: client, sessionId: sessionId, directory: directory, agent: agent)
+            Task { await terminalVM.startTerminal() }
+        }
+        .onDisappear {
+            Task { await terminalVM.closeTerminal() }
+        }
+    }
+}
+
+private struct TerminalFocusHelper: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = FocusTargetView()
+        view.backgroundColor = .clear
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            view.findAndFocusTerminal()
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    private class FocusTargetView: UIView {
+        func findAndFocusTerminal() {
+            var responder: UIResponder? = self
+            while let current = responder {
+                if String(describing: type(of: current)).contains("UITerminalView") {
+                    current.becomeFirstResponder()
+                    return
+                }
+                responder = current.next
+            }
+            if let terminal = superview?.superview?.subviews
+                .flatMap({ findTerminalViews(in: $0) })
+                .first {
+                terminal.becomeFirstResponder()
+            }
+        }
+
+        private func findTerminalViews(in view: UIView) -> [UIView] {
+            var results: [UIView] = []
+            if String(describing: type(of: view)).contains("UITerminalView") {
+                results.append(view)
+            }
+            for subview in view.subviews {
+                results.append(contentsOf: findTerminalViews(in: subview))
+            }
+            return results
         }
     }
 }

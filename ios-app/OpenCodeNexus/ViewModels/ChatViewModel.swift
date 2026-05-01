@@ -85,6 +85,7 @@ final class ChatViewModel {
     private var sessionPageLimit = 50
     private var messagePageLimit = 50
     private let pageSize = 50
+    private var currentSendOperationID: UUID?
     var pendingOptimisticMessages: [String: PendingOptimisticMessage] = [:]
     private var draftStore = DraftStore()
     private var drafts: [String: PromptDraft] = [:]
@@ -662,6 +663,8 @@ final class ChatViewModel {
         pendingOptimisticMessages[optimisticId] = PendingOptimisticMessage(id: optimisticId, sessionID: sessionId, text: text, created: optimisticMessage.info.time.created)
         messages.append(optimisticMessage)
 
+        let sendOperationID = UUID()
+        currentSendOperationID = sendOperationID
         do {
             try await client.sendAsyncMessage(
                 sessionId: sessionId,
@@ -675,7 +678,7 @@ final class ChatViewModel {
             clearDraft(for: sessionId)
             Task { [weak self] in
                 try? await Task.sleep(for: .seconds(120))
-                guard let self, self.isSending, self.selectedSessionId == sessionId else { return }
+                guard let self, self.isSending, self.selectedSessionId == sessionId, self.currentSendOperationID == sendOperationID else { return }
                 self.isSending = false
                 self.isStreamingDeltas = false
                 let stale = self.pendingOptimisticMessages.filter { $0.value.sessionID == sessionId }
@@ -692,6 +695,7 @@ final class ChatViewModel {
             inputText = text
             self.attachedParts = partsToSend
             isSending = false
+            currentSendOperationID = nil
         }
     }
 
@@ -1148,6 +1152,7 @@ final class ChatViewModel {
                 if eventSessionID == selectedSessionId && statusType == "idle" {
                     isSending = false
                     isStreamingDeltas = false
+                    currentSendOperationID = nil
                     Task {
                         await loadMessages()
                         await loadSessions(resetLimit: false)
@@ -1160,6 +1165,7 @@ final class ChatViewModel {
                eventSessionID == selectedSessionId {
                 isSending = false
                 isStreamingDeltas = false
+                currentSendOperationID = nil
                 let stale = pendingOptimisticMessages.filter { $0.value.sessionID == eventSessionID }
                 for (id, _) in stale {
                     messages.removeAll { $0.id == id }
