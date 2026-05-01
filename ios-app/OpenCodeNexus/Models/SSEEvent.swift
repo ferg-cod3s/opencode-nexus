@@ -1,6 +1,6 @@
 import Foundation
 
-struct SSEEvent: Decodable, Sendable {
+struct SSEEvent: Decodable, Sendable, Equatable {
     let type: String
     let properties: [String: JSONValue]?
 
@@ -13,7 +13,7 @@ struct SSEEvent: Decodable, Sendable {
     }
 }
 
-enum JSONValue: Codable, Sendable {
+enum JSONValue: Codable, Sendable, Equatable {
     case string(String)
     case int(Int)
     case double(Double)

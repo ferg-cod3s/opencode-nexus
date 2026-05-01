@@ -48,24 +48,32 @@ final class TerminalViewModel {
         }
         hasStartedPty = true
         connectionState = .connecting
-        debugMessage = "Creating PTY session..."
+        debugMessage = "Step 1/4: POST /pty (command=/bin/bash, cwd=\(directory ?? "nil"))"
+        logger.info("Terminal: creating PTY, cwd=\(self.directory ?? "nil")")
 
         do {
-            debugMessage = "POST /pty (command=/bin/bash, cwd=\(directory ?? "nil"))"
             let pty = try await client.createPty(
                 command: "/bin/bash",
                 cwd: directory,
                 title: "OpenCode Terminal"
             )
             ptyId = pty.id
-            debugMessage = "PTY created: \(pty.id), connecting WebSocket..."
+            logger.info("Terminal: PTY created: \(pty.id), pid=\(pty.pid ?? -1), status=\(pty.status)")
+            debugMessage = "Step 2/4: PTY \(pty.id) created, building WS URL..."
 
             let wsRequest = client.ptyConnectRequest(ptyID: pty.id, directory: directory)
-            debugMessage = "WS URL: \(wsRequest.url?.absoluteString ?? "nil")"
+            logger.info("Terminal: WS URL: \(wsRequest.url?.absoluteString ?? "nil")")
+            debugMessage = "WS: \(wsRequest.url?.absoluteString ?? "nil")"
 
             let factory = transportFactory ?? DefaultPtyTransportFactory(session: client.urlSession)
             let ptyTransport = factory.makeTransport()
             transport = ptyTransport
+
+            debugMessage = "Step 3/4: Connecting WebSocket..."
+            logger.info("Terminal: connecting WebSocket...")
+            try await ptyTransport.connect(request: wsRequest)
+            logger.info("Terminal: WebSocket connected")
+            debugMessage = "Step 4/4: Starting Ghostty session..."
 
             let session = GhosttyTerminalSession(
                 transport: ptyTransport,
@@ -109,20 +117,19 @@ final class TerminalViewModel {
 
             debugMessage = nil
             connectionState = .connected
-
-            try await Task.sleep(for: .milliseconds(100))
-
-            debugMessage = "Connecting WebSocket..."
-            try await ptyTransport.connect(request: wsRequest)
-
-            debugMessage = "Starting session receive loop..."
             session.start()
 
             logger.info("Terminal connected: PTY \(pty.id)")
+        } catch let error as OpenCodeError {
+            logger.error("Failed to start PTY (OpenCodeError): \(error.localizedDescription)")
+            errorMessage = "Server error: \(error.localizedDescription)"
+            debugMessage = "Failed at step. Check server logs."
+            connectionState = .failed
+            hasStartedPty = false
         } catch {
             logger.error("Failed to start PTY: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
-            debugMessage = nil
+            debugMessage = "Error: \(type(of: error)) - \(error.localizedDescription)"
             connectionState = .failed
             hasStartedPty = false
         }

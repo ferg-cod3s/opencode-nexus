@@ -724,7 +724,7 @@ final class OpenCodeClientTests: XCTestCase {
 
     func testOpenCodeErrorDescriptions() {
         XCTAssertEqual(OpenCodeError.invalidResponse.errorDescription, "Invalid server response")
-        XCTAssertEqual(OpenCodeError.httpError(429).errorDescription, "Server error (HTTP 429)")
+        XCTAssertEqual(OpenCodeError.httpError(429, nil).errorDescription, "Server error (HTTP 429)")
         XCTAssertEqual(OpenCodeError.decodingError("bad json").errorDescription, "Failed to parse response: bad json")
     }
 
