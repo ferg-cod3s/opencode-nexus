@@ -387,4 +387,129 @@ final class APIModelTests: XCTestCase {
         let data = json.data(using: .utf8)!
         return try JSONDecoder().decode(Todo.self, from: data)
     }
+
+    // MARK: - New Models (Phase 1)
+
+    func testMcpServerStatusDecoding() throws {
+        let json = """
+        {"name": "filesystem", "status": "connected", "tools": [{"name": "read_file", "description": "Read a file"}]}
+        """
+        let data = json.data(using: .utf8)!
+        let server = try JSONDecoder().decode(McpServerStatus.self, from: data)
+        XCTAssertEqual(server.id, "filesystem")
+        XCTAssertEqual(server.name, "filesystem")
+        XCTAssertTrue(server.isConnected)
+        XCTAssertFalse(server.hasError)
+        XCTAssertEqual(server.tools?.count, 1)
+        XCTAssertEqual(server.tools?.first?.name, "read_file")
+    }
+
+    func testMcpServerStatusError() throws {
+        let json = """
+        {"name": "broken", "status": "error", "error": "Connection failed"}
+        """
+        let data = json.data(using: .utf8)!
+        let server = try JSONDecoder().decode(McpServerStatus.self, from: data)
+        XCTAssertFalse(server.isConnected)
+        XCTAssertTrue(server.hasError)
+        XCTAssertEqual(server.error, "Connection failed")
+    }
+
+    func testMcpServerStatusConnecting() throws {
+        let json = """
+        {"name": "loading", "status": "connecting"}
+        """
+        let data = json.data(using: .utf8)!
+        let server = try JSONDecoder().decode(McpServerStatus.self, from: data)
+        XCTAssertTrue(server.isConnecting)
+        XCTAssertFalse(server.isConnected)
+    }
+
+    func testVcsDiffResponseDecoding() throws {
+        let json = """
+        {"files": [{"path": "main.swift", "additions": 10, "deletions": 5, "status": "modified"}]}
+        """
+        let data = json.data(using: .utf8)!
+        let response = try JSONDecoder().decode(VcsDiffResponse.self, from: data)
+        XCTAssertEqual(response.files.count, 1)
+        XCTAssertEqual(response.files.first?.path, "main.swift")
+        XCTAssertEqual(response.files.first?.additions, 10)
+        XCTAssertEqual(response.files.first?.deletions, 5)
+    }
+
+    func testServerConfigResponseDecoding() throws {
+        let json = """
+        {"theme": "dark", "language": "en", "autoAcceptPermissions": true, "reasoningSummaries": false, "sessionProgressBar": true}
+        """
+        let data = json.data(using: .utf8)!
+        let config = try JSONDecoder().decode(ServerConfigResponse.self, from: data)
+        XCTAssertEqual(config.theme, "dark")
+        XCTAssertEqual(config.language, "en")
+        XCTAssertEqual(config.autoAcceptPermissions, true)
+        XCTAssertEqual(config.reasoningSummaries, false)
+        XCTAssertEqual(config.sessionProgressBar, true)
+    }
+
+    func testConfigUpdateEncoding() throws {
+        let config = ConfigUpdate(
+            theme: "light",
+            language: "es",
+            autoAcceptPermissions: true,
+            reasoningSummaries: false,
+            shellToolParts: true,
+            editToolParts: false,
+            sessionProgressBar: true,
+            visibleModels: ["gpt-4"],
+            hiddenModels: ["gpt-3.5"]
+        )
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(ConfigUpdate.self, from: data)
+        XCTAssertEqual(decoded.theme, "light")
+        XCTAssertEqual(decoded.language, "es")
+        XCTAssertEqual(decoded.autoAcceptPermissions, true)
+        XCTAssertEqual(decoded.visibleModels, ["gpt-4"])
+        XCTAssertEqual(decoded.hiddenModels, ["gpt-3.5"])
+    }
+
+    func testProviderOAuthResponseDecoding() throws {
+        let json = """
+        {"url": "https://github.com/login/oauth/authorize?client_id=abc"}
+        """
+        let data = json.data(using: .utf8)!
+        let response = try JSONDecoder().decode(ProviderOAuthResponse.self, from: data)
+        XCTAssertEqual(response.url, "https://github.com/login/oauth/authorize?client_id=abc")
+    }
+
+    func testMcpOAuthResponseDecoding() throws {
+        let json = """
+        {"url": "https://mcp.example.com/oauth/authorize"}
+        """
+        let data = json.data(using: .utf8)!
+        let response = try JSONDecoder().decode(McpOAuthResponse.self, from: data)
+        XCTAssertEqual(response.url, "https://mcp.example.com/oauth/authorize")
+    }
+
+    func testProviderAuthMethodDecoding() throws {
+        let json = """
+        {"type": "oauth", "providerID": "github-copilot", "name": "GitHub"}
+        """
+        let data = json.data(using: .utf8)!
+        let method = try JSONDecoder().decode(ProviderAuthMethod.self, from: data)
+        XCTAssertEqual(method.id, "oauth")
+        XCTAssertEqual(method.type, "oauth")
+        XCTAssertEqual(method.providerID, "github-copilot")
+        XCTAssertEqual(method.name, "GitHub")
+    }
+
+    func testFileDiffInfoDecoding() throws {
+        let json = """
+        {"path": "src/main.swift", "additions": 15, "deletions": 3, "status": "modified"}
+        """
+        let data = json.data(using: .utf8)!
+        let diff = try JSONDecoder().decode(FileDiffInfo.self, from: data)
+        XCTAssertEqual(diff.path, "src/main.swift")
+        XCTAssertEqual(diff.additions, 15)
+        XCTAssertEqual(diff.deletions, 3)
+        XCTAssertEqual(diff.status, "modified")
+    }
 }

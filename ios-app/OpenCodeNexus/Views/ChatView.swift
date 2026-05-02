@@ -4,7 +4,9 @@ import os
 struct ChatView: View {
     @Environment(ConnectionManager.self) private var connectionManager
     @State private var chatVM = ChatViewModel()
+    @State private var settingsVM = SettingsViewModel()
     @State private var activeSheet: ActiveChatSheet?
+    @State private var showSettings = false
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var collapsedDirectories: Set<String> = []
     @State private var viewingFilePath: String?
@@ -19,7 +21,8 @@ struct ChatView: View {
                 onNewSession: {
                     chatVM.prepareNewSession()
                     activeSheet = .newSession
-                }
+                },
+                onShowWorkspaces: { activeSheet = .workspaces }
             )
         } detail: {
             ChatDetailContainer(
@@ -28,12 +31,16 @@ struct ChatView: View {
                 onShowDiffs: { activeSheet = .diffs },
                 onShowQuestion: { activeSheet = .questions },
                 onShowFileBrowser: { activeSheet = .fileBrowser },
-                onShowTerminal: { activeSheet = .terminal }
+                onShowTerminal: { activeSheet = .terminal },
+                onShowTodos: { activeSheet = .todos },
+                onShowImageAttachment: { activeSheet = .imageAttachment },
+                onShowSettings: { showSettings = true }
             )
         }
         .task {
             let logger = Logger(subsystem: "com.agentic-codeflow.opencode-nexus", category: "ChatView")
             logger.info("task: configuring client...")
+            chatVM.settings = settingsVM
             chatVM.configure(with: connectionManager.client)
             logger.info("task: loading project info...")
             await chatVM.loadProjectInfo()
@@ -43,6 +50,7 @@ struct ChatView: View {
             Task { await chatVM.loadServerInfo() }
             logger.info("task: starting event stream")
             chatVM.startEventStream()
+            Task { await checkForUpdates(client: connectionManager.client) }
         }
         .onChange(of: chatVM.selectedSessionId) {
             if let id = chatVM.selectedSessionId {
@@ -84,6 +92,10 @@ struct ChatView: View {
         .sheet(item: $activeSheet) { sheet in
             sheetContent(for: sheet)
         }
+        .sheet(isPresented: $showSettings) {
+            SettingsView(viewModel: settingsVM)
+        }
+        .environment(settingsVM)
     }
 
     @ViewBuilder
@@ -118,7 +130,7 @@ struct ChatView: View {
                 }
             )
         case .terminal:
-            TerminalView(
+            TerminalTabsView(
                 client: chatVM.client,
                 sessionId: chatVM.selectedSessionId,
                 directory: chatVM.directory(for: chatVM.selectedSessionId),
@@ -155,6 +167,23 @@ struct ChatView: View {
                     }
                 )
             }
+        case .imageAttachment:
+            ImageAttachmentPicker { imageData, imageName in
+                if let base64String = imageData.base64EncodedString().addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) {
+                    chatVM.attachedParts.append(MessagePartBody(
+                        type: "image",
+                        mime: "image/jpeg",
+                        url: "data:image/jpeg;base64,\(base64String)",
+                        filename: imageName
+                    ))
+                }
+            }
+        case .todos:
+            TodoListView(todos: chatVM.todos, isLoading: chatVM.isLoadingMessages)
+        case .workspaces:
+            if let client = chatVM.client {
+                WorkspaceManagerView(client: client)
+            }
         }
     }
 }
@@ -167,8 +196,19 @@ private enum ActiveChatSheet: String, Identifiable {
     case terminal
     case fileBrowser
     case fileViewer
+    case imageAttachment
+    case todos
+    case workspaces
 
     var id: String { rawValue }
+}
+
+@MainActor
+private func checkForUpdates(client: OpenCodeClient?) async {
+    guard let client else { return }
+    if let updateInfo = await UpdateChecker.shared.checkForUpdate(client: client) {
+        print("Update available: \(updateInfo.serverVersion) (current: \(updateInfo.currentVersion))")
+    }
 }
 
 private struct ChatSidebarView: View {
@@ -176,6 +216,7 @@ private struct ChatSidebarView: View {
     @Binding var collapsedDirectories: Set<String>
     let onDisconnect: () -> Void
     let onNewSession: () -> Void
+    let onShowWorkspaces: () -> Void
 
     var body: some View {
         Group {
@@ -202,34 +243,43 @@ private struct ChatSidebarView: View {
                         Section {
                             if !collapsedDirectories.contains(group.directory) {
                                 ForEach(group.sessions) { session in
-                                    SessionRow(
+                                    SessionHierarchyRow(
                                         session: session,
-                                        status: chatVM.sessionStatuses[session.id],
-                                        hasPermission: chatVM.pendingPermissions.contains { $0.sessionID == session.id },
-                                        hasQuestion: chatVM.pendingQuestions.contains { $0.sessionID == session.id }
+                                        isSelected: chatVM.selectedSessionId == session.id,
+                                        childSessions: chatVM.childSessions[session.id] ?? [],
+                                        onRename: { newTitle in
+                                            Task { await chatVM.renameSession(session.id, title: newTitle) }
+                                        },
+                                        onDelete: {
+                                            Task { await chatVM.deleteSession(session.id) }
+                                        },
+                                        onArchive: {
+                                            Task { await chatVM.archiveSession(session.id) }
+                                        },
+                                        onSelect: {
+                                            chatVM.selectedSessionId = session.id
+                                        },
+                                        onFork: {
+                                            Task { await chatVM.forkSession(at: nil) }
+                                        },
+                                        onShare: {
+                                            Task { await chatVM.shareSession(session.id) }
+                                        }
                                     )
-                                        .tag(session.id)
-                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                            Button(role: .destructive) {
-                                                Task { await chatVM.deleteSession(session.id) }
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
+                                    .tag(session.id)
+                                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                        Button(role: .destructive) {
+                                            Task { await chatVM.deleteSession(session.id) }
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
                                         }
-                                        .contextMenu {
-                                            Button {
-                                                Task { await chatVM.shareSession(session.id) }
-                                            } label: {
-                                                Label("Share", systemImage: "square.and.arrow.up")
-                                            }
-                                            if session.share != nil {
-                                                Button {
-                                                    UIPasteboard.general.string = session.share?.url ?? ""
-                                                } label: {
-                                                    Label("Copy Share Link", systemImage: "link")
-                                                }
-                                            }
+                                        Button {
+                                            Task { await chatVM.archiveSession(session.id) }
+                                        } label: {
+                                            Label("Archive", systemImage: "archivebox")
                                         }
+                                        .tint(.orange)
+                                    }
                                 }
                             }
                         } header: {
@@ -305,8 +355,17 @@ private struct ChatSidebarView: View {
                 }
             }
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    onNewSession()
+                Menu {
+                    Button {
+                        onNewSession()
+                    } label: {
+                        Label("New Session", systemImage: "plus.circle")
+                    }
+                    Button {
+                        onShowWorkspaces()
+                    } label: {
+                        Label("Workspaces", systemImage: "folder.badge.gearshape")
+                    }
                 } label: {
                     Image(systemName: "plus.circle.fill")
                 }
@@ -325,6 +384,9 @@ private struct ChatDetailContainer: View {
     let onShowQuestion: () -> Void
     let onShowFileBrowser: () -> Void
     let onShowTerminal: () -> Void
+    let onShowTodos: () -> Void
+    let onShowImageAttachment: () -> Void
+    let onShowSettings: () -> Void
 
     @ViewBuilder
     var body: some View {
@@ -334,6 +396,7 @@ private struct ChatDetailContainer: View {
                 messages: chatVM.messages,
                 isLoading: chatVM.isLoadingMessages,
                 isSending: chatVM.isSending,
+                isSessionBusy: chatVM.isSessionBusy,
                 inputText: Bindable(chatVM).inputText,
                 attachedParts: Bindable(chatVM).attachedParts,
                 onSend: { parts in Task { await chatVM.sendMessage(attachedParts: parts) } },
@@ -365,10 +428,10 @@ private struct ChatDetailContainer: View {
                 selectedAgent: Bindable(chatVM).selectedAgent,
                 onNavigateHistory: { chatVM.navigateHistory($0) },
                 onShellCommand: { command in Task { await chatVM.sendShellCommand(command) } },
-                nextTUIRequest: chatVM.nextTUIRequest,
-                onQueueFollowUp: { Task { await chatVM.queueFollowUpPrompt() } },
+                queuedMessages: chatVM.queuedMessages[session.id] ?? [],
+                onQueueFollowUp: { chatVM.queueFollowUpPrompt() },
                 onSubmitQueuedPrompt: { Task { await chatVM.submitQueuedPrompt() } },
-                onClearQueuedPrompt: { Task { await chatVM.clearQueuedPrompt() } },
+                onClearQueuedPrompt: { chatVM.clearQueuedPrompt() },
                 onRespondToTUIRequest: { body in Task { await chatVM.respondToTUIRequest(body) } }
             )
             .toolbar {
@@ -416,6 +479,27 @@ private struct ChatDetailContainer: View {
                             }
                         }
                         .tint(Theme.interactiveBlue)
+                    }
+                    if !chatVM.todos.isEmpty {
+                        Button {
+                            onShowTodos()
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "list.bullet")
+                                Text("\(chatVM.todos.count)")
+                            }
+                        }
+                    }
+                    Button {
+                        onShowImageAttachment()
+                    } label: {
+                        Image(systemName: "photo")
+                    }
+                    Spacer()
+                    Button {
+                        onShowSettings()
+                    } label: {
+                        Image(systemName: "gearshape")
                     }
                 }
             }

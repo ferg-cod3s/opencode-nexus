@@ -2,6 +2,7 @@ import SwiftUI
 
 struct MessageBubble: View {
     let message: MessageEnvelope
+    @Environment(SettingsViewModel.self) var settings: SettingsViewModel
     @State private var showActions = false
 
     private var isUser: Bool { message.info.isUser }
@@ -15,10 +16,10 @@ struct MessageBubble: View {
 
                 ForEach(message.parts) { part in
                     if let partId = part.id {
-                        PartView(part: part, isUser: isUser)
+                        PartView(part: part, isUser: isUser, showReasoning: settings.reasoningSummariesEnabled, expandTools: settings.shellToolPartsExpanded)
                             .id(partId)
                     } else {
-                        PartView(part: part, isUser: isUser)
+                        PartView(part: part, isUser: isUser, showReasoning: settings.reasoningSummariesEnabled, expandTools: settings.shellToolPartsExpanded)
                     }
                 }
 
@@ -96,10 +97,15 @@ struct MessageBubble: View {
 
 // MARK: - Part Rendering
 
+import SwiftUI
+import Foundation
+
 struct PartView: View {
     let part: Part
     let isUser: Bool
-
+    let showReasoning: Bool
+    let expandTools: Bool
+    
     var body: some View {
         switch part.type {
         case "text":
@@ -120,9 +126,11 @@ struct PartView: View {
                     }
             }
         case "tool":
-            ToolCallView(part: part)
+            ToolCallView(part: part, isExpandedOverride: expandTools ? true : nil)
         case "reasoning":
-            ReasoningView(text: part.displayText)
+            if showReasoning {
+                ReasoningView(text: part.displayText)
+            }
         case "step-start", "step-finish":
             EmptyView()
         case "patch":
@@ -197,7 +205,12 @@ struct PartView: View {
 
 struct ToolCallView: View {
     let part: Part
-    @State private var isExpanded = false
+    var isExpandedOverride: Bool? = nil
+    @State private var internalExpanded = false
+    
+    private var isExpanded: Bool {
+        isExpandedOverride ?? internalExpanded
+    }
 
     private var toolName: String {
         part.tool ?? ""
@@ -217,8 +230,10 @@ struct ToolCallView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isExpanded.toggle()
+                if isExpandedOverride == nil {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        internalExpanded.toggle()
+                    }
                 }
             } label: {
                 HStack(spacing: 8) {

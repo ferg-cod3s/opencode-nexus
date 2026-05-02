@@ -318,6 +318,13 @@ struct CommandInfo: Codable, Identifiable {
     let description: String?
 }
 
+struct SkillInfo: Codable, Identifiable {
+    var id: String { name }
+    let name: String
+    let description: String?
+    let location: String?
+}
+
 struct SearchResult: Codable {
     let path: String?
     let line: Int?
@@ -461,4 +468,92 @@ struct QuestionOption: Identifiable, Codable, Hashable {
         label = try container.decodeIfPresent(String.self, forKey: .label) ?? ""
         description = try container.decodeIfPresent(String.self, forKey: .description) ?? ""
     }
+}
+
+struct VcsDiffResponse: Codable {
+    let files: [FileDiffInfo]
+}
+
+struct FileDiffInfo: Codable {
+    let path: String
+    let additions: Int
+    let deletions: Int
+    let status: String
+}
+
+struct McpServerStatus: Codable, Identifiable {
+    var id: String { name }
+    let name: String
+    let status: String
+    let error: String?
+    let tools: [McpToolInfo]?
+    
+    var isConnected: Bool { status == "connected" }
+    var isConnecting: Bool { status == "connecting" }
+    var hasError: Bool { status == "error" || error != nil }
+}
+
+struct McpToolInfo: Codable {
+    let name: String
+    let description: String?
+}
+
+struct AddMcpServerBody: Encodable {
+    let name: String
+    let command: String
+    let args: [String]
+    let env: [String: String]
+}
+
+struct McpOAuthResponse: Codable {
+    let url: String
+}
+
+struct McpOAuthCallbackBody: Encodable {
+    let code: String
+    let state: String
+}
+
+struct ProviderAuthMethod: Codable, Identifiable {
+    var id: String { type }
+    let type: String
+    let providerID: String
+    let name: String?
+}
+
+struct ProviderOAuthResponse: Codable {
+    let url: String
+}
+
+struct ProviderOAuthCallbackBody: Encodable {
+    let code: String
+    let state: String
+}
+
+struct ServerConfigResponse: Codable {
+    let theme: String?
+    let language: String?
+    let autoAcceptPermissions: Bool?
+    let reasoningSummaries: Bool?
+    let shellToolParts: Bool?
+    let editToolParts: Bool?
+    let sessionProgressBar: Bool?
+    let visibleModels: [String]?
+    let hiddenModels: [String]?
+}
+
+struct ConfigUpdate: Codable {
+    let theme: String?
+    let language: String?
+    let autoAcceptPermissions: Bool?
+    let reasoningSummaries: Bool?
+    let shellToolParts: Bool?
+    let editToolParts: Bool?
+    let sessionProgressBar: Bool?
+    let visibleModels: [String]?
+    let hiddenModels: [String]?
+}
+
+struct UpdatePartBody: Encodable {
+    let data: [String: JSONValue]
 }

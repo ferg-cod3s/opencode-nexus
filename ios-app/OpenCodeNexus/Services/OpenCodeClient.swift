@@ -125,6 +125,20 @@ final class OpenCodeClient: @unchecked Sendable {
         try validateResponse(response, data: nil)
     }
 
+    private func postEmpty<B: Encodable>(_ path: String, body: B, query: [URLQueryItem] = []) async throws {
+        var url = baseURL.appendingPathComponent(path)
+        if !query.isEmpty {
+            url = url.appending(queryItems: query)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        addAuthHeaders(to: &request)
+        request.httpBody = try JSONEncoder().encode(body)
+        let (_, response) = try await session.data(for: request)
+        try validateResponse(response, data: nil)
+    }
+
     private func patch<T: Decodable, B: Encodable>(_ path: String, body: B, query: [URLQueryItem] = []) async throws -> T {
         var url = baseURL.appendingPathComponent(path)
         if !query.isEmpty {
@@ -183,6 +197,44 @@ final class OpenCodeClient: @unchecked Sendable {
 
     func getVcs() async throws -> VcsInfo {
         try await request("vcs")
+    }
+
+    func getVcsDiff() async throws -> VcsDiffResponse {
+        try await request("vcs/diff")
+    }
+
+    func initSession(_ id: String, directory: String? = nil) async throws {
+        try await postEmpty("session/\(id)/init", query: queryItems(directory: directory))
+    }
+
+    // MARK: - Workspaces
+
+    func listWorkspaces() async throws -> [Workspace] {
+        try await request("experimental/workspace")
+    }
+
+    func createWorkspace(type: String, branch: String? = nil) async throws -> Workspace {
+        try await post("experimental/workspace", body: CreateWorkspaceBody(type: type, branch: branch))
+    }
+
+    func removeWorkspace(id: String) async throws {
+        let _: Bool = try await delete("experimental/workspace/\(id)")
+    }
+
+    func resetWorkspace(id: String) async throws {
+        try await postEmpty("experimental/workspace/\(id)/reset")
+    }
+
+    func getWorkspaceStatus() async throws -> [String: WorkspaceStatus] {
+        try await request("experimental/workspace/status")
+    }
+
+    func listWorkspaceAdaptors() async throws -> [WorkspaceAdaptor] {
+        try await request("experimental/workspace/adaptor")
+    }
+
+    func restoreWorkspaceSession(id: String) async throws {
+        try await postEmpty("experimental/workspace/\(id)/session-restore")
     }
 
     // MARK: - Sessions
@@ -306,6 +358,14 @@ final class OpenCodeClient: @unchecked Sendable {
         let _: Bool = try await delete("session/\(sessionId)/message/\(messageID)", query: queryItems(directory: directory))
     }
 
+    func deleteMessagePart(sessionId: String, messageID: String, partID: String, directory: String? = nil) async throws {
+        let _: Bool = try await delete("session/\(sessionId)/message/\(messageID)/part/\(partID)", query: queryItems(directory: directory))
+    }
+
+    func updateMessagePart(sessionId: String, messageID: String, partID: String, body: [String: JSONValue], directory: String? = nil) async throws {
+        let _: Bool = try await patch("session/\(sessionId)/message/\(messageID)/part/\(partID)", body: UpdatePartBody(data: body), query: queryItems(directory: directory))
+    }
+
     // MARK: - Files
 
     func listFiles(path: String? = nil, directory: String? = nil, workspace: String? = nil) async throws -> [FileNode] {
@@ -334,6 +394,20 @@ final class OpenCodeClient: @unchecked Sendable {
         var items = queryItems(directory: directory, workspace: workspace)
         items.append(URLQueryItem(name: "query", value: query))
         return try await request("find/file", query: items)
+    }
+
+    func writeFile(path: String, content: String, directory: String? = nil, workspace: String? = nil) async throws {
+        try await postEmpty("file/write", body: WriteFileBody(path: path, content: content), query: queryItems(directory: directory, workspace: workspace))
+    }
+
+    func archiveSession(_ sessionId: String, directory: String? = nil) async throws -> Session {
+        try await postEmpty("session/\(sessionId)/archive", query: queryItems(directory: directory))
+        return try await getSession(sessionId, directory: directory)
+    }
+
+    func unarchiveSession(_ sessionId: String, directory: String? = nil) async throws -> Session {
+        try await postEmpty("session/\(sessionId)/unarchive", query: queryItems(directory: directory))
+        return try await getSession(sessionId, directory: directory)
     }
 
     // MARK: - Permissions
@@ -397,6 +471,72 @@ final class OpenCodeClient: @unchecked Sendable {
 
     func listCommands() async throws -> [CommandInfo] {
         try await request("command")
+    }
+
+    func listSkills() async throws -> [SkillInfo] {
+        try await request("skill")
+    }
+
+    // MARK: - MCP
+
+    func listMcpServers() async throws -> [McpServerStatus] {
+        try await request("mcp")
+    }
+
+    func addMcpServer(name: String, command: String, args: [String] = [], env: [String: String] = [:]) async throws {
+        try await postEmpty("mcp", body: AddMcpServerBody(name: name, command: command, args: args, env: env))
+    }
+
+    func connectMcpServer(name: String) async throws {
+        try await postEmpty("mcp/\(name)/connect")
+    }
+
+    func disconnectMcpServer(name: String) async throws {
+        try await postEmpty("mcp/\(name)/disconnect")
+    }
+
+    func removeMcpServer(name: String) async throws {
+        let _: Bool = try await delete("mcp/\(name)")
+    }
+
+    func startMcpOAuth(name: String) async throws -> McpOAuthResponse {
+        try await post("mcp/\(name)/auth", body: EmptyBody())
+    }
+
+    func completeMcpOAuth(name: String, code: String, state: String) async throws {
+        try await postEmpty("mcp/\(name)/auth/callback", body: McpOAuthCallbackBody(code: code, state: state))
+    }
+
+    func removeMcpOAuth(name: String) async throws {
+        let _: Bool = try await delete("mcp/\(name)/auth")
+    }
+
+    // MARK: - Provider Auth
+
+    func listProviderAuthMethods() async throws -> [ProviderAuthMethod] {
+        try await request("provider/auth")
+    }
+
+    func startProviderOAuth(providerID: String) async throws -> ProviderOAuthResponse {
+        try await post("provider/\(providerID)/oauth/authorize", body: EmptyBody())
+    }
+
+    func completeProviderOAuth(providerID: String, code: String, state: String) async throws {
+        try await postEmpty("provider/\(providerID)/oauth/callback", body: ProviderOAuthCallbackBody(code: code, state: state))
+    }
+
+    func disconnectProvider(providerID: String) async throws {
+        try await postEmpty("provider/\(providerID)/disconnect")
+    }
+
+    // MARK: - Config
+
+    func getConfig() async throws -> ServerConfigResponse {
+        try await request("config")
+    }
+
+    func updateConfig(_ config: ConfigUpdate) async throws {
+        let _: Bool = try await patch("config", body: config)
     }
 
     // MARK: - SSE
@@ -474,7 +614,7 @@ final class OpenCodeClient: @unchecked Sendable {
                         guard !Task.isCancelled else { break }
                         switch parser.processLine(line) {
                         case .event(let event):
-                            if event.type == "done" {
+                            if event.eventType == "done" {
                                 clientLogger.info("SSE: received done event")
                                 continuation.finish()
                                 return
@@ -489,7 +629,7 @@ final class OpenCodeClient: @unchecked Sendable {
                     // Flush any remaining buffered event
                     switch parser.flush() {
                     case .event(let event):
-                        if event.type == "done" {
+                        if event.eventType == "done" {
                             clientLogger.info("SSE: received done event at stream end")
                         } else {
                             continuation.yield(event)
@@ -625,6 +765,16 @@ private struct ResizePtyBody: Encodable {
 private struct PtySize: Encodable {
     let rows: Int
     let cols: Int
+}
+
+private struct WriteFileBody: Encodable {
+    let path: String
+    let content: String
+}
+
+private struct CreateWorkspaceBody: Encodable {
+    let type: String
+    let branch: String?
 }
 
 // MARK: - Errors

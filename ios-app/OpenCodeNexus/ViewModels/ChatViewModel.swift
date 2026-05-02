@@ -19,6 +19,9 @@ final class ChatViewModel {
                 return
             }
             if selectedSessionId != oldValue {
+                if let oldValue {
+                    sessionSelectedModels[oldValue] = selectedModel
+                }
                 saveDraft(for: oldValue)
                 isSending = false
                 isStreamingDeltas = false
@@ -33,6 +36,10 @@ final class ChatViewModel {
                 for id in staleIds {
                     pendingOptimisticMessages[id] = nil
                 }
+                if let newId {
+                    selectedModel = sessionSelectedModels[newId] ?? selectedModel
+                }
+                optimisticToServerMessageIds.removeAll()
             }
         }
     }
@@ -60,7 +67,7 @@ final class ChatViewModel {
     var currentProject: Project?
     var projects: [Project] = []
     var fileDiffs: [FileDiff] = []
-    var nextTUIRequest: TUIControlRequest?
+    var queuedMessages: [String: [String]] = [:]
 
     var availableProviders: [ProviderInfo] = []
     var availableAgents: [AgentInfo] = []
@@ -74,6 +81,8 @@ final class ChatViewModel {
     var sessionSearchText = ""
     var hasMoreMessages = false
     var hasMoreSessions = false
+    var childSessions: [String: [Session]] = [:]
+    var expandedSessions: Set<String> = []
 
     private static let popularProviders = ["opencode", "opencode-go", "anthropic", "github-copilot", "openai", "google", "openrouter", "vercel"]
 
@@ -93,6 +102,9 @@ final class ChatViewModel {
     private var questionsBySession: [String: [Question]] = [:]
     private var bufferedDeltas: [String: [BufferedDelta]] = [:]
     private var isRestoringSelectionDuringSend = false
+    private var sessionSelectedModels: [String: ModelRefBody] = [:]
+    private var optimisticToServerMessageIds: [String: String] = [:]
+    var settings: SettingsViewModel?
 
     @ObservationIgnored
     private var _cachedGroups: [(name: String, directory: String, sessions: [Session])]?
@@ -312,6 +324,16 @@ final class ChatViewModel {
         }
     }
 
+    func loadWorkspaces() async {
+        guard let client else { return }
+        do {
+            _ = try await client.listWorkspaces()
+            logger.info("Loaded workspaces")
+        } catch {
+            logger.error("Failed to load workspaces: \(error)")
+        }
+    }
+
     // MARK: - Sessions
 
     func loadSessions(resetLimit: Bool = true) async {
@@ -435,7 +457,6 @@ final class ChatViewModel {
         await loadTodos()
         await loadSessionDiffs()
         await loadPendingRequests(for: sessionId)
-        await refreshTUIRequest()
     }
 
     func directory(for sessionId: String?) -> String? {
@@ -551,6 +572,57 @@ final class ChatViewModel {
             }
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func archiveSession(_ sessionId: String? = nil) async {
+        guard let client, let sessionId = sessionId ?? selectedSessionId else { return }
+        do {
+            let updated = try await client.archiveSession(sessionId, directory: directory(for: sessionId))
+            withAnimation {
+                sessions.removeAll { $0.id == sessionId }
+            }
+            if selectedSessionId == sessionId {
+                selectedSessionId = nil
+                messages = []
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func unarchiveSession(_ sessionId: String) async {
+        guard let client else { return }
+        do {
+            let updated = try await client.unarchiveSession(sessionId, directory: directory(for: sessionId))
+            if !sessions.contains(where: { $0.id == sessionId }) {
+                sessions.insert(updated, at: 0)
+            } else if let idx = sessions.firstIndex(where: { $0.id == sessionId }) {
+                sessions[idx] = updated
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func loadChildSessions(for sessionId: String) async {
+        guard let client else { return }
+        do {
+            let children = try await client.getChildren(sessionId, directory: directory(for: sessionId))
+            childSessions[sessionId] = children
+        } catch {
+            logger.error("Failed to load child sessions: \(error)")
+        }
+    }
+
+    func toggleSessionExpansion(_ sessionId: String) {
+        if expandedSessions.contains(sessionId) {
+            expandedSessions.remove(sessionId)
+        } else {
+            expandedSessions.insert(sessionId)
+            if childSessions[sessionId] == nil {
+                Task { await loadChildSessions(for: sessionId) }
+            }
         }
     }
 
@@ -685,12 +757,14 @@ final class ChatViewModel {
                 for (id, _) in stale {
                     self.messages.removeAll { $0.id == id }
                     self.pendingOptimisticMessages[id] = nil
+                    self.optimisticToServerMessageIds.removeValue(forKey: id)
                 }
                 self.errorMessage = "Request timed out after 120 seconds"
             }
         } catch {
             messages.removeAll { $0.id == optimisticId }
             pendingOptimisticMessages[optimisticId] = nil
+            optimisticToServerMessageIds.removeValue(forKey: optimisticId)
             errorMessage = error.localizedDescription
             inputText = text
             self.attachedParts = partsToSend
@@ -776,52 +850,39 @@ final class ChatViewModel {
 
     // MARK: - Follow-up Queue
 
-    func refreshTUIRequest() async {
-        guard let client else { return }
-        do {
-            nextTUIRequest = try await client.getNextTUIRequest(directory: directory(for: selectedSessionId))
-        } catch {
-            nextTUIRequest = nil
-        }
-    }
-
-    func queueFollowUpPrompt() async {
+    func queueFollowUpPrompt() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let client, !text.isEmpty else { return }
-        do {
-            try await client.appendPrompt(text, directory: directory(for: selectedSessionId))
-            inputText = ""
-            await refreshTUIRequest()
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+        guard !text.isEmpty, let sessionId = selectedSessionId else { return }
+        queuedMessages[sessionId, default: []].append(text)
+        inputText = ""
     }
 
     func submitQueuedPrompt() async {
-        guard let client else { return }
-        do {
-            try await client.submitPrompt(directory: directory(for: selectedSessionId))
-            await refreshTUIRequest()
-        } catch {
-            errorMessage = error.localizedDescription
+        guard let sessionId = selectedSessionId else { return }
+        guard !(queuedMessages[sessionId] ?? []).isEmpty else { return }
+        if !isSending {
+            await sendNextQueuedMessage(for: sessionId)
         }
     }
 
-    func clearQueuedPrompt() async {
-        guard let client else { return }
-        do {
-            try await client.clearPrompt(directory: directory(for: selectedSessionId))
-            nextTUIRequest = nil
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+    func clearQueuedPrompt() {
+        guard let sessionId = selectedSessionId else { return }
+        queuedMessages[sessionId] = []
+    }
+
+    private func sendNextQueuedMessage(for sessionId: String) async {
+        guard client != nil, !isSending else { return }
+        guard var queue = queuedMessages[sessionId], !queue.isEmpty else { return }
+        let text = queue.removeFirst()
+        queuedMessages[sessionId] = queue
+        inputText = text
+        await sendMessage(attachedParts: [])
     }
 
     func respondToTUIRequest(_ body: [String: JSONValue]) async {
         guard let client else { return }
         do {
             _ = try await client.respondToTUIRequest(body: body, directory: directory(for: selectedSessionId))
-            await refreshTUIRequest()
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -940,12 +1001,20 @@ final class ChatViewModel {
         for id in pendingOptimisticMessages.keys where serverIds.contains(id) {
             pendingOptimisticMessages[id] = nil
         }
-        for pending in pendingOptimisticMessages.values where pending.sessionID == sessionId {
-            if loaded.contains(where: { message in
-                guard message.info.isUser else { return false }
+        var matchedServerIds = Set<String>()
+        let sortedPending = pendingOptimisticMessages.values
+            .filter { $0.sessionID == sessionId }
+            .sorted(by: { $0.created < $1.created })
+        for pending in sortedPending {
+            if let matchingServerMessage = loaded.first(where: { message in
+                guard message.info.isUser, !matchedServerIds.contains(message.id) else { return false }
                 if messageText(message) == pending.text { return true }
-                return abs(message.info.time.created - pending.created) < 60_000
+                return abs(message.info.time.created - pending.created) < 5_000
             }) {
+                matchedServerIds.insert(matchingServerMessage.id)
+                if matchingServerMessage.id != pending.id {
+                    optimisticToServerMessageIds[pending.id] = matchingServerMessage.id
+                }
                 pendingOptimisticMessages[pending.id] = nil
             }
         }
@@ -1109,7 +1178,10 @@ final class ChatViewModel {
     }
 
     func handleEvent(_ event: SSEEvent) {
-        switch event.type {
+        let rawType = event.eventType
+        let type = normalizedEventType(rawType)
+
+        switch type {
         case "message.part.delta":
             guard let eventSessionID = event.sessionID,
                   eventSessionID == selectedSessionId else { return }
@@ -1119,14 +1191,18 @@ final class ChatViewModel {
         case "message.updated", "message.part.updated":
             guard let eventSessionID = event.sessionID,
                   eventSessionID == selectedSessionId else { return }
-            logger.info("SSE: \(event.type) for session \(eventSessionID), streaming=\(self.isStreamingDeltas)")
-            if isStreamingDeltas {
-                if event.type == "message.updated" {
-                    isStreamingDeltas = false
-                } else {
-                    return
-                }
+            logger.info("SSE: \(rawType) for session \(eventSessionID), streaming=\(self.isStreamingDeltas)")
+
+            if type == "message.updated",
+               let infoData = event.properties?["info"] {
+                applyMessageUpdate(infoData)
             }
+
+            if type == "message.part.updated",
+               let partData = event.properties?["part"] {
+                applyPartUpdate(partData)
+            }
+
             messageReloadTask?.cancel()
             messageReloadTask = Task {
                 try? await Task.sleep(for: .milliseconds(300))
@@ -1135,7 +1211,7 @@ final class ChatViewModel {
             }
 
         case "session.created", "session.updated", "session.deleted":
-            if isSending && event.type == "session.updated" { break }
+            if isSending && type == "session.updated" { break }
             sessionReloadTask?.cancel()
             sessionReloadTask = Task {
                 try? await Task.sleep(for: .milliseconds(300))
@@ -1153,9 +1229,16 @@ final class ChatViewModel {
                     isSending = false
                     isStreamingDeltas = false
                     currentSendOperationID = nil
+                    let stale = pendingOptimisticMessages.filter { $0.value.sessionID == eventSessionID }
+                    for (id, _) in stale {
+                        messages.removeAll { $0.id == id }
+                        pendingOptimisticMessages[id] = nil
+                        optimisticToServerMessageIds.removeValue(forKey: id)
+                    }
                     Task {
                         await loadMessages()
                         await loadSessions(resetLimit: false)
+                        await sendNextQueuedMessage(for: eventSessionID)
                     }
                 }
             }
@@ -1186,7 +1269,11 @@ final class ChatViewModel {
             if let props = event.properties,
                let permData = try? JSONEncoder().encode(props),
                let perm = try? JSONDecoder().decode(Permission.self, from: permData) {
-                mergePermissions([perm])
+                if settings?.autoAcceptPermissions == true {
+                    Task { await approvePermission(perm) }
+                } else {
+                    mergePermissions([perm])
+                }
             }
 
         case "question.asked":
@@ -1234,8 +1321,82 @@ final class ChatViewModel {
         case "server.heartbeat":
             break
 
+        case "workspace.ready", "workspace.failed", "workspace.status":
+            logger.info("SSE: workspace event \(rawType)")
+            Task { await loadWorkspaces() }
+
+        case "worktree.ready", "worktree.failed":
+            logger.info("SSE: worktree event \(rawType)")
+            Task { await loadWorkspaces() }
+
         default:
-            break
+            if rawType != "sync" {
+                logger.info("SSE: unhandled event type \(rawType)")
+            }
+        }
+    }
+
+    private func normalizedEventType(_ type: String) -> String {
+        if type.hasSuffix(".1") {
+            return String(type.dropLast(2))
+        }
+        return type
+    }
+
+    private func applyMessageUpdate(_ infoData: JSONValue) {
+        guard let infoJSON = try? JSONEncoder().encode(infoData),
+              let info = try? JSONDecoder().decode(MessageInfo.self, from: infoJSON) else {
+            logger.warning("applyMessageUpdate: failed to decode info from event")
+            return
+        }
+
+        let resolvedMessageID = optimisticToServerMessageIds[info.id] ?? info.id
+
+        if let msgIdx = messages.firstIndex(where: { $0.id == resolvedMessageID }) {
+            let existing = messages[msgIdx]
+            messages[msgIdx] = MessageEnvelope(info: info, parts: existing.parts)
+            logger.info("applyMessageUpdate: updated existing message \(resolvedMessageID)")
+        } else {
+            let newMessage = MessageEnvelope(info: info, parts: [])
+            let created = info.time.created
+            if let insertIdx = messages.firstIndex(where: { $0.info.time.created > created }) {
+                messages.insert(newMessage, at: insertIdx)
+            } else {
+                messages.append(newMessage)
+            }
+            logger.info("applyMessageUpdate: created new message \(resolvedMessageID) with empty parts")
+        }
+    }
+
+    private func applyPartUpdate(_ partData: JSONValue) {
+        guard let partJSON = try? JSONEncoder().encode(partData),
+              let part = try? JSONDecoder().decode(Part.self, from: partJSON) else {
+            logger.warning("applyPartUpdate: failed to decode part from event")
+            return
+        }
+
+        let resolvedMessageID = optimisticToServerMessageIds[part.messageID ?? ""] ?? part.messageID
+
+        guard let msgIdx = messages.firstIndex(where: { $0.id == resolvedMessageID }) else {
+            logger.warning("applyPartUpdate: message \(part.messageID ?? "nil") (resolved: \(resolvedMessageID ?? "nil")) not found")
+            return
+        }
+
+        let message = messages[msgIdx]
+        var updatedParts = message.parts
+
+        if let existingIdx = updatedParts.firstIndex(where: { $0.id == part.id }) {
+            updatedParts[existingIdx] = part
+            logger.info("applyPartUpdate: updated existing part \(part.id ?? "nil")")
+        } else {
+            updatedParts.append(part)
+            logger.info("applyPartUpdate: created new part \(part.id ?? "nil") for message \(resolvedMessageID ?? "nil")")
+        }
+
+        messages[msgIdx] = MessageEnvelope(info: message.info, parts: updatedParts)
+
+        if let sessionID = selectedSessionId {
+            applyBufferedDeltas(for: sessionID)
         }
     }
 
@@ -1243,14 +1404,16 @@ final class ChatViewModel {
         guard let messageID = event.messageID,
               let partID = event.properties?["partID"]?.stringValue,
               let delta = event.properties?["delta"]?.stringValue else {
-            logger.warning("applyDelta: missing messageID/partID/delta — event: \(event.type)")
+            logger.warning("applyDelta: missing messageID/partID/delta — event: \(event.eventType)")
             return
         }
 
-        guard let msgIdx = messages.firstIndex(where: { $0.id == messageID }) else {
-            logger.warning("applyDelta: message \(messageID) not found in current messages (\(self.messages.count) loaded)")
+        let resolvedMessageID = optimisticToServerMessageIds[messageID] ?? messageID
+
+        guard let msgIdx = messages.firstIndex(where: { $0.id == resolvedMessageID }) else {
+            logger.warning("applyDelta: message \(messageID) (resolved: \(resolvedMessageID)) not found in current messages (\(self.messages.count) loaded)")
             if let sessionID = event.sessionID {
-                bufferedDeltas[sessionID, default: []].append(BufferedDelta(messageID: messageID, partID: partID, delta: delta))
+                bufferedDeltas[sessionID, default: []].append(BufferedDelta(messageID: resolvedMessageID, partID: partID, delta: delta))
             }
             return
         }
@@ -1260,7 +1423,7 @@ final class ChatViewModel {
 
         guard let partIdx = message.parts.firstIndex(where: { $0.id == partID }) else {
             if let sessionID = event.sessionID {
-                bufferedDeltas[sessionID, default: []].append(BufferedDelta(messageID: messageID, partID: partID, delta: delta))
+                bufferedDeltas[sessionID, default: []].append(BufferedDelta(messageID: resolvedMessageID, partID: partID, delta: delta))
             }
             return
         }
@@ -1278,26 +1441,34 @@ final class ChatViewModel {
         guard var deltas = bufferedDeltas[sessionId], !deltas.isEmpty else { return }
         var unapplied: [BufferedDelta] = []
         var applied = false
+
         for delta in deltas {
-            guard let msgIdx = messages.firstIndex(where: { $0.id == delta.messageID }) else {
+            let resolvedMessageID = optimisticToServerMessageIds[delta.messageID] ?? delta.messageID
+            guard let msgIdx = messages.firstIndex(where: { $0.id == resolvedMessageID }) else {
                 unapplied.append(delta)
                 continue
             }
-            var message = messages[msgIdx]
-            guard let partIdx = message.parts.firstIndex(where: { $0.id == delta.partID }) else {
+            let message = messages[msgIdx]
+
+            if let partIdx = message.parts.firstIndex(where: { $0.id == delta.partID }) {
+                let part = message.parts[partIdx]
+                let existingText = part.text ?? ""
+                let updatedPart = part.withText(existingText + delta.delta)
+                var updatedParts = message.parts
+                updatedParts[partIdx] = updatedPart
+                messages[msgIdx] = MessageEnvelope(info: message.info, parts: updatedParts)
+                applied = true
+            } else {
                 unapplied.append(delta)
-                continue
             }
-            let part = message.parts[partIdx]
-            let updated = part.withText((part.text ?? "") + delta.delta)
-            message = MessageEnvelope(info: message.info, parts: message.parts.enumerated().map { $0.offset == partIdx ? updated : $0.element })
-            messages[msgIdx] = message
-            applied = true
         }
-        deltas = unapplied
-        bufferedDeltas[sessionId] = deltas.isEmpty ? nil : deltas
+
+        bufferedDeltas[sessionId] = unapplied.isEmpty ? nil : unapplied
         if applied {
             isStreamingDeltas = true
+        }
+        if !unapplied.isEmpty {
+            logger.info("applyBufferedDeltas: \(unapplied.count) deltas still unapplied for session \(sessionId)")
         }
     }
 

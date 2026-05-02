@@ -14,7 +14,7 @@ final class SSEParserTests: XCTestCase {
             XCTFail("Expected event, got \(String(describing: result))")
             return
         }
-        XCTAssertEqual(event.type, "session.created")
+        XCTAssertEqual(event.eventType, "session.created")
         XCTAssertEqual(event.sessionID, "ses_123")
     }
 
@@ -32,7 +32,7 @@ final class SSEParserTests: XCTestCase {
             XCTFail("Expected event")
             return
         }
-        XCTAssertEqual(event.type, "server.heartbeat")
+        XCTAssertEqual(event.eventType, "server.heartbeat")
     }
 
     // MARK: - Multi-line data fields
@@ -47,7 +47,7 @@ final class SSEParserTests: XCTestCase {
             XCTFail("Expected event")
             return
         }
-        XCTAssertEqual(event.type, "test")
+        XCTAssertEqual(event.eventType, "test")
     }
 
     func testMultiLineWithNewlinesInValue() {
@@ -74,7 +74,7 @@ final class SSEParserTests: XCTestCase {
             XCTFail("Expected event")
             return
         }
-        XCTAssertEqual(event.type, "message.updated")
+        XCTAssertEqual(event.eventType, "message.updated")
     }
 
     // MARK: - Malformed events
@@ -112,7 +112,7 @@ final class SSEParserTests: XCTestCase {
             XCTFail("Expected event")
             return
         }
-        XCTAssertEqual(event.type, "session.status")
+        XCTAssertEqual(event.eventType, "session.status")
         XCTAssertEqual(event.sessionID, "ses_456")
     }
 
@@ -144,6 +144,6 @@ final class SSEParserTests: XCTestCase {
             XCTFail("Expected event")
             return
         }
-        XCTAssertEqual(event.type, "done")
+        XCTAssertEqual(event.eventType, "done")
     }
 }

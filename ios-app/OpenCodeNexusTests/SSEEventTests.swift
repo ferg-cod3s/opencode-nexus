@@ -132,7 +132,7 @@ final class SSEEventTests: XCTestCase {
         """
         let data = json.data(using: .utf8)!
         let event = try JSONDecoder().decode(SSEEvent.self, from: data)
-        XCTAssertEqual(event.type, "session.created")
+        XCTAssertEqual(event.eventType, "session.created")
         XCTAssertEqual(event.sessionID, "ses_abc123")
     }
 
@@ -142,7 +142,7 @@ final class SSEEventTests: XCTestCase {
         """
         let data = json.data(using: .utf8)!
         let event = try JSONDecoder().decode(SSEEvent.self, from: data)
-        XCTAssertEqual(event.type, "session.status")
+        XCTAssertEqual(event.eventType, "session.status")
         XCTAssertEqual(event.sessionID, "ses_123")
 
         let statusObj = event.properties?["status"]?.objectValue
@@ -166,10 +166,40 @@ final class SSEEventTests: XCTestCase {
         """
         let data = json.data(using: .utf8)!
         let event = try JSONDecoder().decode(SSEEvent.self, from: data)
-        XCTAssertEqual(event.type, "server.heartbeat")
+        XCTAssertEqual(event.eventType, "server.heartbeat")
         XCTAssertNil(event.properties)
         XCTAssertNil(event.sessionID)
         XCTAssertNil(event.messageID)
+    }
+
+    // MARK: - Server Payload Wrapper Format
+
+    func testSSEEventDecodingWithPayloadWrapper() throws {
+        let json = """
+        {"directory": "/project", "project": "proj_123", "workspace": "wrk_456", "payload": {"type": "message.part.delta", "properties": {"sessionID": "ses_123", "messageID": "msg_456", "partID": "prt_789", "field": "text", "delta": "Hello"}}}
+        """
+        let data = json.data(using: .utf8)!
+        let event = try JSONDecoder().decode(SSEEvent.self, from: data)
+        XCTAssertEqual(event.eventType, "message.part.delta")
+        XCTAssertEqual(event.directory, "/project")
+        XCTAssertEqual(event.project, "proj_123")
+        XCTAssertEqual(event.workspace, "wrk_456")
+        XCTAssertEqual(event.sessionID, "ses_123")
+        XCTAssertEqual(event.messageID, "msg_456")
+        XCTAssertEqual(event.properties?["partID"]?.stringValue, "prt_789")
+        XCTAssertEqual(event.properties?["delta"]?.stringValue, "Hello")
+    }
+
+    func testSSEEventDecodingSyncEvent() throws {
+        let json = """
+        {"directory": "/project", "payload": {"type": "sync", "syncEvent": {"type": "message.updated.1", "id": "evt_123", "seq": 42, "aggregateID": "sessionID", "data": {"sessionID": "ses_123", "info": {"id": "msg_456"}}}}}
+        """
+        let data = json.data(using: .utf8)!
+        let event = try JSONDecoder().decode(SSEEvent.self, from: data)
+        XCTAssertEqual(event.eventType, "message.updated.1")
+        XCTAssertEqual(event.directory, "/project")
+        XCTAssertEqual(event.sessionID, "ses_123")
+        XCTAssertEqual(event.properties?["info"]?.objectValue?["id"]?.stringValue, "msg_456")
     }
 
     // MARK: - SSEEvent sessionID Extraction

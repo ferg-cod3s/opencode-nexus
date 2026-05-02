@@ -41,6 +41,12 @@ struct SessionRow: View {
                             .font(.caption2)
                             .foregroundStyle(Theme.interactiveBlue)
                     }
+
+                    if session.isArchived {
+                        Image(systemName: "archivebox")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 HStack(spacing: 6) {

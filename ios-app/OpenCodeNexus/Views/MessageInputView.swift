@@ -14,6 +14,11 @@ struct MessageInputView: View {
 
     @FocusState private var isFocused: Bool
     @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var isShellMode = false
+
+    private var placeholderText: String {
+        isShellMode ? "Run a shell command..." : "Type a message..."
+    }
 
     private var filteredCommands: [CommandInfo] {
         guard text.hasPrefix("/") else { return [] }
@@ -40,6 +45,7 @@ struct MessageInputView: View {
             attachmentPreview
             autocompletePalette
             HStack(alignment: .bottom, spacing: 12) {
+                shellModeToggle
                 attachButton
                 inputField
                 actionButton
@@ -49,6 +55,23 @@ struct MessageInputView: View {
             .glassEffect(.regular)
             .overlay { Theme.borderOverlay(radius: 0) }
         }
+    }
+
+    private var shellModeToggle: some View {
+        Button {
+            isShellMode.toggle()
+            if isShellMode && !text.hasPrefix("!") {
+                text = "! " + text
+            } else if !isShellMode && text.hasPrefix("!") {
+                text = String(text.dropFirst()).trimmingCharacters(in: .whitespaces)
+            }
+        } label: {
+            Image(systemName: isShellMode ? "terminal.fill" : "terminal")
+                .font(.body)
+                .foregroundStyle(isShellMode ? Theme.brandYuzu : Theme.textBase)
+                .frame(minWidth: 44, minHeight: 44)
+        }
+        .accessibilityLabel(isShellMode ? "Switch to normal mode" : "Switch to shell mode")
     }
 
     private var attachmentPreview: some View {
@@ -173,7 +196,7 @@ struct MessageInputView: View {
     }
 
     private var inputField: some View {
-        TextField("Type a message...", text: $text, axis: .vertical)
+        TextField(placeholderText, text: $text, axis: .vertical)
             .font(.body)
             .lineLimit(1...5)
             .padding(.horizontal, 16)
@@ -227,10 +250,11 @@ struct MessageInputView: View {
 
     private func sendOrAttach() {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.hasPrefix("!") {
-            let command = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
+        if isShellMode || trimmed.hasPrefix("!") {
+            let command = trimmed.hasPrefix("!") ? String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces) : trimmed
             if !command.isEmpty {
                 text = ""
+                isShellMode = false
                 onShellCommand(command)
                 return
             }

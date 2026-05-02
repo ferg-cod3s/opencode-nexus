@@ -1,8 +1,36 @@
 import Foundation
 
 struct SSEEvent: Decodable, Sendable, Equatable {
-    let type: String
-    let properties: [String: JSONValue]?
+    let directory: String?
+    let project: String?
+    let workspace: String?
+    let payload: Payload?
+    let syncEvent: SyncPayload?
+
+    struct Payload: Decodable, Sendable, Equatable {
+        let type: String
+        let properties: [String: JSONValue]?
+    }
+
+    struct SyncPayload: Decodable, Sendable, Equatable {
+        let type: String
+        let id: String?
+        let seq: Int?
+        let aggregateID: String?
+        let data: [String: JSONValue]?
+    }
+
+    var eventType: String {
+        if let payload { return payload.type }
+        if let syncEvent { return syncEvent.type }
+        return "unknown"
+    }
+
+    var properties: [String: JSONValue]? {
+        if let payload { return payload.properties }
+        if let syncEvent { return syncEvent.data }
+        return nil
+    }
 
     var sessionID: String? {
         properties?["sessionID"]?.stringValue
@@ -10,6 +38,29 @@ struct SSEEvent: Decodable, Sendable, Equatable {
 
     var messageID: String? {
         properties?["messageID"]?.stringValue
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        directory = try? container.decodeIfPresent(String.self, forKey: .directory)
+        project = try? container.decodeIfPresent(String.self, forKey: .project)
+        workspace = try? container.decodeIfPresent(String.self, forKey: .workspace)
+
+        if let payload = try? container.decodeIfPresent(Payload.self, forKey: .payload) {
+            self.payload = payload
+            self.syncEvent = nil
+        } else if let syncEvent = try? container.decodeIfPresent(SyncPayload.self, forKey: .payload) {
+            self.payload = nil
+            self.syncEvent = syncEvent
+        } else {
+            self.payload = nil
+            self.syncEvent = nil
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case directory, project, workspace, payload
     }
 }
 
