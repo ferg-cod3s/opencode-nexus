@@ -127,6 +127,8 @@ final class ConnectionManager {
     }
 
     private func pollAllServers() async {
+        let txn = CrashReporter.transaction(name: "connection.pollAllServers", operation: "health")
+        defer { txn?.finish() }
         for config in serverStore.servers {
             guard let url = resolveURL(config.url) else {
                 serverStore.updateHealth(id: config.id, healthy: false)

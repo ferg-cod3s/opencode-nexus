@@ -105,7 +105,8 @@ final class ChatViewModel {
     private var sessionSelectedModels: [String: ModelRefBody] = [:]
     private var optimisticToServerMessageIds: [String: String] = [:]
     var settings: SettingsViewModel?
-
+    var nextTUIRequest: TUIControlRequest?
+    
     @ObservationIgnored
     private var _cachedGroups: [(name: String, directory: String, sessions: [Session])]?
 
@@ -337,6 +338,8 @@ final class ChatViewModel {
     // MARK: - Sessions
 
     func loadSessions(resetLimit: Bool = true) async {
+        let txn = CrashReporter.transaction(name: "chat.loadSessions", operation: "session")
+        defer { txn?.finish() }
         guard let client else {
             logger.error("loadSessions: no client configured")
             return
@@ -703,6 +706,8 @@ final class ChatViewModel {
     }
 
     func sendMessage(attachedParts: [MessagePartBody] = []) async {
+        let txn = CrashReporter.transaction(name: "chat.sendMessage", operation: "message")
+        defer { txn?.finish() }
         guard !isSending else { return }
         let partsToSend = attachedParts.isEmpty ? self.attachedParts : attachedParts
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1149,6 +1154,8 @@ final class ChatViewModel {
     // MARK: - Event Stream
 
     func startEventStream() {
+        let txn = CrashReporter.transaction(name: "chat.startEventStream", operation: "event")
+        defer { txn?.finish() }
         guard let client else { return }
         eventTask?.cancel()
         eventTask = Task {

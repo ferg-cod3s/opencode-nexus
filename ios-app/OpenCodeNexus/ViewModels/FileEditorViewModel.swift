@@ -59,6 +59,8 @@ final class FileEditorViewModel {
     }
 
     func save() async {
+        let txn = CrashReporter.transaction(name: "fileEditor.save", operation: "file")
+        defer { txn?.finish() }
         guard hasChanges else { return }
         isSaving = true
         errorMessage = nil

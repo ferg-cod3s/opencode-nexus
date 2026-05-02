@@ -39,6 +39,8 @@ final class TerminalViewModel {
     }
 
     func startTerminal() async {
+        let txn = CrashReporter.transaction(name: "terminal.start", operation: "terminal")
+        defer { txn?.finish() }
         guard !hasStartedPty else { return }
         guard let client else {
             logger.error("startTerminal: client is nil")

@@ -7,6 +7,9 @@ packages:
   libghostty-spm:
     url: https://github.com/Lakr233/libghostty-spm
     from: 1.0.0
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa.git
+    from: 8.0.0
 options:
   bundleIdPrefix: com.agentic-codeflow
   deploymentTarget:
@@ -28,6 +31,8 @@ targets:
     dependencies:
       - package: libghostty-spm
         product: GhosttyTerminal
+      - package: Sentry
+        product: Sentry
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.agentic-codeflow.opencode-nexus
