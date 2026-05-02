@@ -48,6 +48,10 @@ struct Session: Codable, Identifiable, Hashable {
         return directory
     }
 
+    var isArchived: Bool {
+        time.archived != nil
+    }
+
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }

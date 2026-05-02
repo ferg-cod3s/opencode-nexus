@@ -331,7 +331,7 @@ final class OpenCodeClientTests: XCTestCase {
         var iterator = client.eventStream(directory: "/repo/app", workspace: "main").makeAsyncIterator()
         let event = try await iterator.next()
 
-        XCTAssertEqual(event?.type, "server.heartbeat")
+        XCTAssertEqual(event?.eventType, "server.heartbeat")
     }
 
     func testTUIEndpointsUseExpectedPathsAndBodies() async throws {
@@ -752,6 +752,149 @@ final class OpenCodeClientTests: XCTestCase {
 
     private static func queryDictionary(from components: URLComponents) -> [String: String] {
         Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+    }
+
+    // MARK: - New Endpoints (Phase 1)
+
+    func testInitSessionURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_123/init")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        try await client.initSession("ses_123")
+    }
+
+    func testInitSessionWithDirectory() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_123/init")
+            let query = request.url?.query
+            XCTAssertNotNil(query)
+            XCTAssertTrue(query!.contains("directory=/my/project"))
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        try await client.initSession("ses_123", directory: "/my/project")
+    }
+
+    func testDeleteMessagePartURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_123/message/msg_456/part/part_789")
+            XCTAssertEqual(request.httpMethod, "DELETE")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, "true".data(using: .utf8)!)
+        }
+        try await client.deleteMessagePart(sessionId: "ses_123", messageID: "msg_456", partID: "part_789")
+    }
+
+    func testUpdateMessagePartURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session/ses_123/message/msg_456/part/part_789")
+            XCTAssertEqual(request.httpMethod, "PATCH")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, "true".data(using: .utf8)!)
+        }
+        try await client.updateMessagePart(sessionId: "ses_123", messageID: "msg_456", partID: "part_789", body: ["text": .string("updated")])
+    }
+
+    func testGetVcsDiffURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/vcs/diff")
+            XCTAssertEqual(request.httpMethod, "GET")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, "{\"files\": []}".data(using: .utf8)!)
+        }
+        _ = try await client.getVcsDiff()
+    }
+
+    func testListMcpServersURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/mcp")
+            XCTAssertEqual(request.httpMethod, "GET")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, "[]".data(using: .utf8)!)
+        }
+        _ = try await client.listMcpServers()
+    }
+
+    func testAddMcpServerURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/mcp")
+            XCTAssertEqual(request.httpMethod, "POST")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        try await client.addMcpServer(name: "test-server", command: "npx", args: ["-y", "@modelcontextprotocol/server-filesystem"])
+    }
+
+    func testConnectMcpServerURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/mcp/test-server/connect")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        try await client.connectMcpServer(name: "test-server")
+    }
+
+    func testDisconnectMcpServerURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/mcp/test-server/disconnect")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        try await client.disconnectMcpServer(name: "test-server")
+    }
+
+    func testRemoveMcpServerURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/mcp/test-server")
+            XCTAssertEqual(request.httpMethod, "DELETE")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, "true".data(using: .utf8)!)
+        }
+        try await client.removeMcpServer(name: "test-server")
+    }
+
+    func testStartProviderOAuthURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/provider/openai/oauth/authorize")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, "{\"url\": \"https://oauth.example.com\"}".data(using: .utf8)!)
+        }
+        _ = try await client.startProviderOAuth(providerID: "openai")
+    }
+
+    func testCompleteProviderOAuthURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/provider/openai/oauth/callback")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        try await client.completeProviderOAuth(providerID: "openai", code: "auth_code", state: "state_token")
+    }
+
+    func testDisconnectProviderURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/provider/openai/disconnect")
+            XCTAssertEqual(request.httpMethod, "POST")
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        try await client.disconnectProvider(providerID: "openai")
+    }
+
+    func testGetConfigURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/config")
+            XCTAssertEqual(request.httpMethod, "GET")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!, "{}".data(using: .utf8)!)
+        }
+        _ = try await client.getConfig()
+    }
+
+    func testUpdateConfigURL() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/config")
+            XCTAssertEqual(request.httpMethod, "PATCH")
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "application/json")
+            return (HTTPURLResponse(url: request.url!, statusCode: 204, httpVersion: nil, headerFields: nil)!, Data())
+        }
+        let config = ConfigUpdate(theme: "dark", language: nil, autoAcceptPermissions: nil, reasoningSummaries: nil, shellToolParts: nil, editToolParts: nil, sessionProgressBar: nil, visibleModels: nil, hiddenModels: nil)
+        try await client.updateConfig(config)
     }
 }
 

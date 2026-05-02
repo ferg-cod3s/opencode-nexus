@@ -5,6 +5,7 @@ struct MessageListView: View {
     let messages: [MessageEnvelope]
     let isLoading: Bool
     let isSending: Bool
+    let isSessionBusy: Bool
     @Binding var inputText: String
     @Binding var attachedParts: [MessagePartBody]
     let onSend: ([MessagePartBody]) -> Void
@@ -30,17 +31,19 @@ struct MessageListView: View {
     @Binding var selectedAgent: String?
     let onNavigateHistory: (ChatViewModel.HistoryDirection) -> Void
     let onShellCommand: (String) -> Void
-    let nextTUIRequest: TUIControlRequest?
+    let queuedMessages: [String]
     let onQueueFollowUp: () -> Void
     let onSubmitQueuedPrompt: () -> Void
     let onClearQueuedPrompt: () -> Void
     let onRespondToTUIRequest: ([String: JSONValue]) -> Void
+    @State private var thinkingEffort: ThinkingEffort = .medium
 
     var body: some View {
         VStack(spacing: 0) {
             diffBanner
             permissionBanner
             questionBanner
+            SessionProgressBar(isBusy: isSessionBusy)
             messageListPane
             followUpCard
             Divider()
@@ -63,26 +66,26 @@ struct MessageListView: View {
 
     @ViewBuilder
     private var followUpCard: some View {
-        if isSending || nextTUIRequest != nil {
+        if isSending || !queuedMessages.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Label("Follow-up Queue", systemImage: "text.badge.plus")
                         .font(.caption.weight(.semibold))
                     Spacer()
-                    if let nextTUIRequest {
-                        Text(nextTUIRequest.path)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                if let nextTUIRequest {
-                    Text(nextTUIRequest.body.displayText)
+                    Text("\(queuedMessages.count) queued")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                        .lineLimit(3)
+                }
 
-                    tuiResponseButtons(for: nextTUIRequest)
+                if !queuedMessages.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(Array(queuedMessages.enumerated()), id: \.offset) { _, text in
+                            Text(text)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(2)
+                        }
+                    }
                 } else {
                     Text("Queue your next prompt while this session is busy.")
                         .font(.caption2)
@@ -95,8 +98,10 @@ struct MessageListView: View {
                         .disabled(inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     Button("Submit", action: onSubmitQueuedPrompt)
                         .buttonStyle(.bordered)
+                        .disabled(queuedMessages.isEmpty)
                     Button("Clear", role: .destructive, action: onClearQueuedPrompt)
                         .buttonStyle(.bordered)
+                        .disabled(queuedMessages.isEmpty)
                 }
                 .font(.caption)
             }
@@ -106,94 +111,6 @@ struct MessageListView: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
         }
-    }
-
-    @ViewBuilder
-    private func tuiResponseButtons(for request: TUIControlRequest) -> some View {
-        let questions = extractQuestions(from: request.body)
-        if !questions.isEmpty {
-            ForEach(Array(questions.enumerated()), id: \.offset) { _, question in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(question.header)
-                        .font(.caption2.weight(.semibold))
-                    Text(question.question)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(question.options, id: \.label) { option in
-                                Button {
-                                    onRespondToTUIRequest(buildResponse(for: question, selected: option.label))
-                                } label: {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(option.label)
-                                            .font(.caption2.weight(.medium))
-                                        if !option.description.isEmpty {
-                                            Text(option.description)
-                                                .font(.system(size: 9))
-                                                .foregroundStyle(.secondary)
-                                                .lineLimit(1)
-                                        }
-                                    }
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(.fill.tertiary, in: .capsule)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            Button("OK") { onRespondToTUIRequest(["response": .bool(true)]) }
-                .buttonStyle(.bordered)
-                .font(.caption)
-        }
-    }
-
-    struct TUIQuestion {
-        let header: String
-        let question: String
-        let options: [(label: String, description: String)]
-        let multiple: Bool
-    }
-
-    func extractQuestions(from body: JSONValue) -> [TUIQuestion] {
-        guard case .object(let obj) = body else { return [] }
-        let questionsArray: [JSONValue]?
-        if case .array(let arr) = obj["questions"] {
-            questionsArray = arr
-        } else {
-            return []
-        }
-        guard let items = questionsArray else { return [] }
-        return items.compactMap { item -> TUIQuestion? in
-            guard case .object(let qObj) = item else { return nil }
-            let header = qObj["header"]?.stringValue ?? "Question"
-            let question = qObj["question"]?.stringValue ?? ""
-            let multiple = qObj["multiple"]?.boolValue ?? false
-            let options: [(label: String, description: String)]
-            if case .array(let optArr) = qObj["options"] {
-                options = optArr.compactMap { opt -> (String, String)? in
-                    guard case .object(let optObj) = opt,
-                          let label = optObj["label"]?.stringValue else { return nil }
-                    return (label, optObj["description"]?.stringValue ?? "")
-                }
-            } else {
-                options = []
-            }
-            return TUIQuestion(header: header, question: question, options: options, multiple: multiple)
-        }
-    }
-
-    func buildResponse(for question: TUIQuestion, selected: String) -> [String: JSONValue] {
-        let answers: [JSONValue] = question.multiple
-            ? [.array([.string(selected)])]
-            : [.array([.string(selected)])]
-        return [
-            "answers": .array(answers)
-        ]
     }
 
     @ViewBuilder
@@ -242,6 +159,7 @@ struct MessageListView: View {
                             selection: $selectedAgent
                         )
                     }
+                    ThinkingEffortSelector(selection: $thinkingEffort)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 6)

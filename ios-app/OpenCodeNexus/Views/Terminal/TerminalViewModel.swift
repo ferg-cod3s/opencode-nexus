@@ -48,10 +48,11 @@ final class TerminalViewModel {
         }
         hasStartedPty = true
         connectionState = .connecting
-        debugMessage = "Step 1/4: POST /pty (command=/bin/bash, cwd=\(directory ?? "nil"))"
-        logger.info("Terminal: creating PTY, cwd=\(self.directory ?? "nil")")
+        debugMessage = "Creating PTY session..."
 
         do {
+            debugMessage = "Step 1/4: POST /pty (command=/bin/bash, cwd=\(directory ?? "nil"))"
+            logger.info("Terminal: creating PTY, cwd=\(self.directory ?? "nil")")
             let pty = try await client.createPty(
                 command: "/bin/bash",
                 cwd: directory,
@@ -61,7 +62,7 @@ final class TerminalViewModel {
             logger.info("Terminal: PTY created: \(pty.id), pid=\(pty.pid ?? -1), status=\(pty.status)")
             debugMessage = "Step 2/4: PTY \(pty.id) created, building WS URL..."
 
-            let wsRequest = client.ptyConnectRequest(ptyID: pty.id, directory: directory)
+            let wsRequest = client.ptyConnectRequest(ptyID: pty.id)
             logger.info("Terminal: WS URL: \(wsRequest.url?.absoluteString ?? "nil")")
             debugMessage = "WS: \(wsRequest.url?.absoluteString ?? "nil")"
 
