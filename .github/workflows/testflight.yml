@@ -1,0 +1,96 @@
+name: TestFlight Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+concurrency:
+  group: testflight-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-upload:
+    name: Build & Upload to TestFlight
+    runs-on: macos-15
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          XCODE_VERSION=$(ls /Applications/ | grep "Xcode" | sort -V | tail -1 | sed 's/Xcode_//;s/\.app//')
+          sudo xcode-select -s "/Applications/Xcode_${XCODE_VERSION}.app/Contents/Developer"
+          echo "Using Xcode: $(xcodebuild -version)"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        working-directory: ios-app
+        run: xcodegen generate
+
+      - name: Set build number
+        id: build_number
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="${VERSION#v}"
+          BUILD_NUMBER=$(date +%Y%m%d%H%M%S)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+          echo "Release version: $VERSION (build: $BUILD_NUMBER)"
+
+      - name: Update version in project.yml
+        working-directory: ios-app
+        run: |
+          sed -i '' 's/MARKETING_VERSION: ".*"/MARKETING_VERSION: "${{ steps.build_number.outputs.version }}"/' project.yml
+          sed -i '' 's/CURRENT_PROJECT_VERSION: ".*"/CURRENT_PROJECT_VERSION: "${{ steps.build_number.outputs.build_number }}"/' project.yml
+          xcodegen generate
+
+      - name: Archive
+        working-directory: ios-app
+        run: |
+          xcodebuild archive \
+            -project OpenCodeNexus.xcodeproj \
+            -scheme OpenCodeNexus \
+            -configuration Release \
+            -archivePath build/OpenCodeNexus.xcarchive \
+            -allowProvisioningUpdates \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}"
+
+      - name: Export IPA
+        working-directory: ios-app
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath build/OpenCodeNexus.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist ExportOptions.plist \
+            -allowProvisioningUpdates
+
+      - name: Upload to App Store Connect
+        run: |
+          xcrun notarytool submit \
+            ios-app/build/export/OpenCodeNexus.ipa \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --wait
+
+      - name: Create GitHub Release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ steps.build_number.outputs.version }}"
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
