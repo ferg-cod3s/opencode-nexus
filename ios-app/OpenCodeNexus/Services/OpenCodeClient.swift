@@ -17,8 +17,8 @@ final class OpenCodeClient: @unchecked Sendable {
         self.username = username
         self.password = password
         let config = configuration
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 60
+        config.timeoutIntervalForRequest = 120
+        config.timeoutIntervalForResource = 240
         self.session = URLSession(configuration: config)
     }
 
