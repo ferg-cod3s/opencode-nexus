@@ -48,7 +48,7 @@ The iOS app includes an SSH-friendly device build script:
 bun run ios:device
 ```
 
-That command builds with Xcode beta, installs to the paired iPhone, and launches `com.agentic-codeflow.opencode-nexus`. If SSH signing fails because the login keychain is locked, prepare signing first:
+That command builds with Xcode beta, installs to the paired iPhone, and launches `com.agenticcodeflow.opencodenexus`. If SSH signing fails because the login keychain is locked, prepare signing first:
 
 ```bash
 bun run ios:device:prepare-signing

@@ -11,7 +11,7 @@ packages:
     url: https://github.com/getsentry/sentry-cocoa.git
     from: 8.0.0
 options:
-  bundleIdPrefix: com.agentic-codeflow
+  bundleIdPrefix: ai.v1truv1us
   deploymentTarget:
     iOS: "26.0"
   xcodeVersion: "26.0"
@@ -35,7 +35,7 @@ targets:
         product: Sentry
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.agentic-codeflow.opencode-nexus
+        PRODUCT_BUNDLE_IDENTIFIER: ai.v1truv1us.opencode-mobile
         INFOPLIST_FILE: OpenCodeNexus/Info.plist
 
         TARGETED_DEVICE_FAMILY: "1,2"
@@ -53,6 +53,9 @@ targets:
           CODE_SIGNING_ALLOWED: NO
           CODE_SIGNING_REQUIRED: NO
           CODE_SIGN_IDENTITY: ""
+        Release:
+          DEVELOPMENT_TEAM: PCJU8QD9FN
+          CODE_SIGN_STYLE: Automatic
   OpenCodeNexusTests:
     type: bundle.unit-test
     platform: iOS

@@ -12,5 +12,7 @@
 	<true/>
 	<key>compileBitcode</key>
 	<false/>
+	<key>signingStyle</key>
+	<string>automatic</string>
 </dict>
 </plist>

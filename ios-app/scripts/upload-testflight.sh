@@ -71,6 +71,7 @@ if [ -z "$IPA_FILE" ]; then
     exit 1
 fi
 
+KEY_FILE="$API_PRIVATE_KEYS_DIR/AuthKey_${ASC_KEY_ID}.p8"
 xcrun altool --upload-package "$IPA_FILE" \
     --type ios \
     --api-key "${ASC_KEY_ID}" \

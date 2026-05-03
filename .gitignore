@@ -28,6 +28,9 @@ credentials/
 .env
 .env.*
 .secrets.local
+# Sentry DSN xcconfig (per developer / CI; never commit a real DSN)
+ios-app/Sentry.xcconfig
+ios-app/**/Sentry.xcconfig
 
 # macOS
 .DS_Store

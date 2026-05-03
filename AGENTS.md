@@ -11,7 +11,7 @@ bun run ios:build
 # Install & launch (after build)
 xcrun simctl boot "iPhone 17 Pro" 2>/dev/null
 xcrun simctl install booted ~/Library/Developer/Xcode/DerivedData/OpenCodeNexus-*/Build/Products/Debug-iphonesimulator/OpenCodeNexus.app
-xcrun simctl launch booted com.agentic-codeflow.opencode-nexus
+xcrun simctl launch booted com.agenticcodeflow.opencodenexus
 ```
 
 Open the project in Xcode beta explicitly if `.xcodeproj` is associated with another editor:
@@ -28,7 +28,7 @@ Use the project script for command-line device builds:
 bun run ios:device
 ```
 
-The script builds with Xcode beta, installs to the paired iPhone, and launches `com.agentic-codeflow.opencode-nexus`.
+The script builds with Xcode beta, installs to the paired iPhone, and launches `com.agenticcodeflow.opencodenexus`.
 
 Signing notes for this machine:
 
