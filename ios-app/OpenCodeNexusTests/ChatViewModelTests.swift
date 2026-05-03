@@ -346,6 +346,159 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(Set(viewModel.sessions.map(\.id)), Set(["ses_active", "ses_other"]))
     }
 
+    func testLoadSessionsSeparatesArchivedSessionsAndCachesDirectoryLookup() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let client = OpenCodeClient(baseURL: URL(string: "http://opencode.test")!, configuration: config)
+        let sessionJSON = """
+        [
+          {"id":"ses_active","slug":"active","version":"1.0.0","projectID":"project","directory":"/project","title":"Active","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":3}},
+          {"id":"ses_archived","slug":"archived","version":"1.0.0","projectID":"project","directory":"/project","title":"Archived","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":4}}
+        ]
+        """
+
+        MockURLProtocol.setRequestHandler { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            if components.path == "/session" {
+                let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+                XCTAssertEqual(query["directory"], "/project")
+                XCTAssertEqual(query["roots"], "true")
+                XCTAssertEqual(query["limit"], "50")
+                XCTAssertEqual(query["archived"], "true")
+                return testRespondJSON(sessionJSON)
+            }
+            XCTFail("Unexpected path: \(components.path)")
+            return testRespondJSON("[]", statusCode: 404)
+        }
+
+        viewModel.configure(with: client)
+        viewModel.projects = [try decodeProject(worktree: "/project")]
+
+        await viewModel.loadSessions()
+
+        XCTAssertEqual(viewModel.sessions.map(\.id), ["ses_active"])
+        XCTAssertEqual(viewModel.archivedSessions.map(\.id), ["ses_archived"])
+        XCTAssertEqual(viewModel.directory(for: "ses_archived"), "/project")
+    }
+
+    func testLoadSessionsMovesArchivedSelectionOutOfActiveList() async throws {
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [MockURLProtocol.self]
+        let client = OpenCodeClient(baseURL: URL(string: "http://opencode.test")!, configuration: config)
+        let sessionJSON = """
+        [{"id":"ses_target","slug":"target","version":"1.0.0","projectID":"project","directory":"/project","title":"Target","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":3,"archived":5}}]
+        """
+
+        MockURLProtocol.setRequestHandler { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            if components.path == "/session" {
+                return testRespondJSON(sessionJSON)
+            }
+            XCTFail("Unexpected path: \(components.path)")
+            return testRespondJSON("[]", statusCode: 404)
+        }
+
+        viewModel.configure(with: client)
+        viewModel.projects = [try decodeProject(worktree: "/project")]
+        viewModel.sessions = [try decodeSession(id: "ses_target", title: "Target", directory: "/project", updated: 1)]
+        viewModel.selectedSessionId = "ses_target"
+        viewModel.messages = [makeMessageEnvelope(id: "msg_1")]
+        viewModel.todos = [Todo(id: "todo_1", content: "Todo", status: "pending", priority: "high")]
+        viewModel.fileDiffs = [FileDiff(file: "file.swift", before: "a", after: "b", additions: 1, deletions: 0)]
+
+        await viewModel.loadSessions()
+
+        XCTAssertNil(viewModel.selectedSessionId)
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+        XCTAssertEqual(viewModel.archivedSessions.map(\.id), ["ses_target"])
+        XCTAssertTrue(viewModel.messages.isEmpty)
+        XCTAssertTrue(viewModel.todos.isEmpty)
+        XCTAssertTrue(viewModel.fileDiffs.isEmpty)
+    }
+
+    func testArchiveSessionMovesSessionToArchivedAndClearsSelectionState() async throws {
+        let session = try decodeSession(id: "ses_archive", title: "Archive Me", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = session.id
+        viewModel.messages = [makeMessageEnvelope(id: "msg_1")]
+        viewModel.todos = [Todo(id: "todo_1", content: "Todo", status: "pending", priority: "high")]
+        viewModel.fileDiffs = [FileDiff(file: "file.swift", before: "a", after: "b", additions: 1, deletions: 0)]
+
+        configureWithMockClient { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            switch (request.httpMethod, components.path) {
+            case ("POST", "/session/ses_archive/archive"):
+                let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+                XCTAssertEqual(query["directory"], "/project")
+                return testRespondJSON("{}", statusCode: 204)
+            case ("GET", "/session/ses_archive"):
+                return testRespondJSON("""
+                {"id":"ses_archive","slug":"ses_archive","version":"1.0.0","projectID":"project","directory":"/project","title":"Archive Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+                """)
+            default:
+                XCTFail("Unexpected request: \(request.httpMethod ?? "nil") \(components.path)")
+                return testRespondJSON("{}", statusCode: 404)
+            }
+        }
+
+        await viewModel.archiveSession(session.id)
+
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+        XCTAssertEqual(viewModel.archivedSessions.map(\.id), ["ses_archive"])
+        XCTAssertNil(viewModel.selectedSessionId)
+        XCTAssertTrue(viewModel.messages.isEmpty)
+        XCTAssertTrue(viewModel.todos.isEmpty)
+        XCTAssertTrue(viewModel.fileDiffs.isEmpty)
+        XCTAssertEqual(viewModel.directory(for: session.id), "/project")
+    }
+
+    func testUnarchiveSessionRestoresSessionAbsentFromActiveList() async throws {
+        let archivedJSON = """
+        {"id":"ses_restore","slug":"ses_restore","version":"1.0.0","projectID":"project","directory":"/project","title":"Restore Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+        """
+        let archivedSession = try JSONDecoder().decode(Session.self, from: Data(archivedJSON.utf8))
+        viewModel.archivedSessions = [archivedSession]
+
+        configureWithMockClient { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            switch (request.httpMethod, components.path) {
+            case ("POST", "/session/ses_restore/unarchive"):
+                let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+                XCTAssertEqual(query["directory"], "/project")
+                return testRespondJSON("{}", statusCode: 204)
+            case ("GET", "/session/ses_restore"):
+                return testRespondJSON("""
+                {"id":"ses_restore","slug":"ses_restore","version":"1.0.0","projectID":"project","directory":"/project","title":"Restore Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":4}}
+                """)
+            default:
+                XCTFail("Unexpected request: \(request.httpMethod ?? "nil") \(components.path)")
+                return testRespondJSON("{}", statusCode: 404)
+            }
+        }
+
+        await viewModel.unarchiveSession("ses_restore")
+
+        XCTAssertEqual(viewModel.sessions.map(\.id), ["ses_restore"])
+        XCTAssertTrue(viewModel.archivedSessions.isEmpty)
+        XCTAssertEqual(viewModel.directory(for: "ses_restore"), "/project")
+    }
+
+    func testArchiveSessionFailureLeavesCollectionsUnchanged() async throws {
+        let session = try decodeSession(id: "ses_fail", title: "Keep Me", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+
+        configureWithMockClient { request in
+            let response = HTTPURLResponse(url: request.url!, statusCode: 500, httpVersion: nil, headerFields: nil)!
+            return (response, Data("archive failed".utf8))
+        }
+
+        await viewModel.archiveSession(session.id)
+
+        XCTAssertEqual(viewModel.sessions.map(\.id), ["ses_fail"])
+        XCTAssertTrue(viewModel.archivedSessions.isEmpty)
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
     func testNilSelectionDuringActiveSendRestoresSelectionWithoutClearingState() {
         viewModel.selectedSessionId = "ses_active"
         viewModel.messages = [makeMessageEnvelope(id: "msg_1")]
@@ -869,13 +1022,13 @@ final class ChatViewModelTests: XCTestCase {
 
     private func makeEvent(type: String, properties: [String: JSONValue]?) -> SSEEvent {
         let json: [String: Any] = {
-            var dict: [String: Any] = ["type": type]
+            var payload: [String: Any] = ["type": type]
             if let properties {
-                dict["properties"] = properties.mapValues { value in
+                payload["properties"] = properties.mapValues { value in
                     encodeJSONValue(value)
                 }
             }
-            return dict
+            return ["payload": payload]
         }()
         let data = try! JSONSerialization.data(withJSONObject: json)
         return try! JSONDecoder().decode(SSEEvent.self, from: data)

@@ -64,6 +64,18 @@ final class OpenCodeClientTests: XCTestCase {
         _ = try await client.listSessions(directory: "/my/project")
     }
 
+    func testListSessionsWithArchivedQuery() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/session")
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+            XCTAssertEqual(query["archived"], "true")
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                    "[]".data(using: .utf8)!)
+        }
+        _ = try await client.listSessions(archived: true)
+    }
+
     func testGetSessionURL() async throws {
         MockURLProtocol.setRequestHandler { request in
             XCTAssertEqual(request.url?.path, "/session/ses_123")
@@ -314,6 +326,59 @@ final class OpenCodeClientTests: XCTestCase {
         XCTAssertEqual(session.id, "ses_1")
         XCTAssertEqual(session.title, "Unshared")
         XCTAssertEqual(paths.withLock { $0 }, ["/session/ses_1/share"])
+    }
+
+    func testArchiveSessionPatchesWithUnixMillisTimestamp() async throws {
+        let captured = Mutex<(method: String?, path: String?, body: [String: Any]?)>((nil, nil, nil))
+        MockURLProtocol.setRequestHandler { request in
+            let body = (try? Self.jsonBody(from: request)) ?? [:]
+            captured.withLock { state in
+                state.method = request.httpMethod
+                state.path = request.url?.path
+                state.body = body
+            }
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                    Data(#"{"id":"ses_1","projectID":"p","directory":"/repo","title":"t","version":"1","time":{"created":1,"archived":1234567890}}"#.utf8))
+        }
+
+        let beforeMs = Int64(Date().timeIntervalSince1970 * 1000)
+        let session = try await client.archiveSession("ses_1", directory: "/repo")
+        let afterMs = Int64(Date().timeIntervalSince1970 * 1000)
+
+        let state = captured.withLock { $0 }
+        XCTAssertEqual(state.method, "PATCH")
+        XCTAssertEqual(state.path, "/session/ses_1")
+        let time = try XCTUnwrap(state.body?["time"] as? [String: Any])
+        let archivedNumber = try XCTUnwrap(time["archived"] as? NSNumber)
+        let archived = archivedNumber.int64Value
+        XCTAssertGreaterThanOrEqual(archived, beforeMs)
+        XCTAssertLessThanOrEqual(archived, afterMs)
+        XCTAssertNil(state.body?["title"], "title must be omitted, not sent as null")
+        XCTAssertTrue(session.isArchived)
+    }
+
+    func testUnarchiveSessionPatchesWithZeroTimestamp() async throws {
+        let captured = Mutex<(method: String?, path: String?, body: [String: Any]?)>((nil, nil, nil))
+        MockURLProtocol.setRequestHandler { request in
+            let body = (try? Self.jsonBody(from: request)) ?? [:]
+            captured.withLock { state in
+                state.method = request.httpMethod
+                state.path = request.url?.path
+                state.body = body
+            }
+            return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                    Data(#"{"id":"ses_1","projectID":"p","directory":"/repo","title":"t","version":"1","time":{"created":1,"archived":0}}"#.utf8))
+        }
+
+        let session = try await client.unarchiveSession("ses_1", directory: "/repo")
+
+        let state = captured.withLock { $0 }
+        XCTAssertEqual(state.method, "PATCH")
+        XCTAssertEqual(state.path, "/session/ses_1")
+        let time = try XCTUnwrap(state.body?["time"] as? [String: Any])
+        let archivedNumber = try XCTUnwrap(time["archived"] as? NSNumber)
+        XCTAssertEqual(archivedNumber.int64Value, 0)
+        XCTAssertFalse(session.isArchived)
     }
 
     func testEventStreamIncludesDirectoryAndWorkspaceQuery() async throws {

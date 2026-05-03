@@ -11,6 +11,7 @@ struct ChatView: View {
     @State private var collapsedDirectories: Set<String> = []
     @State private var viewingFilePath: String?
     @State private var presentedQuestionIDs: Set<String> = []
+    @State private var crossSessionPermission: Permission?
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -52,6 +53,11 @@ struct ChatView: View {
             chatVM.startEventStream()
             Task { await checkForUpdates(client: connectionManager.client) }
         }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            Task { @MainActor in
+                await chatVM.handleForegroundReconnect()
+            }
+        }
         .onChange(of: chatVM.selectedSessionId) {
             if let id = chatVM.selectedSessionId {
                 Task { await chatVM.selectSession(id) }
@@ -61,9 +67,11 @@ struct ChatView: View {
             }
         }
         .onChange(of: chatVM.pendingPermissions.count) {
-            if let id = chatVM.selectedSessionId,
-               chatVM.pendingPermissions.contains(where: { $0.sessionID == id }) {
+            let selectedId = chatVM.selectedSessionId
+            if let id = selectedId, chatVM.pendingPermissions.contains(where: { $0.sessionID == id }) {
                 activeSheet = .permissions
+            } else if let first = chatVM.pendingPermissions.first(where: { $0.sessionID != selectedId }) {
+                crossSessionPermission = first
             }
         }
         .onChange(of: chatVM.pendingQuestions) {
@@ -91,6 +99,13 @@ struct ChatView: View {
         )
         .sheet(item: $activeSheet) { sheet in
             sheetContent(for: sheet)
+        }
+        .sheet(item: $crossSessionPermission) { permission in
+            CrossSessionPermissionSheet(
+                permission: permission,
+                chatVM: chatVM,
+                onDismiss: { crossSessionPermission = nil }
+            )
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(viewModel: settingsVM)
@@ -203,6 +218,99 @@ private enum ActiveChatSheet: String, Identifiable {
     var id: String { rawValue }
 }
 
+private struct CrossSessionPermissionSheet: View {
+    let permission: Permission
+    let chatVM: ChatViewModel
+    let onDismiss: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var sessionLabel: String {
+        let dir = permission.sessionID
+        return chatVM.sessions.first(where: { $0.id == permission.sessionID })?.displayTitle
+            ?? chatVM.archivedSessions.first(where: { $0.id == permission.sessionID })?.displayTitle
+            ?? dir
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Permission Request")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(permission.title)
+                        .font(.body.weight(.medium))
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Session")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text(sessionLabel)
+                        .font(.subheadline)
+                        .lineLimit(2)
+                }
+                Spacer()
+                VStack(spacing: 10) {
+                    Button {
+                        Task {
+                            await chatVM.approvePermission(permission, always: true)
+                            onDismiss()
+                            dismiss()
+                        }
+                    } label: {
+                        Text("Always Allow")
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Button {
+                        Task {
+                            await chatVM.approvePermission(permission, always: false)
+                            onDismiss()
+                            dismiss()
+                        }
+                    } label: {
+                        Text("Allow Once")
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                    Button(role: .destructive) {
+                        Task {
+                            await chatVM.rejectPermission(permission)
+                            onDismiss()
+                            dismiss()
+                        }
+                    } label: {
+                        Text("Reject")
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .padding()
+            .navigationTitle("Cross-Session Permission")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Dismiss") {
+                        onDismiss()
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Go to Session") {
+                        chatVM.selectedSessionId = permission.sessionID
+                        onDismiss()
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
 @MainActor
 private func checkForUpdates(client: OpenCodeClient?) async {
     guard let client else { return }
@@ -211,7 +319,7 @@ private func checkForUpdates(client: OpenCodeClient?) async {
     }
 }
 
-private struct ChatSidebarView: View {
+struct ChatSidebarView: View {
     let chatVM: ChatViewModel
     @Binding var collapsedDirectories: Set<String>
     let onDisconnect: () -> Void
@@ -220,7 +328,7 @@ private struct ChatSidebarView: View {
 
     var body: some View {
         Group {
-            if chatVM.sessions.isEmpty && !chatVM.isLoadingSessions {
+            if chatVM.sessions.isEmpty && chatVM.archivedSessions.isEmpty && !chatVM.isLoadingSessions {
                 ContentUnavailableView(
                     "No Sessions",
                     systemImage: "tray",
@@ -307,6 +415,73 @@ private struct ChatSidebarView: View {
                                 .foregroundStyle(.secondary)
                             }
                             .buttonStyle(.plain)
+                        }
+                    }
+
+                    if chatVM.hasOlderSessionsHidden && !chatVM.showAllSessions {
+                        Button {
+                            chatVM.showAllSessions = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "clock.arrow.circlepath")
+                                let hiddenCount = chatVM.sessions.count - chatVM.filteredSessions.count
+                                Text("Show \(hiddenCount) older session\(hiddenCount == 1 ? "" : "s")")
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.vertical, 8)
+                    }
+
+                    if chatVM.showAllSessions && chatVM.hasOlderSessionsHidden {
+                        Button {
+                            chatVM.showAllSessions = false
+                        } label: {
+                            HStack {
+                                Image(systemName: "clock")
+                                Text("Show only recent")
+                            }
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.vertical, 8)
+                    }
+
+                    if !chatVM.filteredArchivedSessions.isEmpty {
+                        Section("Archived") {
+                            ForEach(chatVM.filteredArchivedSessions) { session in
+                                SessionHierarchyRow(
+                                    session: session,
+                                    isSelected: false,
+                                    childSessions: [],
+                                    onRename: { newTitle in
+                                        Task { await chatVM.renameSession(session.id, title: newTitle) }
+                                    },
+                                    onDelete: {
+                                        Task { await chatVM.deleteSession(session.id) }
+                                    },
+                                    onArchive: {
+                                        Task { await chatVM.unarchiveSession(session.id) }
+                                    },
+                                    onSelect: {},
+                                    onFork: {
+                                        Task { await chatVM.forkSession(at: nil) }
+                                    },
+                                    onShare: {
+                                        Task { await chatVM.shareSession(session.id) }
+                                    }
+                                )
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button {
+                                        Task { await chatVM.unarchiveSession(session.id) }
+                                    } label: {
+                                        Label("Restore", systemImage: "arrow.uturn.backward.circle")
+                                    }
+                                    .tint(.green)
+                                }
+                            }
                         }
                     }
 

@@ -125,6 +125,56 @@ final class ViewBodyTests: XCTestCase {
         evaluateBody(view)
     }
 
+    func testQuestionSheetRendersEmpty() {
+        let view = QuestionSheet(questions: [], onAnswer: { _, _ in }, onReject: { _ in })
+        evaluateBody(view)
+    }
+
+    func testQuestionSheetRendersWithSingleQuestion() {
+        let info = QuestionInfo(
+            question: "Which language?",
+            header: "Language",
+            options: [QuestionOption(label: "Swift", description: "iOS"),
+                      QuestionOption(label: "TypeScript", description: "Web")],
+            multiple: false,
+            custom: true
+        )
+        let question = Question(
+            id: "que_1",
+            sessionID: "ses_1",
+            messageID: nil,
+            title: "Pick one",
+            description: "Choose your language",
+            questions: [info]
+        )
+        let view = QuestionSheet(questions: [question], onAnswer: { _, _ in }, onReject: { _ in })
+        evaluateBody(view)
+    }
+
+    func testChatSidebarShowsArchivedSection() throws {
+        let viewModel = ChatViewModel()
+        viewModel.sessions = [try decodeSession(id: "active", title: "Active Session")]
+        let archived = try JSONDecoder().decode(Session.self, from: Data("""
+        {"id":"archived","title":"Archived Session","directory":"/test","time":{"created":1000,"archived":1200}}
+        """.utf8))
+        viewModel.archivedSessions = [archived]
+
+        let renderedText = renderedTexts(
+            NavigationStack {
+                ChatSidebarView(
+                    chatVM: viewModel,
+                    collapsedDirectories: .constant([]),
+                    onDisconnect: {},
+                    onNewSession: {},
+                    onShowWorkspaces: {}
+                )
+            }
+        )
+
+        XCTAssertTrue(renderedText.contains("Archived"))
+        XCTAssertTrue(renderedText.contains("Archived Session"))
+    }
+
     func testDiffLineViewBody() {
         let line = DiffLine(id: 0, type: .addition, content: "added code", oldLineNumber: nil, newLineNumber: 5)
         let view = DiffLineView(line: line)
@@ -254,6 +304,7 @@ final class ViewBodyTests: XCTestCase {
             messages: [message],
             isLoading: false,
             isSending: false,
+            isSessionBusy: false,
             inputText: $inputText,
             attachedParts: $attachedParts,
             onSend: { _ in },
@@ -279,7 +330,7 @@ final class ViewBodyTests: XCTestCase {
             selectedAgent: $selectedAgent,
             onNavigateHistory: { _ in },
             onShellCommand: { _ in },
-            nextTUIRequest: nil,
+            queuedMessages: [],
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
@@ -301,6 +352,7 @@ final class ViewBodyTests: XCTestCase {
             messages: [message],
             isLoading: false,
             isSending: true,
+            isSessionBusy: true,
             inputText: $inputText,
             attachedParts: $attachedParts,
             onSend: { _ in },
@@ -326,7 +378,7 @@ final class ViewBodyTests: XCTestCase {
             selectedAgent: $selectedAgent,
             onNavigateHistory: { _ in },
             onShellCommand: { _ in },
-            nextTUIRequest: nil,
+            queuedMessages: ["Follow up"],
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
@@ -385,6 +437,35 @@ extension ViewBodyTests {
         {"id": "\(id)", "title": "\(title)", "directory": "/test", "time": {"created": 1000}}
         """
         return try JSONDecoder().decode(Session.self, from: Data(json.utf8))
+    }
+
+    func renderedTexts<V: View>(_ view: V) -> String {
+        let controller = UIHostingController(rootView: view)
+        controller.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+
+        let window = UIWindow(frame: controller.view.frame)
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+
+        controller.view.setNeedsLayout()
+        controller.view.layoutIfNeeded()
+
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        return collectText(from: controller.view).joined(separator: " ")
+    }
+
+    func collectText(from view: UIView) -> [String] {
+        var result: [String] = []
+        if let label = view as? UILabel, let text = label.text, !text.isEmpty {
+            result.append(text)
+        }
+        if let textField = view as? UITextField, let text = textField.text, !text.isEmpty {
+            result.append(text)
+        }
+        for subview in view.subviews {
+            result.append(contentsOf: collectText(from: subview))
+        }
+        return result
     }
 
     func testMessageBubbleUserMessage() throws {
@@ -467,6 +548,7 @@ extension ViewBodyTests {
             messages: [],
             isLoading: true,
             isSending: false,
+            isSessionBusy: false,
             inputText: $inputText,
             attachedParts: $attachedParts,
             onSend: { _ in },
@@ -492,7 +574,7 @@ extension ViewBodyTests {
             selectedAgent: $selectedAgent,
             onNavigateHistory: { _ in },
             onShellCommand: { _ in },
-            nextTUIRequest: nil,
+            queuedMessages: [],
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
@@ -513,6 +595,7 @@ extension ViewBodyTests {
             messages: [message],
             isLoading: false,
             isSending: true,
+            isSessionBusy: true,
             inputText: $inputText,
             attachedParts: $attachedParts,
             onSend: { _ in },
@@ -538,7 +621,7 @@ extension ViewBodyTests {
             selectedAgent: $selectedAgent,
             onNavigateHistory: { _ in },
             onShellCommand: { _ in },
-            nextTUIRequest: TUIControlRequest(path: "/test", body: JSONValue.object(["text": .string("hello")])),
+            queuedMessages: ["Queued"],
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
@@ -681,6 +764,7 @@ extension ViewBodyTests {
             messages: [message],
             isLoading: false,
             isSending: false,
+            isSessionBusy: false,
             inputText: $inputText,
             attachedParts: $attachedParts,
             onSend: { _ in },
@@ -706,7 +790,7 @@ extension ViewBodyTests {
             selectedAgent: $selectedAgent,
             onNavigateHistory: { _ in },
             onShellCommand: { _ in },
-            nextTUIRequest: nil,
+            queuedMessages: [],
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
@@ -726,6 +810,7 @@ extension ViewBodyTests {
             messages: [],
             isLoading: false,
             isSending: false,
+            isSessionBusy: false,
             inputText: $inputText,
             attachedParts: $attachedParts,
             onSend: { _ in },
@@ -751,7 +836,7 @@ extension ViewBodyTests {
             selectedAgent: $selectedAgent,
             onNavigateHistory: { _ in },
             onShellCommand: { _ in },
-            nextTUIRequest: nil,
+            queuedMessages: [],
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
@@ -772,6 +857,7 @@ extension ViewBodyTests {
             messages: [message],
             isLoading: false,
             isSending: false,
+            isSessionBusy: false,
             inputText: $inputText,
             attachedParts: $attachedParts,
             onSend: { _ in },
@@ -797,7 +883,7 @@ extension ViewBodyTests {
             selectedAgent: $selectedAgent,
             onNavigateHistory: { _ in },
             onShellCommand: { _ in },
-            nextTUIRequest: nil,
+            queuedMessages: [],
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
@@ -831,6 +917,7 @@ extension ViewBodyTests {
             messages: [message],
             isLoading: false,
             isSending: false,
+            isSessionBusy: false,
             inputText: $inputText,
             attachedParts: $attachedParts,
             onSend: { _ in },
@@ -856,7 +943,7 @@ extension ViewBodyTests {
             selectedAgent: $selectedAgent,
             onNavigateHistory: { _ in },
             onShellCommand: { _ in },
-            nextTUIRequest: TUIControlRequest(path: "/test", body: tuiBody),
+            queuedMessages: [],
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },

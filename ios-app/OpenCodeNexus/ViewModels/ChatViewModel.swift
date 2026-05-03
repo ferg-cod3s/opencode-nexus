@@ -1,5 +1,6 @@
 import SwiftUI
 import os
+import Sentry
 
 @MainActor
 @Observable
@@ -8,6 +9,7 @@ final class ChatViewModel {
     var sessions: [Session] = [] {
         didSet { _cachedGroups = nil }
     }
+    var archivedSessions: [Session] = []
     var selectedSessionId: String? {
         didSet {
             if isRestoringSelectionDuringSend { return }
@@ -62,6 +64,7 @@ final class ChatViewModel {
     var todos: [Todo] = []
     var isShowingTodos = false
     var selectedModel: ModelRefBody?
+    var showAllSessions = true // Default to showing all; user can filter if needed
     var selectedAgent: String? = "build"
     var vcsBranch: String?
     var currentProject: Project?
@@ -88,8 +91,8 @@ final class ChatViewModel {
 
     private(set) var client: OpenCodeClient?
     private var eventTask: Task<Void, Never>?
-    private var messageReloadTask: Task<Void, Never>?
     private var sessionReloadTask: Task<Void, Never>?
+    private var sendTimeoutTask: Task<Void, Never>?
     private var isStreamingDeltas = false
     private var sessionPageLimit = 50
     private var messagePageLimit = 50
@@ -104,6 +107,7 @@ final class ChatViewModel {
     private var isRestoringSelectionDuringSend = false
     private var sessionSelectedModels: [String: ModelRefBody] = [:]
     private var optimisticToServerMessageIds: [String: String] = [:]
+    private var sessionDirectoryIndex: [String: String] = [:]
     var settings: SettingsViewModel?
     var nextTUIRequest: TUIControlRequest?
     
@@ -116,6 +120,16 @@ final class ChatViewModel {
 
     var selectedSession: Session? {
         sessions.first { $0.id == selectedSessionId }
+    }
+
+    var filteredArchivedSessions: [Session] {
+        guard !sessionSearchText.isEmpty else { return archivedSessions }
+        let query = sessionSearchText.lowercased()
+        return archivedSessions.filter {
+            $0.displayTitle.lowercased().contains(query) ||
+            $0.directory.lowercased().contains(query) ||
+            $0.id.lowercased().contains(query)
+        }
     }
 
     var isSessionBusy: Bool {
@@ -145,13 +159,42 @@ final class ChatViewModel {
     }
 
     var filteredSessions: [Session] {
-        guard !sessionSearchText.isEmpty else { return sessions }
+        let recencyThreshold: TimeInterval = 14 * 24 * 60 * 60 // 14 days in seconds
+        let now = Date().timeIntervalSince1970
+        let threshold = now - recencyThreshold
+
+        if sessionSearchText.isEmpty && !showAllSessions {
+            var filtered = sessions.filter { session in
+                let lastActivity = Double(session.time.updated ?? session.time.created) / 1000.0
+                return lastActivity >= threshold || session.id == selectedSessionId
+            }
+            return filtered
+        }
+
+        if sessionSearchText.isEmpty {
+            return sessions
+        }
+
         let query = sessionSearchText.lowercased()
         return sessions.filter {
             $0.displayTitle.lowercased().contains(query) ||
             $0.directory.lowercased().contains(query) ||
             $0.id.lowercased().contains(query)
         }
+    }
+
+    var hasOlderSessionsHidden: Bool {
+        guard sessionSearchText.isEmpty && !showAllSessions else { return false }
+        let recencyThreshold: TimeInterval = 14 * 24 * 60 * 60
+        let now = Date().timeIntervalSince1970
+        let threshold = now - recencyThreshold
+
+        let totalRecentCount = sessions.filter { session in
+            let lastActivity = Double(session.time.updated ?? session.time.created) / 1000.0
+            return lastActivity >= threshold || session.id == selectedSessionId
+        }.count
+
+        return totalRecentCount < sessions.count
     }
 
     var availableDirectories: [(name: String, path: String)] {
@@ -188,6 +231,10 @@ final class ChatViewModel {
     var selectedPendingPermissions: [Permission] {
         guard let selectedSessionId else { return [] }
         return pendingPermissions.filter { $0.sessionID == selectedSessionId }
+    }
+
+    var crossSessionPendingPermissions: [Permission] {
+        pendingPermissions.filter { $0.sessionID != selectedSessionId }
     }
 
     var selectedPendingQuestions: [Question] {
@@ -362,7 +409,7 @@ final class ChatViewModel {
             for directory in directoriesToQuery {
                 group.addTask {
                     do {
-                        let sessions = try await client.listSessions(directory: directory, roots: true, limit: sessionLimit)
+                        let sessions = try await client.listSessions(directory: directory, roots: true, limit: sessionLimit, archived: true)
                         return (label: directory ?? "default", sessions: sessions, error: nil)
                     } catch {
                         return (label: directory ?? "default", sessions: [], error: error.localizedDescription)
@@ -379,6 +426,11 @@ final class ChatViewModel {
         let failures = results.compactMap { result -> String? in
             guard let error = result.error else { return nil }
             logger.error("Failed to load sessions for \(result.label): \(error)")
+            let err = NSError(domain: "ChatViewModel", code: -4, userInfo: [NSLocalizedDescriptionKey: error])
+            SentrySDK.capture(error: err) { scope in
+                scope.setTag(value: result.label, key: "directory")
+                scope.setTag(value: "loadSessions", key: "eventType")
+            }
             return "\(result.label): \(error)"
         }
         let allSessions = results.flatMap(\.sessions)
@@ -387,22 +439,27 @@ final class ChatViewModel {
             errorMessage = "Failed to load sessions: \(failures.first ?? "Unknown error")"
         }
         hasMoreSessions = results.contains { $0.sessions.count >= sessionLimit }
-        let afterArchived = allSessions.filter { $0.time.archived == nil }
-        logger.info("loadSessions: after archived filter = \(afterArchived.count) (removed \(allSessions.count - afterArchived.count))")
         var seen = Set<String>()
-        var fresh = afterArchived.filter { session in
+        var deduped = allSessions.filter { session in
             guard !seen.contains(session.id) else { return false }
             seen.insert(session.id)
             return true
         }
-        logger.info("loadSessions: after dedup filter = \(fresh.count) (removed \(afterArchived.count - fresh.count))")
+        logger.info("loadSessions: after dedup filter = \(deduped.count) (removed \(allSessions.count - deduped.count))")
+        var fresh = sortSessions(deduped.filter { !$0.isArchived })
+        let archived = sortSessions(deduped.filter(\.isArchived))
+        logger.info("loadSessions: active = \(fresh.count), archived = \(archived.count)")
         if isSending,
            let selectedSessionId,
            !fresh.contains(where: { $0.id == selectedSessionId }),
-           let selectedSession {
+           let selectedSession,
+           !selectedSession.isArchived {
             fresh.append(selectedSession)
+            fresh = sortSessions(fresh)
         }
+        cacheDirectories(for: deduped)
         sessions = fresh
+        archivedSessions = archived
         if let selectedSessionId, !sessions.contains(where: { $0.id == selectedSessionId }), !isSending {
             self.selectedSessionId = nil
             messages = []
@@ -464,7 +521,13 @@ final class ChatViewModel {
 
     func directory(for sessionId: String?) -> String? {
         guard let sessionId else { return nil }
-        return sessions.first { $0.id == sessionId }?.directory
+        if let activeDirectory = sessions.first(where: { $0.id == sessionId })?.directory {
+            return activeDirectory
+        }
+        if let archivedDirectory = archivedSessions.first(where: { $0.id == sessionId })?.directory {
+            return archivedDirectory
+        }
+        return sessionDirectoryIndex[sessionId]
     }
 
     func createSession() async {
@@ -522,6 +585,8 @@ final class ChatViewModel {
             let updated = try await client.updateSession(sessionId, title: title, directory: directory(for: sessionId))
             if let idx = sessions.firstIndex(where: { $0.id == sessionId }) {
                 sessions[idx] = updated
+            } else if let idx = archivedSessions.firstIndex(where: { $0.id == sessionId }) {
+                archivedSessions[idx] = updated
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -535,6 +600,7 @@ final class ChatViewModel {
             if success {
                 withAnimation {
                     sessions.removeAll { $0.id == sessionId }
+                    archivedSessions.removeAll { $0.id == sessionId }
                 }
                 if selectedSessionId == sessionId {
                     selectedSessionId = nil
@@ -569,6 +635,8 @@ final class ChatViewModel {
             let updated = try await client.shareSession(sessionId, directory: directory(for: sessionId))
             if let idx = sessions.firstIndex(where: { $0.id == sessionId }) {
                 sessions[idx] = updated
+            } else if let idx = archivedSessions.firstIndex(where: { $0.id == sessionId }) {
+                archivedSessions[idx] = updated
             }
             if let url = updated.share?.url {
                 UIPasteboard.general.string = url
@@ -582,12 +650,16 @@ final class ChatViewModel {
         guard let client, let sessionId = sessionId ?? selectedSessionId else { return }
         do {
             let updated = try await client.archiveSession(sessionId, directory: directory(for: sessionId))
+            cacheDirectory(for: updated)
             withAnimation {
                 sessions.removeAll { $0.id == sessionId }
+                upsertSession(updated, in: &archivedSessions)
             }
             if selectedSessionId == sessionId {
                 selectedSessionId = nil
                 messages = []
+                todos = []
+                fileDiffs = []
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -598,14 +670,37 @@ final class ChatViewModel {
         guard let client else { return }
         do {
             let updated = try await client.unarchiveSession(sessionId, directory: directory(for: sessionId))
-            if !sessions.contains(where: { $0.id == sessionId }) {
-                sessions.insert(updated, at: 0)
-            } else if let idx = sessions.firstIndex(where: { $0.id == sessionId }) {
-                sessions[idx] = updated
-            }
+            cacheDirectory(for: updated)
+            archivedSessions.removeAll { $0.id == sessionId }
+            upsertSession(updated, in: &sessions)
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private func sortSessions(_ sessions: [Session]) -> [Session] {
+        sessions.sorted { lhs, rhs in
+            (lhs.time.updated ?? lhs.time.created) > (rhs.time.updated ?? rhs.time.created)
+        }
+    }
+
+    private func upsertSession(_ session: Session, in collection: inout [Session]) {
+        if let idx = collection.firstIndex(where: { $0.id == session.id }) {
+            collection[idx] = session
+        } else {
+            collection.append(session)
+        }
+        collection = sortSessions(collection)
+    }
+
+    private func cacheDirectories(for sessions: [Session]) {
+        for session in sessions {
+            cacheDirectory(for: session)
+        }
+    }
+
+    private func cacheDirectory(for session: Session) {
+        sessionDirectoryIndex[session.id] = session.directory
     }
 
     func loadChildSessions(for sessionId: String) async {
@@ -659,6 +754,10 @@ final class ChatViewModel {
         } catch {
             logger.error("Failed to load messages: \(error)")
             errorMessage = "Failed to load messages: \(error.localizedDescription)"
+            SentrySDK.capture(error: error) { scope in
+                scope.setTag(value: sessionId, key: "sessionId")
+                scope.setTag(value: "loadMessages", key: "eventType")
+            }
         }
     }
 
@@ -753,8 +852,9 @@ final class ChatViewModel {
                 directory: directory(for: sessionId)
             )
             clearDraft(for: sessionId)
-            Task { [weak self] in
-                try? await Task.sleep(for: .seconds(120))
+            sendTimeoutTask?.cancel()
+            sendTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(60))
                 guard let self, self.isSending, self.selectedSessionId == sessionId, self.currentSendOperationID == sendOperationID else { return }
                 self.isSending = false
                 self.isStreamingDeltas = false
@@ -764,17 +864,33 @@ final class ChatViewModel {
                     self.pendingOptimisticMessages[id] = nil
                     self.optimisticToServerMessageIds.removeValue(forKey: id)
                 }
-                self.errorMessage = "Request timed out after 120 seconds"
+                self.errorMessage = "Send timed out. Check your connection and try again."
+                let timeoutError = NSError(domain: "ChatViewModel", code: -2, userInfo: [NSLocalizedDescriptionKey: "Send timed out. Check your connection and try again."])
+                SentrySDK.capture(error: timeoutError) { scope in
+                    scope.setTag(value: sessionId, key: "sessionId")
+                    scope.setTag(value: "sendTimeout", key: "eventType")
+                }
+                #if DEBUG
+                print("[ChatViewModel] sendTimeoutTask fired for session \(sessionId), operationID \(sendOperationID)")
+                #endif
             }
         } catch {
             messages.removeAll { $0.id == optimisticId }
             pendingOptimisticMessages[optimisticId] = nil
             optimisticToServerMessageIds.removeValue(forKey: optimisticId)
             errorMessage = error.localizedDescription
+            let sendError = NSError(domain: "ChatViewModel", code: -3, userInfo: [NSLocalizedDescriptionKey: error.localizedDescription])
+            SentrySDK.capture(error: sendError) { scope in
+                scope.setTag(value: sessionId, key: "sessionId")
+                scope.setTag(value: "sendMessageError", key: "eventType")
+            }
             inputText = text
             self.attachedParts = partsToSend
             isSending = false
             currentSendOperationID = nil
+            #if DEBUG
+            print("[ChatViewModel] sendMessage error for session \(sessionId): \(error)")
+            #endif
         }
     }
 
@@ -1063,7 +1179,7 @@ final class ChatViewModel {
         async let questionsTask: [Question]? = try? client.listQuestions(directory: directory)
         let loadedPermissions = await permissionsTask ?? []
         let loadedQuestions = await questionsTask ?? []
-        mergePermissions(loadedPermissions.filter { $0.sessionID == sessionId })
+        mergePermissions(loadedPermissions)
         mergeQuestions(loadedQuestions.filter { $0.sessionID == sessionId })
     }
 
@@ -1173,6 +1289,23 @@ final class ChatViewModel {
                     attempt += 1
                     let delay = min(30.0, pow(2.0, Double(min(attempt, 5))))
                     logger.warning("SSE: error (attempt \(attempt)): \(error.localizedDescription), retrying in \(delay)s")
+                    #if DEBUG
+                    print("[ChatViewModel] SSE disconnect (attempt \(attempt)): \(error). isSending=\(self.isSending), selectedSession=\(self.selectedSessionId ?? "nil")")
+                    #endif
+                    if self.isSending, let sessionId = self.selectedSessionId {
+                        Task { [weak self] in
+                            guard let self else { return }
+                            await self.loadMessages()
+                            let hasPending = self.pendingOptimisticMessages.values.contains { $0.sessionID == sessionId }
+                            if hasPending && self.isSending {
+                                self.isSending = false
+                                self.errorMessage = "Message may not have been delivered. Please try again."
+                                #if DEBUG
+                                print("[ChatViewModel] SSE reconnect: stuck message detected for session \(sessionId)")
+                                #endif
+                            }
+                        }
+                    }
                     try? await Task.sleep(for: .seconds(delay))
                 }
             }
@@ -1182,6 +1315,14 @@ final class ChatViewModel {
     func stopEventStream() {
         eventTask?.cancel()
         eventTask = nil
+    }
+
+    func handleForegroundReconnect() async {
+        guard client != nil else { return }
+        logger.info("Foreground reconnect: cancelling stale event stream")
+        eventTask?.cancel()
+        eventTask = nil
+        startEventStream()
     }
 
     func handleEvent(_ event: SSEEvent) {
@@ -1201,8 +1342,25 @@ final class ChatViewModel {
             if let messageData = event.properties?["message"],
                let data = try? JSONEncoder().encode(messageData),
                let envelope = try? JSONDecoder().decode(MessageEnvelope.self, from: data) {
-                messages.append(envelope)
-                isSending = false
+                if !messages.contains(where: { $0.id == envelope.id }) {
+                    if envelope.info.isUser {
+                        let optimisticKey = pendingOptimisticMessages.first(where: { key, pending in
+                            pending.sessionID == eventSessionID && (
+                                messageText(envelope) == pending.text ||
+                                abs(envelope.info.time.created - pending.created) < 5_000
+                            )
+                        })?.key
+                        if let key = optimisticKey {
+                            optimisticToServerMessageIds[key] = envelope.id
+                            pendingOptimisticMessages[key] = nil
+                            messages.removeAll { $0.id == key }
+                        }
+                    }
+                    messages.append(envelope)
+                }
+                if !envelope.info.isUser {
+                    isSending = false
+                }
             }
 
         case "message.updated", "message.part.updated":
@@ -1218,13 +1376,6 @@ final class ChatViewModel {
             if type == "message.part.updated",
                let partData = event.properties?["part"] {
                 applyPartUpdate(partData)
-            }
-
-            messageReloadTask?.cancel()
-            messageReloadTask = Task {
-                try? await Task.sleep(for: .milliseconds(300))
-                guard !Task.isCancelled else { return }
-                await loadMessages()
             }
 
         case "session.created", "session.updated", "session.deleted":
@@ -1243,8 +1394,10 @@ final class ChatViewModel {
                 logger.info("SSE: session.status = \(statusType) for session \(eventSessionID), selected=\(self.selectedSessionId ?? "nil")")
                 sessionStatuses[eventSessionID] = SessionStatus(status: statusType)
                 if eventSessionID == selectedSessionId && statusType == "idle" {
+                    let wasStillSending = isSending
+                    sendTimeoutTask?.cancel()
+                    sendTimeoutTask = nil
                     isSending = false
-                    isStreamingDeltas = false
                     currentSendOperationID = nil
                     let stale = pendingOptimisticMessages.filter { $0.value.sessionID == eventSessionID }
                     for (id, _) in stale {
@@ -1252,8 +1405,23 @@ final class ChatViewModel {
                         pendingOptimisticMessages[id] = nil
                         optimisticToServerMessageIds.removeValue(forKey: id)
                     }
+                    let wasStreaming = isStreamingDeltas
+                    isStreamingDeltas = false
                     Task {
+                        if wasStreaming {
+                            try? await Task.sleep(for: .milliseconds(150))
+                        }
                         await loadMessages()
+                        if wasStillSending {
+                            let hasPendingAfterReload = self.pendingOptimisticMessages.values.contains { $0.sessionID == eventSessionID }
+                            if hasPendingAfterReload {
+                                self.isSending = false
+                                self.errorMessage = "Message may not have been delivered. Please try again."
+                                #if DEBUG
+                                print("[ChatViewModel] session.status idle: stuck message detected for session \(eventSessionID)")
+                                #endif
+                            }
+                        }
                         await loadSessions(resetLimit: false)
                         await sendNextQueuedMessage(for: eventSessionID)
                     }
@@ -1266,6 +1434,8 @@ final class ChatViewModel {
                 isSending = false
                 isStreamingDeltas = false
                 currentSendOperationID = nil
+                sendTimeoutTask?.cancel()
+                sendTimeoutTask = nil
                 let stale = pendingOptimisticMessages.filter { $0.value.sessionID == eventSessionID }
                 for (id, _) in stale {
                     messages.removeAll { $0.id == id }
@@ -1281,6 +1451,14 @@ final class ChatViewModel {
                 } else {
                     errorMessage = "Session error occurred"
                 }
+                let errorForSentry = NSError(domain: "ChatViewModel", code: -1, userInfo: [NSLocalizedDescriptionKey: errorMessage ?? "Session error occurred"])
+                SentrySDK.capture(error: errorForSentry) { scope in
+                    scope.setTag(value: eventSessionID, key: "sessionId")
+                    scope.setTag(value: "session.error", key: "eventType")
+                }
+                #if DEBUG
+                print("[ChatViewModel] session.error for session \(eventSessionID): \(self.errorMessage ?? "unknown")")
+                #endif
                 Task { await loadMessages() }
             }
 

@@ -239,10 +239,11 @@ final class OpenCodeClient: @unchecked Sendable {
 
     // MARK: - Sessions
 
-    func listSessions(directory: String? = nil, roots: Bool? = nil, limit: Int? = nil) async throws -> [Session] {
+    func listSessions(directory: String? = nil, roots: Bool? = nil, limit: Int? = nil, archived: Bool? = nil) async throws -> [Session] {
         var items = queryItems(directory: directory)
         if let roots { items.append(URLQueryItem(name: "roots", value: String(roots))) }
         if let limit { items.append(URLQueryItem(name: "limit", value: String(limit))) }
+        if let archived { items.append(URLQueryItem(name: "archived", value: String(archived))) }
         return try await request("session", query: items)
     }
 
@@ -401,13 +402,14 @@ final class OpenCodeClient: @unchecked Sendable {
     }
 
     func archiveSession(_ sessionId: String, directory: String? = nil) async throws -> Session {
-        try await postEmpty("session/\(sessionId)/archive", query: queryItems(directory: directory))
-        return try await getSession(sessionId, directory: directory)
+        let archivedAt = Int64(Date().timeIntervalSince1970 * 1000)
+        let body = UpdateSessionBody(time: .init(archived: archivedAt))
+        return try await patch("session/\(sessionId)", body: body, query: queryItems(directory: directory))
     }
 
     func unarchiveSession(_ sessionId: String, directory: String? = nil) async throws -> Session {
-        try await postEmpty("session/\(sessionId)/unarchive", query: queryItems(directory: directory))
-        return try await getSession(sessionId, directory: directory)
+        let body = UpdateSessionBody(time: .init(archived: 0))
+        return try await patch("session/\(sessionId)", body: body, query: queryItems(directory: directory))
     }
 
     // MARK: - Permissions
@@ -614,26 +616,19 @@ final class OpenCodeClient: @unchecked Sendable {
                         guard !Task.isCancelled else { break }
                         switch parser.processLine(line) {
                         case .event(let event):
-                            if event.eventType == "done" {
-                                clientLogger.info("SSE: received done event")
-                                continuation.finish()
-                                return
-                            }
                             continuation.yield(event)
                         case .malformed(let data):
                             clientLogger.warning("SSE: malformed event, data: \(data.prefix(200))")
+                            #if DEBUG
+                            print("[OpenCodeClient] SSE parse failure: \(data.prefix(200))")
+                            #endif
                         case .none:
                             break
                         }
                     }
-                    // Flush any remaining buffered event
                     switch parser.flush() {
                     case .event(let event):
-                        if event.eventType == "done" {
-                            clientLogger.info("SSE: received done event at stream end")
-                        } else {
-                            continuation.yield(event)
-                        }
+                        continuation.yield(event)
                     case .malformed(let data):
                         clientLogger.warning("SSE: malformed event at stream end, data: \(data.prefix(200))")
                     case .none:
@@ -675,6 +670,24 @@ private struct CreateSessionBody: Encodable {
 
 private struct UpdateSessionBody: Encodable {
     let title: String?
+    let time: TimeUpdate?
+
+    struct TimeUpdate: Encodable {
+        let archived: Int64?
+    }
+
+    init(title: String? = nil, time: TimeUpdate? = nil) {
+        self.title = title
+        self.time = time
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        if let title { try container.encode(title, forKey: .title) }
+        if let time { try container.encode(time, forKey: .time) }
+    }
+
+    enum CodingKeys: String, CodingKey { case title, time }
 }
 
 struct SendMessageBody: Encodable {
@@ -775,6 +788,20 @@ private struct WriteFileBody: Encodable {
 private struct CreateWorkspaceBody: Encodable {
     let type: String
     let branch: String?
+
+    enum CodingKeys: String, CodingKey {
+        case type, branch
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(type, forKey: .type)
+        if let branch {
+            try container.encode(branch, forKey: .branch)
+        } else {
+            try container.encodeNil(forKey: .branch)
+        }
+    }
 }
 
 // MARK: - Errors

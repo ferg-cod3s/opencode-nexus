@@ -811,8 +811,190 @@ final class ChatViewModelExtendedTests: XCTestCase {
         viewModel.configure(with: nil)
         viewModel.startEventStream()
     }
+
+    // MARK: - archive lifecycle
+
+    func testArchiveSessionMovesToArchivedList() async throws {
+        let session = try decodeSession(id: "ses_arch", title: "Archive Me", directory: "/p")
+        viewModel.sessions = [session]
+
+        let archivedJSON = """
+        {"id":"ses_arch","slug":"ses_arch","version":"1.0.0","projectID":"project","directory":"/p","title":"Archive Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+        """
+        configureWithMockClient { _ in testRespondJSON(archivedJSON) }
+
+        await viewModel.archiveSession("ses_arch")
+
+        XCTAssertFalse(viewModel.sessions.contains(where: { $0.id == "ses_arch" }))
+        XCTAssertTrue(viewModel.archivedSessions.contains(where: { $0.id == "ses_arch" }))
+    }
+
+    func testArchiveSessionClearsSelectionWhenSelected() async throws {
+        let session = try decodeSession(id: "ses_arch2", title: "Selected", directory: "/p")
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_arch2"
+
+        let archivedJSON = """
+        {"id":"ses_arch2","slug":"ses_arch2","version":"1.0.0","projectID":"project","directory":"/p","title":"Selected","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+        """
+        configureWithMockClient { _ in testRespondJSON(archivedJSON) }
+
+        await viewModel.archiveSession("ses_arch2")
+
+        XCTAssertNil(viewModel.selectedSessionId)
+        XCTAssertTrue(viewModel.messages.isEmpty)
+    }
+
+    func testUnarchiveSessionMovesToActiveList() async throws {
+        let archivedJSON = """
+        {"id":"ses_unarch","slug":"ses_unarch","version":"1.0.0","projectID":"project","directory":"/p","title":"Unarchive Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+        """
+        let archivedSession = try JSONDecoder().decode(Session.self, from: Data(archivedJSON.utf8))
+        viewModel.archivedSessions = [archivedSession]
+
+        let activeJSON = """
+        {"id":"ses_unarch","slug":"ses_unarch","version":"1.0.0","projectID":"project","directory":"/p","title":"Unarchive Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":4}}
+        """
+        configureWithMockClient { _ in testRespondJSON(activeJSON) }
+
+        await viewModel.unarchiveSession("ses_unarch")
+
+        XCTAssertFalse(viewModel.archivedSessions.contains(where: { $0.id == "ses_unarch" }))
+        XCTAssertTrue(viewModel.sessions.contains(where: { $0.id == "ses_unarch" }))
+    }
+
+    func testFilteredArchivedSessionsMatchesSearchText() throws {
+        let s1 = try decodeSession(id: "a1", title: "Alpha Project", directory: "/p")
+        let s2 = try decodeSession(id: "a2", title: "Beta Project", directory: "/p")
+        viewModel.archivedSessions = [s1, s2]
+        viewModel.sessionSearchText = "alpha"
+
+        XCTAssertEqual(viewModel.filteredArchivedSessions.count, 1)
+        XCTAssertEqual(viewModel.filteredArchivedSessions.first?.id, "a1")
+    }
+
+    func testArchiveSessionSurfacesErrorOnFailure() async throws {
+        let session = try decodeSession(id: "ses_arch_fail", title: "Fail", directory: "/p")
+        viewModel.sessions = [session]
+
+        configureWithMockClient { _ in
+            (HTTPURLResponse(url: URL(string: "http://opencode.test")!, statusCode: 500, httpVersion: nil, headerFields: nil)!, Data())
+        }
+
+        await viewModel.archiveSession("ses_arch_fail")
+
+        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertTrue(viewModel.sessions.contains(where: { $0.id == "ses_arch_fail" }))
+    }
+
+    // MARK: - Archive lifecycle (IOS-BETA-003)
+
+    func testArchiveMovesToArchivedSessions() async throws {
+        let session = try decodeSession(id: "ses_arc_new", title: "Move Me", directory: "/p")
+        viewModel.sessions = [session]
+
+        let archivedJSON = """
+        {"id":"ses_arc_new","slug":"ses_arc_new","version":"1.0.0","projectID":"project","directory":"/p","title":"Move Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+        """
+        configureWithMockClient { _ in testRespondJSON(archivedJSON) }
+
+        await viewModel.archiveSession("ses_arc_new")
+
+        XCTAssertFalse(viewModel.sessions.contains(where: { $0.id == "ses_arc_new" }))
+        XCTAssertTrue(viewModel.archivedSessions.contains(where: { $0.id == "ses_arc_new" }))
+    }
+
+    func testUnarchiveFromArchivedRestoresSession() async throws {
+        let archivedJSON = """
+        {"id":"ses_unarch2","slug":"ses_unarch2","version":"1.0.0","projectID":"project","directory":"/p","title":"Restore Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+        """
+        let archivedSession = try JSONDecoder().decode(Session.self, from: Data(archivedJSON.utf8))
+        viewModel.archivedSessions = [archivedSession]
+
+        let activeJSON = """
+        {"id":"ses_unarch2","slug":"ses_unarch2","version":"1.0.0","projectID":"project","directory":"/p","title":"Restore Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":4}}
+        """
+        configureWithMockClient { _ in testRespondJSON(activeJSON) }
+
+        await viewModel.unarchiveSession("ses_unarch2")
+
+        XCTAssertFalse(viewModel.archivedSessions.contains(where: { $0.id == "ses_unarch2" }))
+        XCTAssertTrue(viewModel.sessions.contains(where: { $0.id == "ses_unarch2" }))
+    }
+
+    func testDirectoryLookupWorksForArchivedSession() async throws {
+        let archivedJSON = """
+        {"id":"ses_dir_arch","slug":"ses_dir_arch","version":"1.0.0","projectID":"project","directory":"/archived/path","title":"Dir Test","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+        """
+        let archivedSession = try JSONDecoder().decode(Session.self, from: Data(archivedJSON.utf8))
+        viewModel.archivedSessions = [archivedSession]
+
+        let result = viewModel.directory(for: "ses_dir_arch")
+        XCTAssertEqual(result, "/archived/path")
+    }
+
+    func testLoadSessionsPopulatesArchivedSessions() async throws {
+        let projectJSON = """
+        {"id":"proj","worktree":"/p","time":{"created":1,"updated":2}}
+        """
+        viewModel.projects = [try JSONDecoder().decode(Project.self, from: Data(projectJSON.utf8))]
+
+        let archivedSessionJSON = """
+        {"id":"ses_load_arch","slug":"ses_load_arch","version":"1.0.0","projectID":"project","directory":"/p","title":"Archived","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+        """
+        configureWithMockClient { request in
+            if request.url?.path == "/session" {
+                return testRespondJSON("[\(archivedSessionJSON)]")
+            }
+            return testRespondJSON("[]")
+        }
+
+        await viewModel.loadSessions(resetLimit: true)
+
+        XCTAssertFalse(viewModel.sessions.contains(where: { $0.id == "ses_load_arch" }))
+        XCTAssertTrue(viewModel.archivedSessions.contains(where: { $0.id == "ses_load_arch" }))
+    }
+
+    func testArchiveOfSelectedSessionClearsSelection() async throws {
+        let session = try decodeSession(id: "ses_sel_arch", title: "Selected", directory: "/p")
+        viewModel.sessions = [session]
+        viewModel.selectedSessionId = "ses_sel_arch"
+        let msgJSON = """
+        {"info":{"id":"msg_1","role":"user","time":{"created":1}},"parts":[{"type":"text","text":"hi"}]}
+        """
+        viewModel.messages = [try JSONDecoder().decode(MessageEnvelope.self, from: Data(msgJSON.utf8))]
+
+        let archivedJSON = """
+        {"id":"ses_sel_arch","slug":"ses_sel_arch","version":"1.0.0","projectID":"project","directory":"/p","title":"Selected","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
+        """
+        configureWithMockClient { _ in testRespondJSON(archivedJSON) }
+
+        await viewModel.archiveSession("ses_sel_arch")
+
+        XCTAssertNil(viewModel.selectedSessionId)
+        XCTAssertTrue(viewModel.messages.isEmpty)
+    }
 }
 
 private func makeEvent(type: String, properties: [String: JSONValue]) -> SSEEvent {
-    SSEEvent(type: type, properties: properties)
+    let payload: [String: Any] = [
+        "payload": [
+            "type": type,
+            "properties": properties.mapValues { encodeJSONValueForExtendedTests($0) }
+        ]
+    ]
+    let data = try! JSONSerialization.data(withJSONObject: payload)
+    return try! JSONDecoder().decode(SSEEvent.self, from: data)
+}
+
+private func encodeJSONValueForExtendedTests(_ value: JSONValue) -> Any {
+    switch value {
+    case .string(let string): return string
+    case .int(let int): return int
+    case .double(let double): return double
+    case .bool(let bool): return bool
+    case .object(let object): return object.mapValues { encodeJSONValueForExtendedTests($0) }
+    case .array(let array): return array.map { encodeJSONValueForExtendedTests($0) }
+    case .null: return NSNull()
+    }
 }

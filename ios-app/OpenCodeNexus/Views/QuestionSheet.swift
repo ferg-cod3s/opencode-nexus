@@ -36,6 +36,7 @@ struct QuestionSheet: View {
                     } label: {
                         Label("Submit", systemImage: "arrow.up.circle.fill")
                     }
+                    .buttonStyle(.borderless)
                     .disabled(!canSubmit(question))
 
                     Button(role: .destructive) {
@@ -44,6 +45,7 @@ struct QuestionSheet: View {
                     } label: {
                         Label("Reject", systemImage: "xmark.circle")
                     }
+                    .buttonStyle(.borderless)
                 }
                 .padding(.vertical, 4)
             }

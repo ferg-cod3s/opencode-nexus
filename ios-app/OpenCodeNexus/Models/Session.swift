@@ -34,8 +34,10 @@ struct Session: Codable, Identifiable, Hashable {
 
     var displayTitle: String {
         if title.hasPrefix("New session") || title.isEmpty {
-            let slug = id.hasPrefix("ses_") ? String(id.dropFirst(4)) : id
-            return slug.replacingOccurrences(of: "-", with: " ").capitalized
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            return "New Session – \(formatter.string(from: time.createdDate))"
         }
         return title
     }
@@ -49,7 +51,7 @@ struct Session: Codable, Identifiable, Hashable {
     }
 
     var isArchived: Bool {
-        time.archived != nil
+        (time.archived ?? 0) > 0
     }
 
     func hash(into hasher: inout Hasher) {
