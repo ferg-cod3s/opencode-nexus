@@ -42,6 +42,7 @@ final class ChatViewModel {
                 }
                 isSending = false
                 isStreamingDeltas = false
+                debouncedMessageRecoveryTask?.cancel()
                 messages = []
                 todos = []
                 fileDiffs = []
@@ -112,6 +113,7 @@ final class ChatViewModel {
     private var eventTask: Task<Void, Never>?
     private var sessionReloadTask: Task<Void, Never>?
     private var sendTimeoutTask: Task<Void, Never>?
+    private var debouncedMessageRecoveryTask: Task<Void, Never>?
     private var isStreamingDeltas = false
     private var sessionPageLimit = 50
     private var messagePageLimit = 50
@@ -559,6 +561,25 @@ final class ChatViewModel {
         await loadPendingRequests(for: sessionId)
     }
 
+    func refreshSelectedSession() async {
+        guard let client, let sessionId = selectedSessionId else { return }
+        let sessionDirectory = directory(for: sessionId)
+
+        do {
+            let refreshedSession = try await client.getSession(sessionId, directory: sessionDirectory)
+            guard selectedSessionId == sessionId else { return }
+            replaceSelectedSession(refreshedSession)
+        } catch {
+            logger.warning("refreshSelectedSession: failed to refresh session metadata: \(error)")
+        }
+
+        await loadMessages()
+        await loadTodos()
+        await loadSessionDiffs()
+        await loadPendingRequests(for: sessionId)
+        clearStaleSendingStateIfSessionIsComplete(sessionId: sessionId)
+    }
+
     func directory(for sessionId: String?) -> String? {
         guard let sessionId else { return nil }
         if let activeDirectory = sessions.first(where: { $0.id == sessionId })?.directory {
@@ -750,6 +771,17 @@ final class ChatViewModel {
         sessionDirectoryIndex[session.id] = session.directory
     }
 
+    private func replaceSelectedSession(_ session: Session) {
+        cacheDirectory(for: session)
+        if session.isArchived {
+            sessions.removeAll { $0.id == session.id }
+            upsertSession(session, in: &archivedSessions)
+        } else {
+            archivedSessions.removeAll { $0.id == session.id }
+            upsertSession(session, in: &sessions)
+        }
+    }
+
     func loadChildSessions(for sessionId: String) async {
         guard let client else { return }
         do {
@@ -800,6 +832,7 @@ final class ChatViewModel {
                 sessionId: sessionId, directory: directory, limit: messagePageLimit)
             guard selectedSessionId == sessionId else { return }
             messages = reconciledMessages(loaded: loaded, existing: messages, sessionId: sessionId)
+            bufferedDeltas[sessionId] = nil
             applyBufferedDeltas(for: sessionId)
             hasMoreMessages = loaded.count >= messagePageLimit
         } catch {
@@ -1432,6 +1465,7 @@ final class ChatViewModel {
         eventTask?.cancel()
         eventTask = nil
         startEventStream()
+        await refreshSelectedSession()
     }
 
     func handleEvent(_ event: SSEEvent) {
@@ -1733,6 +1767,9 @@ final class ChatViewModel {
             logger.warning(
                 "applyPartUpdate: message \(part.messageID ?? "nil") (resolved: \(resolvedMessageID ?? "nil")) not found"
             )
+            if let sessionID = part.sessionID ?? selectedSessionId {
+                scheduleDebouncedMessageRecovery(for: sessionID)
+            }
             return
         }
 
@@ -1774,6 +1811,7 @@ final class ChatViewModel {
             if let sessionID = event.sessionID {
                 bufferedDeltas[sessionID, default: []].append(
                     BufferedDelta(messageID: resolvedMessageID, partID: partID, delta: delta))
+                scheduleDebouncedMessageRecovery(for: sessionID)
             }
             return
         }
@@ -1785,6 +1823,7 @@ final class ChatViewModel {
             if let sessionID = event.sessionID {
                 bufferedDeltas[sessionID, default: []].append(
                     BufferedDelta(messageID: resolvedMessageID, partID: partID, delta: delta))
+                scheduleDebouncedMessageRecovery(for: sessionID)
             }
             return
         }
@@ -1832,7 +1871,45 @@ final class ChatViewModel {
             logger.info(
                 "applyBufferedDeltas: \(unapplied.count) deltas still unapplied for session \(sessionId)"
             )
+            scheduleDebouncedMessageRecovery(for: sessionId)
         }
+    }
+
+    private func scheduleDebouncedMessageRecovery(for sessionId: String) {
+        guard selectedSessionId == sessionId else { return }
+
+        debouncedMessageRecoveryTask?.cancel()
+        debouncedMessageRecoveryTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(350))
+            } catch {
+                return
+            }
+
+            guard let self, !Task.isCancelled, self.selectedSessionId == sessionId else { return }
+            await self.loadMessages()
+        }
+    }
+
+    private func clearStaleSendingStateIfSessionIsComplete(sessionId: String) {
+        guard selectedSessionId == sessionId else { return }
+
+        let hasPendingOptimisticMessage = pendingOptimisticMessages.values.contains {
+            $0.sessionID == sessionId
+        }
+        let latestAssistantMessageIsComplete = messages.last(where: { $0.info.isAssistant })?
+            .info.time.completed != nil
+        let sessionIsIdle = sessionStatuses[sessionId]?.isIdle == true
+
+        guard !hasPendingOptimisticMessage, sessionIsIdle || latestAssistantMessageIsComplete else {
+            return
+        }
+
+        sendTimeoutTask?.cancel()
+        sendTimeoutTask = nil
+        currentSendOperationID = nil
+        isSending = false
+        isStreamingDeltas = false
     }
 
     private func parseQuestionItems(_ value: JSONValue?) -> [QuestionInfo] {

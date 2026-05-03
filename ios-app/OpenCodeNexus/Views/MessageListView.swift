@@ -36,6 +36,7 @@ struct MessageListView: View {
     let onSubmitQueuedPrompt: () -> Void
     let onClearQueuedPrompt: () -> Void
     let onRespondToTUIRequest: ([String: JSONValue]) -> Void
+    let onRefresh: () async -> Void
     @State private var thinkingEffort: ThinkingEffort = .medium
 
     var body: some View {
@@ -275,6 +276,9 @@ struct MessageListView: View {
                     }
                 }
                 .padding(.vertical, 16)
+            }
+            .refreshable {
+                await onRefresh()
             }
             .overlay {
                 if isLoading && messages.isEmpty {

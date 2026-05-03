@@ -873,6 +873,67 @@ final class OpenCodeClientTests: XCTestCase {
         _ = try await client.getVcsDiff()
     }
 
+    func testCreateWorkspaceIncludesDirectoryQueryAndExplicitNullBranch() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertEqual(request.url?.path, "/experimental/workspace")
+            XCTAssertEqual(request.httpMethod, "POST")
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            let query = Self.queryDictionary(from: components)
+            XCTAssertEqual(query["directory"], "/tmp/project")
+
+            let body = try Self.jsonBody(from: request)
+            XCTAssertEqual(body["type"] as? String, "worktree")
+            XCTAssertTrue(body.keys.contains("branch"))
+            XCTAssertTrue(body["branch"] is NSNull)
+            XCTAssertTrue(body.keys.contains("extra"))
+            XCTAssertTrue(body["extra"] is NSNull)
+
+            return (
+                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                "{\"id\":\"w1\",\"type\":\"worktree\",\"branch\":null,\"directory\":\"/tmp/project\",\"status\":\"connected\"}".data(using: .utf8)!
+            )
+        }
+
+        _ = try await client.createWorkspace(type: "worktree", branch: nil, directory: "/tmp/project")
+    }
+
+    func testCreateWorkspaceSendsBranchStringWhenProvided() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            let body = try Self.jsonBody(from: request)
+            XCTAssertEqual(body["type"] as? String, "worktree")
+            XCTAssertEqual(body["branch"] as? String, "feature/workspaces")
+            XCTAssertTrue(body.keys.contains("extra"))
+            XCTAssertTrue(body["extra"] is NSNull)
+
+            return (
+                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                "{\"id\":\"w2\",\"type\":\"worktree\",\"branch\":\"feature/workspaces\",\"directory\":\"/tmp/project\",\"status\":\"connected\"}".data(using: .utf8)!
+            )
+        }
+
+        _ = try await client.createWorkspace(type: "worktree", branch: "feature/workspaces", directory: "/tmp/project")
+    }
+
+    func testCreateWorkspaceOmitsDirectoryQueryWhenNotProvided() async throws {
+        MockURLProtocol.setRequestHandler { request in
+            XCTAssertNil(request.url?.query)
+
+            let body = try Self.jsonBody(from: request)
+            XCTAssertEqual(body["type"] as? String, "worktree")
+            XCTAssertTrue(body.keys.contains("branch"))
+            XCTAssertTrue(body["branch"] is NSNull)
+            XCTAssertTrue(body.keys.contains("extra"))
+            XCTAssertTrue(body["extra"] is NSNull)
+
+            return (
+                HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                "{\"id\":\"w3\",\"type\":\"worktree\",\"branch\":null,\"directory\":\"/tmp/project\",\"status\":\"connected\"}".data(using: .utf8)!
+            )
+        }
+
+        _ = try await client.createWorkspace(type: "worktree")
+    }
+
     func testListMcpServersURL() async throws {
         MockURLProtocol.setRequestHandler { request in
             XCTAssertEqual(request.url?.path, "/mcp")

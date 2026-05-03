@@ -48,6 +48,63 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isSending)
     }
 
+    func testHandleSyncSessionStatusIdleReloadsMessagesAndSessions() async throws {
+        let session = try decodeSession(id: "ses_sync_idle", title: "Sync Idle", directory: "/project", updated: 1)
+        viewModel.sessions = [session]
+        viewModel.projects = [try decodeProject(worktree: "/project")]
+        viewModel.selectedSessionId = session.id
+        viewModel.isSending = true
+
+        let optimisticId = "msg_ios_sync_idle"
+        let now = Int64(Date().timeIntervalSince1970 * 1000)
+        viewModel.messages = [makeOptimisticMessage(id: optimisticId, text: "hello")]
+        viewModel.pendingOptimisticMessages[optimisticId] = PendingOptimisticMessage(
+            id: optimisticId,
+            sessionID: session.id,
+            text: "hello",
+            created: now
+        )
+
+        let messagesReloaded = expectation(description: "messages reloaded")
+        let sessionsReloaded = expectation(description: "sessions reloaded")
+
+        configureWithMockClient { request in
+            let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
+            switch components.path {
+            case "/session/ses_sync_idle/message":
+                messagesReloaded.fulfill()
+                return testRespondJSON("""
+                [{"info":{"id":"srv_user","sessionID":"ses_sync_idle","role":"user","isUser":true,"time":{"created":\(now)}},"parts":[{"id":"part_srv_user","messageID":"srv_user","sessionID":"ses_sync_idle","type":"text","text":"hello"}]},{"info":{"id":"srv_assistant","sessionID":"ses_sync_idle","role":"assistant","time":{"created":\(now + 1),"completed":\(now + 2)}},"parts":[{"id":"part_srv_assistant","messageID":"srv_assistant","sessionID":"ses_sync_idle","type":"text","text":"Done"}]}]
+                """)
+            case "/session":
+                sessionsReloaded.fulfill()
+                return testRespondJSON("""
+                [{"id":"ses_sync_idle","slug":"sync-idle","version":"1.0.0","projectID":"project","directory":"/project","title":"Sync Idle","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2}}]
+                """)
+            default:
+                XCTFail("Unexpected path: \(components.path)")
+                return testRespondJSON("[]", statusCode: 404)
+            }
+        }
+
+        let eventData = Data(
+            """
+            {"payload":{"type":"session.status.1","id":"evt_sync_idle","aggregateID":"ses_sync_idle","data":{"status":{"type":"idle"}}}}
+            """.utf8)
+        let event = try JSONDecoder().decode(SSEEvent.self, from: eventData)
+
+        viewModel.handleEvent(event)
+
+        await fulfillment(of: [messagesReloaded, sessionsReloaded], timeout: 1.0)
+        try await Task.sleep(for: .milliseconds(100))
+
+        XCTAssertEqual(viewModel.sessionStatuses[session.id]?.status, "idle")
+        XCTAssertFalse(viewModel.isSending)
+        XCTAssertNil(viewModel.pendingOptimisticMessages[optimisticId])
+        XCTAssertEqual(viewModel.messages.map(\.id), ["srv_user", "srv_assistant"])
+        XCTAssertEqual(viewModel.sessions.map(\.id), [session.id])
+    }
+
     func testHandleEventSessionStatusWithStatusStringNotObject() {
         let event = makeEvent(
             type: "session.status",

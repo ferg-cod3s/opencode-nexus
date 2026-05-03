@@ -213,8 +213,12 @@ final class OpenCodeClient: @unchecked Sendable {
         try await request("experimental/workspace")
     }
 
-    func createWorkspace(type: String, branch: String? = nil) async throws -> Workspace {
-        try await post("experimental/workspace", body: CreateWorkspaceBody(type: type, branch: branch))
+    func createWorkspace(type: String, branch: String? = nil, directory: String? = nil) async throws -> Workspace {
+        try await post(
+            "experimental/workspace",
+            body: CreateWorkspaceBody(type: type, branch: branch, extra: nil),
+            query: queryItems(directory: directory)
+        )
     }
 
     func removeWorkspace(id: String) async throws {
@@ -788,9 +792,10 @@ private struct WriteFileBody: Encodable {
 private struct CreateWorkspaceBody: Encodable {
     let type: String
     let branch: String?
+    let extra: JSONValue?
 
     enum CodingKeys: String, CodingKey {
-        case type, branch
+        case type, branch, extra
     }
 
     func encode(to encoder: Encoder) throws {
@@ -800,6 +805,11 @@ private struct CreateWorkspaceBody: Encodable {
             try container.encode(branch, forKey: .branch)
         } else {
             try container.encodeNil(forKey: .branch)
+        }
+        if let extra {
+            try container.encode(extra, forKey: .extra)
+        } else {
+            try container.encodeNil(forKey: .extra)
         }
     }
 }

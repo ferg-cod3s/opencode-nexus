@@ -31,14 +31,14 @@ struct SSEEvent: Decodable, Sendable, Equatable {
         project = try? container.decodeIfPresent(String.self, forKey: .project)
         workspace = try? container.decodeIfPresent(String.self, forKey: .workspace)
 
-        if let payload = try? container.decodeIfPresent(Payload.self, forKey: .payload) {
-            self.payload = payload
-            self.syncEvent = nil
-            self.directType = nil
-            self.directProperties = nil
-        } else if let syncEvent = try? container.decodeIfPresent(SyncPayload.self, forKey: .payload) {
+        if let syncEvent = try? container.decodeIfPresent(SyncPayload.self, forKey: .payload) {
             self.payload = nil
             self.syncEvent = syncEvent
+            self.directType = nil
+            self.directProperties = nil
+        } else if let payload = try? container.decodeIfPresent(Payload.self, forKey: .payload) {
+            self.payload = payload
+            self.syncEvent = nil
             self.directType = nil
             self.directProperties = nil
         } else {
@@ -70,11 +70,19 @@ struct SSEEvent: Decodable, Sendable, Equatable {
     }
 
     var sessionID: String? {
-        properties?["sessionID"]?.stringValue
+        properties?.recursiveStringValue(forKeys: ["sessionID", "sessionId"])
+            ?? payload?.syncEvent?.aggregateID
+            ?? syncEvent?.aggregateID
     }
 
     var messageID: String? {
-        properties?["messageID"]?.stringValue
+        properties?.recursiveStringValue(forKeys: ["messageID", "messageId"])
+            ?? properties?.nestedStringValue(for: ["message", "info", "id"])
+            ?? properties?.nestedStringValue(for: ["info", "id"])
+            ?? properties?.nestedStringValue(for: ["message", "id"])
+            ?? properties?.nestedStringValue(for: ["part", "messageID"])
+            ?? properties?.nestedStringValue(for: ["part", "messageId"])
+            ?? (eventType.hasPrefix("message") ? (payload?.syncEvent?.id ?? syncEvent?.id) : nil)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -144,6 +152,60 @@ enum JSONValue: Codable, Sendable, Equatable {
         case .object(let v): try container.encode(v)
         case .array(let v): try container.encode(v)
         case .null: try container.encodeNil()
+        }
+    }
+}
+
+private extension Dictionary where Key == String, Value == JSONValue {
+    func nestedStringValue(for path: [String]) -> String? {
+        guard let first = path.first,
+            let value = self[first]
+        else { return nil }
+
+        if path.count == 1 {
+            return value.stringValue
+        }
+
+        return value.nestedStringValue(for: Array(path.dropFirst()))
+    }
+
+    func recursiveStringValue(forKeys keys: Set<String>) -> String? {
+        for key in keys {
+            if let value = self[key]?.stringValue {
+                return value
+            }
+        }
+
+        for value in values {
+            if let resolved = value.recursiveStringValue(forKeys: keys) {
+                return resolved
+            }
+        }
+
+        return nil
+    }
+}
+
+private extension JSONValue {
+    func nestedStringValue(for path: [String]) -> String? {
+        guard !path.isEmpty else { return stringValue }
+        guard case .object(let object) = self else { return nil }
+        return object.nestedStringValue(for: path)
+    }
+
+    func recursiveStringValue(forKeys keys: Set<String>) -> String? {
+        switch self {
+        case .object(let object):
+            return object.recursiveStringValue(forKeys: keys)
+        case .array(let values):
+            for value in values {
+                if let resolved = value.recursiveStringValue(forKeys: keys) {
+                    return resolved
+                }
+            }
+            return nil
+        default:
+            return nil
         }
     }
 }

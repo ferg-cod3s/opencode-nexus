@@ -607,7 +607,8 @@ private struct ChatDetailContainer: View {
                 onQueueFollowUp: { chatVM.queueFollowUpPrompt() },
                 onSubmitQueuedPrompt: { Task { await chatVM.submitQueuedPrompt() } },
                 onClearQueuedPrompt: { chatVM.clearQueuedPrompt() },
-                onRespondToTUIRequest: { body in Task { await chatVM.respondToTUIRequest(body) } }
+                onRespondToTUIRequest: { body in Task { await chatVM.respondToTUIRequest(body) } },
+                onRefresh: { await chatVM.refreshSelectedSession() }
             )
             .toolbar {
                 ToolbarItemGroup(placement: .bottomBar) {

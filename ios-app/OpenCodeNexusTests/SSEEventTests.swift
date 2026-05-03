@@ -202,6 +202,29 @@ final class SSEEventTests: XCTestCase {
         XCTAssertEqual(event.properties?["info"]?.objectValue?["id"]?.stringValue, "msg_456")
     }
 
+    func testSSEEventDecodingDirectSyncPayloadPreservesSessionAndMessageIDs() throws {
+        let json = """
+        {"payload": {"type": "message.updated.1", "id": "evt_sync_123", "seq": 42, "aggregateID": "ses_sync_123", "data": {"info": {"id": "msg_sync_456"}}}}
+        """
+        let data = json.data(using: .utf8)!
+        let event = try JSONDecoder().decode(SSEEvent.self, from: data)
+
+        XCTAssertEqual(event.eventType, "message.updated.1")
+        XCTAssertEqual(event.sessionID, "ses_sync_123")
+        XCTAssertEqual(event.messageID, "msg_sync_456")
+    }
+
+    func testSSEEventDecodingDirectSyncPayloadFallsBackToSyncEventIDForMessageID() throws {
+        let json = """
+        {"payload": {"type": "message.updated.1", "id": "evt_sync_message", "aggregateID": "ses_sync_fallback", "data": {}}}
+        """
+        let data = json.data(using: .utf8)!
+        let event = try JSONDecoder().decode(SSEEvent.self, from: data)
+
+        XCTAssertEqual(event.sessionID, "ses_sync_fallback")
+        XCTAssertEqual(event.messageID, "evt_sync_message")
+    }
+
     // MARK: - SSEEvent sessionID Extraction
 
     func testSSEEventSessionIDExtraction() throws {
