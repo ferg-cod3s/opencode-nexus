@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 220" role="img" aria-label="OpencodeNexus wordmark">
+  <rect width="980" height="220" fill="#050607" rx="28"/>
+  <g transform="translate(52 42) scale(.26)">
+    <circle cx="256" cy="256" r="112" fill="none" stroke="#fff" stroke-width="14" opacity=".92"/>
+    <circle cx="256" cy="256" r="72" fill="none" stroke="#BEC6CE" stroke-width="6" stroke-dasharray="18 12" opacity=".8"/>
+    <path d="M174 174 338 338M338 174 174 338" stroke="#fff" stroke-width="42" stroke-linecap="round"/>
+    <g stroke="#BEC6CE" stroke-width="8" stroke-linecap="round" opacity=".88"><path d="M256 52v54M256 406v54M52 256h54M406 256h54M112 112l38 38M362 362l38 38M400 112l-38 38M150 362l-38 38"/></g>
+  </g>
+  <text x="225" y="98" font-family="Orbitron, Inter, sans-serif" font-size="58" font-weight="700" fill="#fff">OpencodeNexus</text>
+  <text x="228" y="146" font-family="Inter, sans-serif" font-size="25" fill="#BEC6CE">Connect. Coordinate. Conquer.</text>
+</svg>

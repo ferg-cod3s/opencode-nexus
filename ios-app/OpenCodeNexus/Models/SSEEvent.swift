@@ -10,6 +10,7 @@ struct SSEEvent: Decodable, Sendable, Equatable {
     struct Payload: Decodable, Sendable, Equatable {
         let type: String
         let properties: [String: JSONValue]?
+        let syncEvent: SyncPayload?
     }
 
     struct SyncPayload: Decodable, Sendable, Equatable {
@@ -20,25 +21,8 @@ struct SSEEvent: Decodable, Sendable, Equatable {
         let data: [String: JSONValue]?
     }
 
-    var eventType: String {
-        if let payload { return payload.type }
-        if let syncEvent { return syncEvent.type }
-        return "unknown"
-    }
-
-    var properties: [String: JSONValue]? {
-        if let payload { return payload.properties }
-        if let syncEvent { return syncEvent.data }
-        return nil
-    }
-
-    var sessionID: String? {
-        properties?["sessionID"]?.stringValue
-    }
-
-    var messageID: String? {
-        properties?["messageID"]?.stringValue
-    }
+    private var directType: String?
+    private var directProperties: [String: JSONValue]?
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -50,17 +34,51 @@ struct SSEEvent: Decodable, Sendable, Equatable {
         if let payload = try? container.decodeIfPresent(Payload.self, forKey: .payload) {
             self.payload = payload
             self.syncEvent = nil
+            self.directType = nil
+            self.directProperties = nil
         } else if let syncEvent = try? container.decodeIfPresent(SyncPayload.self, forKey: .payload) {
             self.payload = nil
             self.syncEvent = syncEvent
+            self.directType = nil
+            self.directProperties = nil
         } else {
             self.payload = nil
             self.syncEvent = nil
+            self.directType = try? container.decodeIfPresent(String.self, forKey: .type)
+            self.directProperties = try? container.decodeIfPresent([String: JSONValue].self, forKey: .properties)
         }
     }
 
+    var eventType: String {
+        if let payload {
+            if let syncEvent = payload.syncEvent { return syncEvent.type }
+            return payload.type
+        }
+        if let syncEvent { return syncEvent.type }
+        if let directType { return directType }
+        return "unknown"
+    }
+
+    var properties: [String: JSONValue]? {
+        if let payload {
+            if let syncEvent = payload.syncEvent { return syncEvent.data }
+            return payload.properties
+        }
+        if let syncEvent { return syncEvent.data }
+        if let directProperties { return directProperties }
+        return nil
+    }
+
+    var sessionID: String? {
+        properties?["sessionID"]?.stringValue
+    }
+
+    var messageID: String? {
+        properties?["messageID"]?.stringValue
+    }
+
     enum CodingKeys: String, CodingKey {
-        case directory, project, workspace, payload
+        case directory, project, workspace, payload, type, properties
     }
 }
 

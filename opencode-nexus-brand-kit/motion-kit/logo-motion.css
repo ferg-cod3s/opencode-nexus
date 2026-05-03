@@ -1,0 +1,8 @@
+:root { --onx-green:#22D08A; --onx-blue:#3DA8FF; --onx-white:#fff; }
+.onx-logo { width: 180px; aspect-ratio: 1; }
+.onx-logo .ring { transform-origin: 50% 50%; animation: onx-spin 8s linear infinite; }
+.onx-logo .nodes { transform-origin: 50% 50%; animation: onx-pulse 1.8s ease-in-out infinite; }
+.onx-logo.sync .ring { stroke: var(--onx-blue); animation-duration: 2.2s; }
+.onx-logo.active .ring { stroke: var(--onx-green); filter: drop-shadow(0 0 8px var(--onx-green)); }
+@keyframes onx-spin { to { transform: rotate(360deg); } }
+@keyframes onx-pulse { 0%,100% { opacity:.45; transform: scale(.98); } 50% { opacity:1; transform: scale(1.04); } }

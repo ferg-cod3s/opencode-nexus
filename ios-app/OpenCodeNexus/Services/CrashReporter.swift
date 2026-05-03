@@ -50,9 +50,16 @@ enum CrashReporter {
             options.enableAppHangTracking = true
             options.appHangTimeoutInterval = 3.0
 
-            // Performance: sample lightly so we don't blow through the free tier.
-            options.tracesSampleRate = 0.1
+            // Performance: 100% sampling during TestFlight; reduce in production.
+            options.tracesSampleRate = 1.0
             options.enableAutoPerformanceTracing = true
+
+            options.configureProfiling = {
+                $0.sessionSampleRate = 1.0
+                $0.lifecycle = .trace
+            }
+
+            options.experimental.enableLogs = true
 
             // Privacy: never send IPs / device identifiers by default.
             options.sendDefaultPii = false

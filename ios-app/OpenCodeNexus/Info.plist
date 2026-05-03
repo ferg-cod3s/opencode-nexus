@@ -20,6 +20,8 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
@@ -37,6 +39,12 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>OpenCode Nexus needs network access to connect to your OpenCode server via localhost, Tailscale, or Cloudflare.</string>
+	<key>SentryDSN</key>
+	<string>https://f7ded2177f996e519be91651f05d38a3@sentry.fergify.work/16</string>
+	<key>SentryEnvironment</key>
+	<string>production</string>
+	<key>SentryVerboseEvents</key>
+	<string>true</string>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

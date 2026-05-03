@@ -45,8 +45,10 @@ struct MessageInputView: View {
             attachmentPreview
             autocompletePalette
             HStack(alignment: .bottom, spacing: 12) {
-                shellModeToggle
-                attachButton
+                VStack(spacing: 4) {
+                    shellModeToggle
+                    attachButton
+                }
                 inputField
                 actionButton
             }

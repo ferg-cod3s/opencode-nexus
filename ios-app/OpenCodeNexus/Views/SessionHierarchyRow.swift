@@ -162,7 +162,7 @@ struct SessionHierarchyRow: View {
             }
         }
         Button(action: onArchive) {
-            Label(session.isArchived ? "Unarchive" : "Archive", systemImage: session.isArchived ? "archivebox.fill" : "archivebox")
+            Label(session.isArchived ? "Restore" : "Archive", systemImage: session.isArchived ? "arrow.uturn.backward.circle" : "archivebox")
         }
         Button(action: { showRenameSheet = true }) {
             Label("Rename", systemImage: "pencil")

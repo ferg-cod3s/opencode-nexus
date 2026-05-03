@@ -329,14 +329,13 @@ final class OpenCodeClientTests: XCTestCase {
     }
 
     func testArchiveSessionPatchesWithUnixMillisTimestamp() async throws {
-        let captured = Mutex<(method: String?, path: String?, body: [String: Any]?)>((nil, nil, nil))
+        let capturedMethod = Mutex<String?>(nil)
+        let capturedPath = Mutex<String?>(nil)
+        let capturedBodyData = Mutex<Data?>(nil)
         MockURLProtocol.setRequestHandler { request in
-            let body = (try? Self.jsonBody(from: request)) ?? [:]
-            captured.withLock { state in
-                state.method = request.httpMethod
-                state.path = request.url?.path
-                state.body = body
-            }
+            capturedMethod.withLock { $0 = request.httpMethod }
+            capturedPath.withLock { $0 = request.url?.path }
+            capturedBodyData.withLock { $0 = request.httpBody }
             return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
                     Data(#"{"id":"ses_1","projectID":"p","directory":"/repo","title":"t","version":"1","time":{"created":1,"archived":1234567890}}"#.utf8))
         }
@@ -345,37 +344,42 @@ final class OpenCodeClientTests: XCTestCase {
         let session = try await client.archiveSession("ses_1", directory: "/repo")
         let afterMs = Int64(Date().timeIntervalSince1970 * 1000)
 
-        let state = captured.withLock { $0 }
-        XCTAssertEqual(state.method, "PATCH")
-        XCTAssertEqual(state.path, "/session/ses_1")
-        let time = try XCTUnwrap(state.body?["time"] as? [String: Any])
+        let method = capturedMethod.withLock { $0 }
+        let path = capturedPath.withLock { $0 }
+        let bodyData = capturedBodyData.withLock { $0 }
+        XCTAssertEqual(method, "PATCH")
+        XCTAssertEqual(path, "/session/ses_1")
+        let body = try XCTUnwrap(bodyData.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] })
+        let time = try XCTUnwrap(body["time"] as? [String: Any])
         let archivedNumber = try XCTUnwrap(time["archived"] as? NSNumber)
         let archived = archivedNumber.int64Value
         XCTAssertGreaterThanOrEqual(archived, beforeMs)
         XCTAssertLessThanOrEqual(archived, afterMs)
-        XCTAssertNil(state.body?["title"], "title must be omitted, not sent as null")
+        XCTAssertNil(body["title"], "title must be omitted, not sent as null")
         XCTAssertTrue(session.isArchived)
     }
 
     func testUnarchiveSessionPatchesWithZeroTimestamp() async throws {
-        let captured = Mutex<(method: String?, path: String?, body: [String: Any]?)>((nil, nil, nil))
+        let capturedMethod = Mutex<String?>(nil)
+        let capturedPath = Mutex<String?>(nil)
+        let capturedBodyData = Mutex<Data?>(nil)
         MockURLProtocol.setRequestHandler { request in
-            let body = (try? Self.jsonBody(from: request)) ?? [:]
-            captured.withLock { state in
-                state.method = request.httpMethod
-                state.path = request.url?.path
-                state.body = body
-            }
+            capturedMethod.withLock { $0 = request.httpMethod }
+            capturedPath.withLock { $0 = request.url?.path }
+            capturedBodyData.withLock { $0 = request.httpBody }
             return (HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: nil)!,
                     Data(#"{"id":"ses_1","projectID":"p","directory":"/repo","title":"t","version":"1","time":{"created":1,"archived":0}}"#.utf8))
         }
 
         let session = try await client.unarchiveSession("ses_1", directory: "/repo")
 
-        let state = captured.withLock { $0 }
-        XCTAssertEqual(state.method, "PATCH")
-        XCTAssertEqual(state.path, "/session/ses_1")
-        let time = try XCTUnwrap(state.body?["time"] as? [String: Any])
+        let method = capturedMethod.withLock { $0 }
+        let path = capturedPath.withLock { $0 }
+        let bodyData = capturedBodyData.withLock { $0 }
+        XCTAssertEqual(method, "PATCH")
+        XCTAssertEqual(path, "/session/ses_1")
+        let body = try XCTUnwrap(bodyData.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] })
+        let time = try XCTUnwrap(body["time"] as? [String: Any])
         let archivedNumber = try XCTUnwrap(time["archived"] as? NSNumber)
         XCTAssertEqual(archivedNumber.int64Value, 0)
         XCTAssertFalse(session.isArchived)

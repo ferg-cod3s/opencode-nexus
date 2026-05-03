@@ -6,6 +6,8 @@ struct OpenCodeNexusApp: App {
     @State private var connectionManager: ConnectionManager
 
     init() {
+        CrashReporter.bootstrap()
+
         let store = ServerStore()
         _serverStore = State(initialValue: store)
         _connectionManager = State(initialValue: ConnectionManager(serverStore: store))

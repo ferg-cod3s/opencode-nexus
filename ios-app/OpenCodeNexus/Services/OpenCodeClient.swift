@@ -8,7 +8,7 @@ final class OpenCodeClient: @unchecked Sendable {
     private let cfAccessClientSecret: String?
     private let username: String?
     private let password: String?
-    private let logger = Logger(subsystem: "com.agentic-codeflow.opencode-nexus", category: "OpenCodeClient")
+    private let logger = Logger(subsystem: "ai.v1truv1us.opencode-mobile", category: "OpenCodeClient")
 
     init(baseURL: URL, cfAccessClientId: String? = nil, cfAccessClientSecret: String? = nil, username: String? = nil, password: String? = nil, configuration: URLSessionConfiguration = .default) {
         self.baseURL = baseURL
