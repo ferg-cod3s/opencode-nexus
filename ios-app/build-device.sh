@@ -15,6 +15,7 @@ keychain_timeout="${KEYCHAIN_TIMEOUT:-21600}"
 signing_cert_sha="${SIGNING_CERT_SHA:-auto}"
 disable_debug_dylib="${DISABLE_DEBUG_DYLIB:-1}"
 git_hash="${GIT_HASH:-$(git -C "$script_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")}"
+build_number="${BUILD_NUMBER:-$(date +%Y%m%d%H%M%S)}"
 allow_provisioning_updates=1
 prepare_signing=0
 install_app=1
@@ -234,7 +235,7 @@ if (( disable_debug_dylib )); then
   xcodebuild_args+=(ENABLE_DEBUG_DYLIB=NO)
 fi
 
-xcodebuild_args+=(CURRENT_PROJECT_VERSION="$git_hash")
+xcodebuild_args+=(GIT_HASH="$git_hash" CURRENT_PROJECT_VERSION="$build_number")
 
 if (( clean_build )); then
   xcodebuild "${xcodebuild_args[@]}" clean build

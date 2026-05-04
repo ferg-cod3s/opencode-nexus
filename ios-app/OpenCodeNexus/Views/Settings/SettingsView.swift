@@ -75,6 +75,34 @@ struct SettingsView: View {
                     Text("Model visibility management coming soon")
                         .foregroundStyle(.secondary)
                 }
+
+                Section("About") {
+                    if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
+                        HStack {
+                            Text("Version")
+                            Spacer()
+                            Text(version)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
+                        HStack {
+                            Text("Build")
+                            Spacer()
+                            Text(build)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if let gitHash = Bundle.main.infoDictionary?["GitHash"] as? String {
+                        HStack {
+                            Text("Git Hash")
+                            Spacer()
+                            Text(gitHash)
+                                .foregroundStyle(.secondary)
+                                .font(.system(.body, design: .monospaced))
+                        }
+                    }
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)

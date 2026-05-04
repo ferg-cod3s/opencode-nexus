@@ -37,7 +37,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ai.v1truv1us.opencode-mobile
         INFOPLIST_FILE: OpenCodeNexus/Info.plist
-
+        INFOPLIST_KEY_GitHash: "$(GIT_HASH)"
+        
         TARGETED_DEVICE_FAMILY: "1,2"
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_STYLE: Automatic
