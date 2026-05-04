@@ -158,6 +158,7 @@ final class ChatViewModel {
     var showThemePicker = false
     var showConnectionSettings = false
     var exportMarkdown: String? = nil
+    var shareURL: String? = nil
 
     @ObservationIgnored
     private var _cachedGroups: [(name: String, directory: String, sessions: [Session])]?
@@ -893,11 +894,21 @@ final class ChatViewModel {
                 archivedSessions[idx] = updated
             }
             if let url = updated.share?.url {
-                UIPasteboard.general.string = url
+                shareURL = url
             }
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    func presentShareURL() {
+        guard let url = shareURL else { return }
+        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(activityVC, animated: true)
+        }
+        shareURL = nil
     }
 
     func archiveSession(_ sessionId: String? = nil) async {

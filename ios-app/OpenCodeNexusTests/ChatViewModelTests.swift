@@ -543,11 +543,9 @@ final class ChatViewModelTests: XCTestCase {
         configureWithMockClient { request in
             let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
             switch (request.httpMethod, components.path) {
-            case ("POST", "/session/ses_archive/archive"):
+            case ("PATCH", "/session/ses_archive"):
                 let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
                 XCTAssertEqual(query["directory"], "/project")
-                return testRespondJSON("{}", statusCode: 204)
-            case ("GET", "/session/ses_archive"):
                 return testRespondJSON("""
                 {"id":"ses_archive","slug":"ses_archive","version":"1.0.0","projectID":"project","directory":"/project","title":"Archive Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":2,"archived":3}}
                 """)
@@ -578,11 +576,9 @@ final class ChatViewModelTests: XCTestCase {
         configureWithMockClient { request in
             let components = try XCTUnwrap(URLComponents(url: request.url!, resolvingAgainstBaseURL: false))
             switch (request.httpMethod, components.path) {
-            case ("POST", "/session/ses_restore/unarchive"):
+            case ("PATCH", "/session/ses_restore"):
                 let query = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).map { ($0.name, $0.value ?? "") })
                 XCTAssertEqual(query["directory"], "/project")
-                return testRespondJSON("{}", statusCode: 204)
-            case ("GET", "/session/ses_restore"):
                 return testRespondJSON("""
                 {"id":"ses_restore","slug":"ses_restore","version":"1.0.0","projectID":"project","directory":"/project","title":"Restore Me","summary":{"additions":0,"deletions":0,"files":0},"time":{"created":1,"updated":4}}
                 """)
@@ -1047,7 +1043,8 @@ final class ChatViewModelTests: XCTestCase {
         viewModel.pendingOptimisticMessages[optimisticId] = PendingOptimisticMessage(
             id: optimisticId, sessionID: "sess-1", text: "hello world", created: now)
 
-        let serverMessage = makeUserMessage(id: "srv-2", text: "different text", createdMs: now + 30_000)
+        // 3-second gap is within the 5-second tolerance for timestamp-based matching
+        let serverMessage = makeUserMessage(id: "srv-2", text: "different text", createdMs: now + 3_000)
         let result = viewModel.reconciledMessages(
             loaded: [serverMessage], existing: [makeOptimisticMessage(id: optimisticId, text: "hello world")], sessionId: "sess-1")
 

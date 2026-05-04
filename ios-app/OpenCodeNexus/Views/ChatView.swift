@@ -90,6 +90,11 @@ struct ChatView: View {
                 chatVM.shareExportedMarkdown()
             }
         }
+        .onChange(of: chatVM.shareURL) { url in
+            if url != nil {
+                chatVM.presentShareURL()
+            }
+        }
         .alert(
             "Error",
             isPresented: Binding(
