@@ -85,6 +85,11 @@ struct ChatView: View {
         .onDisappear {
             chatVM.stopEventStream()
         }
+        .onChange(of: chatVM.exportMarkdown) { markdown in
+            if markdown != nil {
+                chatVM.shareExportedMarkdown()
+            }
+        }
         .alert(
             "Error",
             isPresented: Binding(
