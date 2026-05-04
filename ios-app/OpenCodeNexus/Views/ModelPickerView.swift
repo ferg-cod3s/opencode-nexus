@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ModelPickerView: View {
-    @Observerable private var chatVM: ChatViewModel
+    @Bindable private var chatVM: ChatViewModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
