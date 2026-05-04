@@ -27,6 +27,7 @@ struct MessageListView: View {
     let availableProviders: [ProviderInfo]
     let providerDefaults: [String: String]
     let availableCommands: [CommandInfo]
+    let builtInCommands: [CommandInfo]
     @Binding var selectedModel: ModelRefBody?
     @Binding var selectedAgent: String?
     let onNavigateHistory: (ChatViewModel.HistoryDirection) -> Void
@@ -57,6 +58,7 @@ struct MessageListView: View {
                 onAbort: onAbort,
                 onShellCommand: onShellCommand,
                 commands: availableCommands,
+                builtInCommands: builtInCommands,
                 agents: availableAgents,
                 onNavigateHistory: onNavigateHistory
             )

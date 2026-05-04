@@ -9,8 +9,18 @@ struct MessageInputView: View {
     let onAbort: () -> Void
     let onShellCommand: (String) -> Void
     let commands: [CommandInfo]
+    let builtInCommands: [CommandInfo]
     let agents: [AgentInfo]
     let onNavigateHistory: (ChatViewModel.HistoryDirection) -> Void
+
+    private var allCommands: [CommandInfo] {
+        var seen = Set<String>()
+        return (builtInCommands + commands).filter { cmd in
+            if seen.contains(cmd.name) { return false }
+            seen.insert(cmd.name)
+            return true
+        }
+    }
 
     @FocusState private var isFocused: Bool
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -29,7 +39,7 @@ struct MessageInputView: View {
         }
         let cmdPart = String(first)
         guard parts.count == 1 else { return [] }
-        return Array(commands.filter { $0.name.lowercased().hasPrefix(cmdPart) && $0.name.lowercased() != cmdPart }.prefix(8))
+        return Array(allCommands.filter { $0.name.lowercased().hasPrefix(cmdPart) && $0.name.lowercased() != cmdPart }.prefix(8))
     }
 
     private var filteredAgents: [AgentInfo] {

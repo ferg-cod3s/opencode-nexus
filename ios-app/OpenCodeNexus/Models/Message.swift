@@ -20,6 +20,13 @@ struct MessageEnvelope: Codable, Identifiable {
 enum MessageRole: String, Codable {
     case user
     case assistant
+
+    var displayName: String {
+        switch self {
+        case .user: return "User"
+        case .assistant: return "Assistant"
+        }
+    }
 }
 
 struct MessageInfo: Codable, Identifiable {

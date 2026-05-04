@@ -42,7 +42,8 @@ struct ChatView: View {
             let logger = Logger(subsystem: "com.agentic-codeflow.opencode-nexus", category: "ChatView")
             logger.info("task: configuring client...")
             chatVM.settings = settingsVM
-            chatVM.configure(with: connectionManager.client)
+            let serverURL = connectionManager.serverStore.activeServer?.url ?? ""
+            chatVM.configure(with: connectionManager.client, serverURL: serverURL)
             logger.info("task: loading project info...")
             await chatVM.loadProjectInfo()
             logger.info("task: loading sessions...")
@@ -599,6 +600,7 @@ private struct ChatDetailContainer: View {
                 availableProviders: chatVM.availableProviders,
                 providerDefaults: chatVM.providerDefaults,
                 availableCommands: chatVM.availableCommands,
+                builtInCommands: chatVM.builtInCommands,
                 selectedModel: Bindable(chatVM).selectedModel,
                 selectedAgent: Bindable(chatVM).selectedAgent,
                 onNavigateHistory: { chatVM.navigateHistory($0) },

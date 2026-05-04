@@ -95,6 +95,19 @@ final class ChatViewModel {
     var availableCommands: [CommandInfo] = []
     var providerDefaults: [String: String] = [:]
 
+    var builtInCommands: [CommandInfo] {
+        [
+            CommandInfo(name: "sessions", description: "List or switch sessions"),
+            CommandInfo(name: "resume", description: "Resume a session"),
+            CommandInfo(name: "continue", description: "Continue a session"),
+            CommandInfo(name: "models", description: "List or select models"),
+            CommandInfo(name: "export", description: "Export conversation as Markdown"),
+            CommandInfo(name: "help", description: "Show help"),
+            CommandInfo(name: "themes", description: "List themes"),
+            CommandInfo(name: "connect", description: "Configure AI providers"),
+        ]
+    }
+
     var sentMessageHistory: [String] = []
     var historyIndex: Int?
 
@@ -137,6 +150,14 @@ final class ChatViewModel {
     private var sessionDirectoryIndex: [String: String] = [:]
     var settings: SettingsViewModel?
     var nextTUIRequest: TUIControlRequest?
+
+    // Built-in command sheet/picker signals
+    var showHelp = false
+    var showSessionPicker = false
+    var showModelPicker = false
+    var showThemePicker = false
+    var showConnectionSettings = false
+    var exportMarkdown: String? = nil
 
     @ObservationIgnored
     private var _cachedGroups: [(name: String, directory: String, sessions: [Session])]?
@@ -700,6 +721,94 @@ final class ChatViewModel {
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    // MARK: - Built-In Command Handlers
+
+    func handleBuiltInCommand(_ commandName: String, arguments: String) async -> Bool {
+        switch commandName {
+        case "new", "clear":
+            await handleNewSessionCommand()
+            return true
+        case "share":
+            await shareSession()
+            return true
+        case "sessions", "resume", "continue":
+            await handleSessionsCommand(arguments)
+            return true
+        case "models":
+            handleModelsCommand(arguments)
+            return true
+        case "export":
+            await handleExportCommand()
+            return true
+        case "help":
+            showHelp = true
+            return true
+        case "themes":
+            showThemePicker = true
+            return true
+        case "connect":
+            showConnectionSettings = true
+            return true
+        case "editor", "exit", "quit", "q":
+            errorMessage = "/\(commandName) is not available on iOS"
+            return true
+        default:
+            return false
+        }
+    }
+
+    func handleSessionsCommand(_ arguments: String) async {
+        guard !arguments.isEmpty else {
+            showSessionPicker = true
+            return
+        }
+        let query = arguments.lowercased()
+        if let match = sessions.first(where: { $0.displayTitle.lowercased().contains(query) || $0.id == query }) {
+            await selectSession(match.id)
+        } else {
+            showSessionPicker = true
+        }
+    }
+
+    func handleModelsCommand(_ arguments: String) {
+        guard !arguments.isEmpty else {
+            showModelPicker = true
+            return
+        }
+        let query = arguments.lowercased()
+        if let match = availableModels.first(where: { $0.modelID.lowercased().contains(query) || $0.name.lowercased().contains(query) }) {
+            selectedModel = ModelRefBody(providerID: match.providerID, modelID: match.modelID)
+        } else {
+            showModelPicker = true
+        }
+    }
+
+    func handleExportCommand() async {
+        let markdown = generateMarkdownFromMessages(messages)
+        exportMarkdown = markdown
+    }
+
+    func generateMarkdownFromMessages(_ messages: [MessageEnvelope]) -> String {
+        var md = "# OpenCode Session\n\n"
+        if let session = selectedSession {
+            md += "**Session:** \(session.displayTitle)\n"
+            md += "**ID:** \(session.id)\n\n"
+        }
+        md += "---\n\n"
+        for envelope in messages {
+            let role = envelope.info.role.displayName
+            md += "## \(role)\n\n"
+            for part in envelope.parts {
+                if part.type == "text", let text = part.text {
+                    md += "\(text)\n\n"
+                } else if part.type == "tool", let text = part.text {
+                    md += "```\n\(text)\n```\n\n"
+                }
+            }
+        }
+        return md
     }
 
     func prepareNewSession() {
