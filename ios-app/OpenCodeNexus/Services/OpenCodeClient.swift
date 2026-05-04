@@ -721,6 +721,16 @@ struct ModelRefBody: Codable {
     let providerID: String?
     let modelID: String?
 
+    init(providerID: String?, modelID: String?) {
+        self.providerID = providerID
+        self.modelID = modelID
+    }
+
+    init(providerID: String, modelID: String) {
+        self.providerID = providerID
+        self.modelID = modelID
+    }
+
     var wireValue: String? {
         guard let providerID, let modelID, !providerID.isEmpty, !modelID.isEmpty else { return nil }
         return "\(providerID)/\(modelID)"

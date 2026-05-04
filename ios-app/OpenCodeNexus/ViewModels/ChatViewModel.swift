@@ -790,6 +790,16 @@ final class ChatViewModel {
         exportMarkdown = markdown
     }
 
+    func shareExportedMarkdown() {
+        guard let markdown = exportMarkdown else { return }
+        let activityVC = UIActivityViewController(activityItems: [markdown], applicationActivities: nil)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(activityVC, animated: true)
+        }
+        exportMarkdown = nil
+    }
+
     func generateMarkdownFromMessages(_ messages: [MessageEnvelope]) -> String {
         var md = "# OpenCode Session\n\n"
         if let session = selectedSession {
