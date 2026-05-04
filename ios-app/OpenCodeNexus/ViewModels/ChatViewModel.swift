@@ -126,6 +126,8 @@ final class ChatViewModel {
     private var questionsBySession: [String: [Question]] = [:]
     private var respondedPermissionIDs: Set<String> = []
     private var respondedQuestionIDs: Set<String> = []
+    private var permissionStore: PermissionStore?
+    private var hasPreviouslyLoadedPermissions = false
     private var bufferedDeltas: [String: [BufferedDelta]] = [:]
     private var isRestoringSelectionDuringSend = false
     private var sessionSelectedModels: [String: ModelRefBody] = [:]
@@ -291,9 +293,20 @@ final class ChatViewModel {
 
     // MARK: - Configuration
 
-    func configure(with client: OpenCodeClient?) {
+    func configure(with client: OpenCodeClient?, serverURL: String? = nil) {
         self.client = client
+        if let url = serverURL {
+            permissionStore = PermissionStore(serverURL: url)
+            loadPersistedResponses()
+        }
         logger.info("configure: client is \(client != nil ? "set" : "nil")")
+    }
+
+    private func loadPersistedResponses() {
+        guard let store = permissionStore else { return }
+        respondedPermissionIDs = store.loadPermissions()
+        respondedQuestionIDs = store.loadQuestions()
+        logger.info("Loaded \(self.respondedPermissionIDs.count) persisted permissions, \(self.respondedQuestionIDs.count) questions")
     }
 
     func loadProjectInfo() async {
@@ -1307,6 +1320,7 @@ final class ChatViewModel {
     func answerQuestion(_ question: Question, answers: [[String]]) async {
         guard let client else { return }
         respondedQuestionIDs.insert(question.id)
+        permissionStore?.saveQuestions(respondedQuestionIDs)
         do {
             try await client.replyQuestion(
                 question.id, answers: answers, directory: directory(for: question.sessionID))
@@ -1319,6 +1333,7 @@ final class ChatViewModel {
     func rejectQuestion(_ question: Question) async {
         guard let client else { return }
         respondedQuestionIDs.insert(question.id)
+        permissionStore?.saveQuestions(respondedQuestionIDs)
         do {
             try await client.rejectQuestion(
                 question.id, directory: directory(for: question.sessionID))
@@ -1350,6 +1365,17 @@ final class ChatViewModel {
                 )
             }
         }
+        if hasPreviouslyLoadedPermissions && loadedPermissions.isEmpty && !respondedPermissionIDs.isEmpty {
+            logger.info("Server appears to have restarted, clearing \(self.respondedPermissionIDs.count) stale permission IDs")
+            respondedPermissionIDs.removeAll()
+            permissionStore?.savePermissions([])
+        }
+        if hasPreviouslyLoadedPermissions && loadedQuestions.isEmpty && !respondedQuestionIDs.isEmpty {
+            logger.info("Server appears to have restarted, clearing \(self.respondedQuestionIDs.count) stale question IDs")
+            respondedQuestionIDs.removeAll()
+            permissionStore?.saveQuestions([])
+        }
+        hasPreviouslyLoadedPermissions = true
         mergePermissions(loadedPermissions)
         mergeQuestions(loadedQuestions.filter { $0.sessionID == sessionId })
     }
@@ -1420,6 +1446,7 @@ final class ChatViewModel {
         guard let client else { return }
         let response = always ? "always" : "once"
         respondedPermissionIDs.insert(permission.id)
+        permissionStore?.savePermissions(respondedPermissionIDs)
         do {
             try await client.replyPermission(
                 permission.id, response: response, sessionID: permission.sessionID,
@@ -1434,6 +1461,7 @@ final class ChatViewModel {
     func rejectPermission(_ permission: Permission) async {
         guard let client else { return }
         respondedPermissionIDs.insert(permission.id)
+        permissionStore?.savePermissions(respondedPermissionIDs)
         do {
             try await client.replyPermission(
                 permission.id, response: "reject", sessionID: permission.sessionID,
@@ -1801,6 +1829,17 @@ final class ChatViewModel {
             }
             logger.info(
                 "applyMessageUpdate: created new message \(resolvedMessageID) with empty parts")
+        }
+
+        if let error = info.error, info.sessionID == selectedSessionId {
+            errorMessage = error.displayMessage
+            if isSending {
+                isSending = false
+                isStreamingDeltas = false
+                sendTimeoutTask?.cancel()
+                sendTimeoutTask = nil
+                currentSendOperationID = nil
+            }
         }
     }
 

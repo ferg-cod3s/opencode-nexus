@@ -251,6 +251,65 @@ final class ChatViewModelTests: XCTestCase {
         viewModel.handleEvent(event)
     }
 
+    func testMessageUpdatedWithErrorSurfacesErrorAndResetsSending() {
+        viewModel.selectedSessionId = "ses_1"
+        viewModel.isSending = true
+        viewModel.messages = [
+            makeMessageEnvelope(id: "msg_1")
+        ]
+
+        let event = makeEvent(
+            type: "message.updated",
+            properties: [
+                "sessionID": .string("ses_1"),
+                "info": .object([
+                    "id": .string("msg_1"),
+                    "sessionID": .string("ses_1"),
+                    "role": .string("assistant"),
+                    "time": .object(["created": .int(1000)]),
+                    "error": .object([
+                        "name": .string("ProviderError"),
+                        "data": .object([
+                            "message": .string("quota exceeded")
+                        ])
+                    ])
+                ])
+            ]
+        )
+        viewModel.handleEvent(event)
+
+        XCTAssertEqual(viewModel.errorMessage, "quota exceeded")
+        XCTAssertFalse(viewModel.isSending)
+    }
+
+    func testMessageUpdatedWithErrorForOtherSessionDoesNotResetSending() {
+        viewModel.selectedSessionId = "ses_selected"
+        viewModel.isSending = true
+
+        let event = makeEvent(
+            type: "message.updated",
+            properties: [
+                "sessionID": .string("ses_other"),
+                "info": .object([
+                    "id": .string("msg_1"),
+                    "sessionID": .string("ses_other"),
+                    "role": .string("assistant"),
+                    "time": .object(["created": .int(1000)]),
+                    "error": .object([
+                        "name": .string("ProviderError"),
+                        "data": .object([
+                            "message": .string("quota exceeded")
+                        ])
+                    ])
+                ])
+            ]
+        )
+        viewModel.handleEvent(event)
+
+        XCTAssertNil(viewModel.errorMessage)
+        XCTAssertTrue(viewModel.isSending)
+    }
+
     // MARK: - message.updated for Other Sessions Ignored
 
     func testMessageUpdatedForOtherSessionIsIgnored() {
