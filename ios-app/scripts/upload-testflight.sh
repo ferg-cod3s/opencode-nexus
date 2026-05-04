@@ -17,7 +17,7 @@ ASC_ISSUER_ID="${ASC_ISSUER_ID:-c6f421de-3e35-4aab-b96d-4c4461c39766}"
 API_PRIVATE_KEYS_DIR="${API_PRIVATE_KEYS_DIR:-$HOME/.appstoreconnect}"
 SANITIZED_EXPORT_PATH="${SANITIZED_EXPORT_PATH:-/usr/bin:/bin:/usr/sbin:/sbin}"
 
-# Build number (timestamp if not provided)
+# Build number (timestamp if not provided; must be numeric for App Store Connect)
 BUILD_NUMBER="${1:-$(date +%Y%m%d%H%M%S)}"
 
 echo "=== OpenCode Nexus TestFlight Upload ==="
@@ -52,7 +52,9 @@ xcodebuild archive \
     -configuration "$CONFIG" \
     -archivePath "$ARCHIVE_PATH" \
     -allowProvisioningUpdates \
-    BUILD_NUMBER="$BUILD_NUMBER"
+    BUILD_NUMBER="$BUILD_NUMBER" \
+    CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+    GIT_HASH="$(cd "$PROJECT_DIR" && git rev-parse --short HEAD)"
 
 # Step 3: Export IPA
 echo "Exporting IPA..."
