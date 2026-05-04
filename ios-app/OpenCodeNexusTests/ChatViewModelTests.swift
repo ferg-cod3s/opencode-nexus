@@ -902,6 +902,42 @@ final class ChatViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.errorMessage, "Model failed")
     }
 
+    func testSessionErrorParsesNestedDataMessage() {
+        viewModel.selectedSessionId = "sess-1"
+        viewModel.isSending = true
+
+        let event = makeEvent(type: "session.error", properties: [
+            "sessionID": .string("sess-1"),
+            "error": .object([
+                "name": .string("ProviderError"),
+                "data": .object([
+                    "message": .string("quota exceeded"),
+                    "providerID": .string("google"),
+                    "statusCode": .int(429),
+                    "isRetryable": .bool(false)
+                ])
+            ])
+        ])
+        viewModel.handleEvent(event)
+
+        XCTAssertEqual(viewModel.errorMessage, "quota exceeded")
+    }
+
+    func testSessionErrorParsesFallbackToNameWhenDataMessageMissing() {
+        viewModel.selectedSessionId = "sess-1"
+        viewModel.isSending = true
+
+        let event = makeEvent(type: "session.error", properties: [
+            "sessionID": .string("sess-1"),
+            "error": .object([
+                "name": .string("ProviderError")
+            ])
+        ])
+        viewModel.handleEvent(event)
+
+        XCTAssertEqual(viewModel.errorMessage, "ProviderError")
+    }
+
     func testSessionErrorDoesNotAffectOtherSessionOptimistic() {
         viewModel.selectedSessionId = "sess-1"
         let optimisticId = "msg_ios_other"

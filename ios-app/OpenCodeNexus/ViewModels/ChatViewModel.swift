@@ -124,6 +124,8 @@ final class ChatViewModel {
     private var drafts: [String: PromptDraft] = [:]
     private var permissionsBySession: [String: [Permission]] = [:]
     private var questionsBySession: [String: [Question]] = [:]
+    private var respondedPermissionIDs: Set<String> = []
+    private var respondedQuestionIDs: Set<String> = []
     private var bufferedDeltas: [String: [BufferedDelta]] = [:]
     private var isRestoringSelectionDuringSend = false
     private var sessionSelectedModels: [String: ModelRefBody] = [:]
@@ -255,12 +257,36 @@ final class ChatViewModel {
     }
 
     var crossSessionPendingPermissions: [Permission] {
-        pendingPermissions.filter { $0.sessionID != selectedSessionId }
+        pendingPermissions.filter { $0.sessionID != selectedSessionId && !respondedPermissionIDs.contains($0.id) }
+    }
+
+    var activelyPendingPermissions: [Permission] {
+        pendingPermissions.filter { !respondedPermissionIDs.contains($0.id) }
+    }
+
+    var activelyPendingQuestions: [Question] {
+        pendingQuestions.filter { !respondedQuestionIDs.contains($0.id) }
     }
 
     var selectedPendingQuestions: [Question] {
         guard let selectedSessionId else { return [] }
-        return pendingQuestions.filter { $0.sessionID == selectedSessionId }
+        return pendingQuestions.filter { $0.sessionID == selectedSessionId && !respondedQuestionIDs.contains($0.id) }
+    }
+
+    var crossSessionPendingQuestions: [Question] {
+        pendingQuestions.filter { $0.sessionID != selectedSessionId && !respondedQuestionIDs.contains($0.id) }
+    }
+
+    var hasDeferredQuestion: Bool {
+        crossSessionPendingQuestions.isEmpty == false
+    }
+
+    func isQuestionResponded(_ questionID: String) -> Bool {
+        respondedQuestionIDs.contains(questionID)
+    }
+
+    func pendingQuestionCount(for sessionID: String) -> Int {
+        pendingQuestions.filter { $0.sessionID == sessionID && !respondedQuestionIDs.contains($0.id) }.count
     }
 
     // MARK: - Configuration
@@ -1280,6 +1306,7 @@ final class ChatViewModel {
 
     func answerQuestion(_ question: Question, answers: [[String]]) async {
         guard let client else { return }
+        respondedQuestionIDs.insert(question.id)
         do {
             try await client.replyQuestion(
                 question.id, answers: answers, directory: directory(for: question.sessionID))
@@ -1291,6 +1318,7 @@ final class ChatViewModel {
 
     func rejectQuestion(_ question: Question) async {
         guard let client else { return }
+        respondedQuestionIDs.insert(question.id)
         do {
             try await client.rejectQuestion(
                 question.id, directory: directory(for: question.sessionID))
@@ -1305,8 +1333,23 @@ final class ChatViewModel {
         let directory = directory(for: sessionId)
         async let permissionsTask: [Permission]? = try? client.listPermissions(directory: directory)
         async let questionsTask: [Question]? = try? client.listQuestions(directory: directory)
-        let loadedPermissions = await permissionsTask ?? []
+        var loadedPermissions = await permissionsTask ?? []
         let loadedQuestions = await questionsTask ?? []
+        if let dir = directory, !loadedPermissions.isEmpty {
+            loadedPermissions = loadedPermissions.map { perm in
+                Permission(
+                    id: perm.id,
+                    type: perm.type,
+                    pattern: perm.pattern,
+                    sessionID: perm.sessionID,
+                    messageID: perm.messageID,
+                    callID: perm.callID,
+                    title: perm.title,
+                    metadata: (perm.metadata ?? [:]).merging(["directory": .string(dir)]) { _, new in new },
+                    time: perm.time
+                )
+            }
+        }
         mergePermissions(loadedPermissions)
         mergeQuestions(loadedQuestions.filter { $0.sessionID == sessionId })
     }
@@ -1344,7 +1387,7 @@ final class ChatViewModel {
     }
 
     private func refreshPendingStateForSelectedSession() {
-        pendingPermissions = permissionsBySession.values.flatMap { $0 }
+        pendingPermissions = permissionsBySession.values.flatMap { $0 }.filter { !respondedPermissionIDs.contains($0.id) }
         pendingQuestions = questionsBySession.values.flatMap { $0 }
     }
 
@@ -1376,6 +1419,7 @@ final class ChatViewModel {
     func approvePermission(_ permission: Permission, always: Bool = false) async {
         guard let client else { return }
         let response = always ? "always" : "once"
+        respondedPermissionIDs.insert(permission.id)
         do {
             try await client.replyPermission(
                 permission.id, response: response, sessionID: permission.sessionID,
@@ -1389,6 +1433,7 @@ final class ChatViewModel {
 
     func rejectPermission(_ permission: Permission) async {
         guard let client else { return }
+        respondedPermissionIDs.insert(permission.id)
         do {
             try await client.replyPermission(
                 permission.id, response: "reject", sessionID: permission.sessionID,
@@ -1607,13 +1652,21 @@ final class ChatViewModel {
                 }
                 if let errorString = event.properties?["error"]?.stringValue {
                     errorMessage = errorString
-                } else if let errorObj = event.properties?["error"]?.objectValue,
-                    let msg = errorObj["message"]?.stringValue
-                {
-                    errorMessage = msg
+                } else if let errorObj = event.properties?["error"]?.objectValue {
+                    if let dataObj = errorObj["data"]?.objectValue,
+                        let msg = dataObj["message"]?.stringValue
+                    {
+                        errorMessage = msg
+                    } else if let name = errorObj["name"]?.stringValue {
+                        errorMessage = name
+                    } else {
+                        logger.error("session.error: unrecognized error structure: \(errorObj)")
+                        errorMessage = "Session error occurred"
+                    }
                 } else if let messageString = event.properties?["message"]?.stringValue {
                     errorMessage = messageString
                 } else {
+                    logger.error("session.error: missing error payload in properties: \(String(describing: event.properties))")
                     errorMessage = "Session error occurred"
                 }
                 let errorForSentry = NSError(
@@ -1649,10 +1702,25 @@ final class ChatViewModel {
                 let permData = try? JSONEncoder().encode(props),
                 let perm = try? JSONDecoder().decode(Permission.self, from: permData)
             {
+                if respondedPermissionIDs.contains(perm.id) { return }
+                var permissionToMerge = perm
+                if let dir = event.directory {
+                    permissionToMerge = Permission(
+                        id: perm.id,
+                        type: perm.type,
+                        pattern: perm.pattern,
+                        sessionID: perm.sessionID,
+                        messageID: perm.messageID,
+                        callID: perm.callID,
+                        title: perm.title,
+                        metadata: (perm.metadata ?? [:]).merging(["directory": .string(dir)]) { _, new in new },
+                        time: perm.time
+                    )
+                }
                 if settings?.autoAcceptPermissions == true {
-                    Task { await approvePermission(perm) }
+                    Task { await approvePermission(permissionToMerge) }
                 } else {
-                    mergePermissions([perm])
+                    mergePermissions([permissionToMerge])
                 }
             }
 
@@ -1661,6 +1729,7 @@ final class ChatViewModel {
                 let sessionID = event.sessionID,
                 let questionID = props["id"]?.stringValue
             {
+                if respondedQuestionIDs.contains(questionID) { return }
                 let items = parseQuestionItems(props["questions"])
                 let first = items.first
                 let question = Question(
