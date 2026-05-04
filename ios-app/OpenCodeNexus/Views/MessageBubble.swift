@@ -107,6 +107,16 @@ struct PartView: View {
     let expandTools: Bool
     
     var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let error = part.error {
+                ErrorBanner(error: error)
+            }
+            partContent
+        }
+    }
+
+    @ViewBuilder
+    private var partContent: some View {
         switch part.type {
         case "text":
             if !part.displayText.isEmpty {
