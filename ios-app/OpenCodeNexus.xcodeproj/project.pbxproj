@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		002BA9E7CDB3E5874F2EEDDE /* ConnectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B27FCBC9BF218D0BDE349EA0 /* ConnectionManager.swift */; };
 		00C98A22B90F84419A9383FF /* OpenCodeClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9951D90FCF78841C56ECAE55 /* OpenCodeClient.swift */; };
+		01A0E662373A6F699B5344B8 /* PermissionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F346FEE5EC17294BEDBD2BFC /* PermissionStore.swift */; };
 		01F5E6388D5BE6E0BFA60770 /* TodoListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BD53082DDEAC8D5566DDBAE /* TodoListView.swift */; };
 		06FBA2F053AD9AD1D7169A56 /* TerminalViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 184A0DD95D82A76543A93570 /* TerminalViewModelTests.swift */; };
 		0762E31AE26A975243B0B5E0 /* ProviderManagerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D37D4EEDC97E0C06462C8A57 /* ProviderManagerViewModel.swift */; };
@@ -215,7 +216,7 @@
 		9DD804708148727FF13D225B /* OpenCodeClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenCodeClientTests.swift; sourceTree = "<group>"; };
 		9E47D0796DEC8F5549BE3AF7 /* ProviderManagerViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderManagerViewModelTests.swift; sourceTree = "<group>"; };
 		A26B23C5C520316B63741301 /* SettingsViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModelTests.swift; sourceTree = "<group>"; };
-		A3D356E2268FC800E936544B /* OpenCodeNexus.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OpenCodeNexus.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3D356E2268FC800E936544B /* OpenCodeNexus.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = OpenCodeNexus.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A41FCE5C45438EF01CE34E35 /* SettingsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewModel.swift; sourceTree = "<group>"; };
 		A478B04936AE9B19FBA23AFC /* Message.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
 		A8A59B972E5D912B171ACED1 /* MCPManagerViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MCPManagerViewModelTests.swift; sourceTree = "<group>"; };
@@ -233,7 +234,7 @@
 		BB70ABF88ABB6E4EA620A427 /* Session.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Session.swift; sourceTree = "<group>"; };
 		C276DC86CAE0F22CFFC38C6A /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		C2E5E83B891FFBB105D3209C /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
-		C2F0DE6E007D2ECCECD377F4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		C2F0DE6E007D2ECCECD377F4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		C355768023A130D92EB12564 /* SessionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionRow.swift; sourceTree = "<group>"; };
 		C367D28BEFE3ADA0C7245E1A /* ViewBodyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewBodyTests.swift; sourceTree = "<group>"; };
 		C3EC84FB23B7B55D1CBD41DE /* ToolOutputViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolOutputViews.swift; sourceTree = "<group>"; };
@@ -255,6 +256,7 @@
 		EDE7C9BC894C69942296F3FE /* TerminalTabManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalTabManager.swift; sourceTree = "<group>"; };
 		EE5B4C3788ADB6B9FA172744 /* MarkdownRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownRendererTests.swift; sourceTree = "<group>"; };
 		F179AC9344EBE84B06F09A19 /* OpenCodeNexusTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = OpenCodeNexusTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F346FEE5EC17294BEDBD2BFC /* PermissionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionStore.swift; sourceTree = "<group>"; };
 		F53314D986BB4B60838F6717 /* FileBrowserViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileBrowserViewModelTests.swift; sourceTree = "<group>"; };
 		F7D772BE269A015498423073 /* Brand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Brand.swift; sourceTree = "<group>"; };
 		F87D945978D9312258AE1C84 /* ConnectionManagerAdvancedTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionManagerAdvancedTests.swift; sourceTree = "<group>"; };
@@ -354,6 +356,7 @@
 				7F2D55C69F90B6BD30FA7285 /* GhosttyTerminalSession.swift */,
 				716245A14730A65DB5B39CAD /* KeychainHelper.swift */,
 				9951D90FCF78841C56ECAE55 /* OpenCodeClient.swift */,
+				F346FEE5EC17294BEDBD2BFC /* PermissionStore.swift */,
 				B106DBE21B222FA52B3C7508 /* PtyTransport.swift */,
 				0E8B606B388DB4C92A3825EA /* SSEParser.swift */,
 				41D2FC911B386527448805D1 /* UpdateChecker.swift */,
@@ -741,6 +744,7 @@
 				7AA1F4FC9686F31ABBFF6474 /* OpenCodeNexusApp.swift in Sources */,
 				60D7047D64CCD7DB122E5938 /* Part.swift in Sources */,
 				67F1E7D59D8300ABC13E5236 /* PermissionSheet.swift in Sources */,
+				01A0E662373A6F699B5344B8 /* PermissionStore.swift in Sources */,
 				C9AE2EB9FCCF091ED0F2B18B /* Project.swift in Sources */,
 				0762E31AE26A975243B0B5E0 /* ProviderManagerViewModel.swift in Sources */,
 				6C1D80FE2C4A4007A0929F41 /* Pty.swift in Sources */,
@@ -1067,7 +1071,6 @@
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenCodeNexus/Info.plist;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1090,7 +1093,6 @@
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenCodeNexus/Info.plist;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -1185,7 +1187,6 @@
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = OpenCodeNexus/Info.plist;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.developer-tools";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

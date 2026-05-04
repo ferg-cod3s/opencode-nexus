@@ -129,6 +129,18 @@ struct Permission: Codable, Identifiable {
         case callID
     }
 
+    init(id: String, type: String, pattern: PatternValue?, sessionID: String, messageID: String, callID: String?, title: String, metadata: [String: JSONValue]?, time: PermissionTime) {
+        self.id = id
+        self.type = type
+        self.pattern = pattern
+        self.sessionID = sessionID
+        self.messageID = messageID
+        self.callID = callID
+        self.title = title
+        self.metadata = metadata
+        self.time = time
+    }
+
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)

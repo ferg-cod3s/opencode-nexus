@@ -334,7 +334,8 @@ final class ViewBodyTests: XCTestCase {
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
-            onRespondToTUIRequest: { _ in }
+            onRespondToTUIRequest: { _ in },
+            onRefresh: { }
         )
         evaluateBody(view)
     }
@@ -382,7 +383,8 @@ final class ViewBodyTests: XCTestCase {
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
-            onRespondToTUIRequest: { _ in }
+            onRespondToTUIRequest: { _ in },
+            onRefresh: { }
         )
         evaluateBody(view)
     }
@@ -578,7 +580,8 @@ extension ViewBodyTests {
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
-            onRespondToTUIRequest: { _ in }
+            onRespondToTUIRequest: { _ in },
+            onRefresh: { }
         )
         evaluateBody(view)
     }
@@ -625,7 +628,8 @@ extension ViewBodyTests {
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
-            onRespondToTUIRequest: { _ in }
+            onRespondToTUIRequest: { _ in },
+            onRefresh: { }
         )
         evaluateBody(view)
     }
@@ -794,7 +798,8 @@ extension ViewBodyTests {
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
-            onRespondToTUIRequest: { _ in }
+            onRespondToTUIRequest: { _ in },
+            onRefresh: { }
         )
         evaluateBody(view)
     }
@@ -840,7 +845,8 @@ extension ViewBodyTests {
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
-            onRespondToTUIRequest: { _ in }
+            onRespondToTUIRequest: { _ in },
+            onRefresh: { }
         )
         evaluateBody(view)
     }
@@ -887,7 +893,8 @@ extension ViewBodyTests {
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
-            onRespondToTUIRequest: { _ in }
+            onRespondToTUIRequest: { _ in },
+            onRefresh: { }
         )
         evaluateBody(view)
     }
@@ -947,7 +954,8 @@ extension ViewBodyTests {
             onQueueFollowUp: { },
             onSubmitQueuedPrompt: { },
             onClearQueuedPrompt: { },
-            onRespondToTUIRequest: { _ in }
+            onRespondToTUIRequest: { _ in },
+            onRefresh: { }
         )
         evaluateBody(view)
     }

@@ -128,8 +128,6 @@ final class ChatViewModel {
     private var respondedQuestionIDs: Set<String> = []
     private var permissionStore: PermissionStore?
     private var hasPreviouslyLoadedPermissions = false
-    private var respondedPermissionIDs: Set<String> = []
-    private var respondedQuestionIDs: Set<String> = []
     private var dismissedPermissionIDs: Set<String> = []
     private var dismissedQuestionIDs: Set<String> = []
     private var bufferedDeltas: [String: [BufferedDelta]] = [:]
@@ -1375,7 +1373,9 @@ final class ChatViewModel {
         let loadedQuestions = await questionsTask ?? []
         if let dir = directory, !loadedPermissions.isEmpty {
             loadedPermissions = loadedPermissions.map { perm in
-                Permission(
+                var mergedMetadata = perm.metadata ?? [:]
+                mergedMetadata["directory"] = .string(dir)
+                return Permission(
                     id: perm.id,
                     type: perm.type,
                     pattern: perm.pattern,
@@ -1383,7 +1383,7 @@ final class ChatViewModel {
                     messageID: perm.messageID,
                     callID: perm.callID,
                     title: perm.title,
-                    metadata: (perm.metadata ?? [:]).merging(["directory": .string(dir)]) { _, new in new },
+                    metadata: mergedMetadata,
                     time: perm.time
                 )
             }
@@ -1715,17 +1715,19 @@ final class ChatViewModel {
                 if respondedPermissionIDs.contains(perm.id) { return }
                 var permissionToMerge = perm
                 if let dir = event.directory {
-                    permissionToMerge = Permission(
-                        id: perm.id,
-                        type: perm.type,
-                        pattern: perm.pattern,
-                        sessionID: perm.sessionID,
-                        messageID: perm.messageID,
-                        callID: perm.callID,
-                        title: perm.title,
-                        metadata: (perm.metadata ?? [:]).merging(["directory": .string(dir)]) { _, new in new },
-                        time: perm.time
-                    )
+                    var mergedMetadata = perm.metadata ?? [:]
+                mergedMetadata["directory"] = .string(dir)
+                permissionToMerge = Permission(
+                    id: perm.id,
+                    type: perm.type,
+                    pattern: perm.pattern,
+                    sessionID: perm.sessionID,
+                    messageID: perm.messageID,
+                    callID: perm.callID,
+                    title: perm.title,
+                    metadata: mergedMetadata,
+                    time: perm.time
+                )
                 }
                 if settings?.autoAcceptPermissions == true {
                     Task { await approvePermission(permissionToMerge) }

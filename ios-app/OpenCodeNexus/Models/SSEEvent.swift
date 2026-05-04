@@ -31,14 +31,27 @@ struct SSEEvent: Decodable, Sendable, Equatable {
         project = try? container.decodeIfPresent(String.self, forKey: .project)
         workspace = try? container.decodeIfPresent(String.self, forKey: .workspace)
 
-        if let syncEvent = try? container.decodeIfPresent(SyncPayload.self, forKey: .payload) {
-            self.payload = nil
-            self.syncEvent = syncEvent
-            self.directType = nil
-            self.directProperties = nil
-        } else if let payload = try? container.decodeIfPresent(Payload.self, forKey: .payload) {
-            self.payload = payload
-            self.syncEvent = nil
+        if let payloadValue = try? container.decodeIfPresent([String: JSONValue].self, forKey: .payload) {
+            if payloadValue.keys.contains("properties") || payloadValue.keys.contains("syncEvent") {
+                if let payloadData = try? JSONEncoder().encode(payloadValue),
+                   let payload = try? JSONDecoder().decode(Payload.self, from: payloadData) {
+                    self.payload = payload
+                } else {
+                    self.payload = nil
+                }
+                self.syncEvent = nil
+            } else if payloadValue.keys.contains("data") || payloadValue.keys.contains("aggregateID") {
+                if let syncData = try? JSONEncoder().encode(payloadValue),
+                   let syncEvent = try? JSONDecoder().decode(SyncPayload.self, from: syncData) {
+                    self.syncEvent = syncEvent
+                } else {
+                    self.syncEvent = nil
+                }
+                self.payload = nil
+            } else {
+                self.payload = nil
+                self.syncEvent = nil
+            }
             self.directType = nil
             self.directProperties = nil
         } else {
