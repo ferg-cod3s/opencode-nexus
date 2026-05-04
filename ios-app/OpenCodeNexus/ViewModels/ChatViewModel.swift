@@ -128,6 +128,10 @@ final class ChatViewModel {
     private var respondedQuestionIDs: Set<String> = []
     private var permissionStore: PermissionStore?
     private var hasPreviouslyLoadedPermissions = false
+    private var respondedPermissionIDs: Set<String> = []
+    private var respondedQuestionIDs: Set<String> = []
+    private var dismissedPermissionIDs: Set<String> = []
+    private var dismissedQuestionIDs: Set<String> = []
     private var bufferedDeltas: [String: [BufferedDelta]] = [:]
     private var isRestoringSelectionDuringSend = false
     private var sessionSelectedModels: [String: ModelRefBody] = [:]
@@ -287,6 +291,32 @@ final class ChatViewModel {
         respondedQuestionIDs.contains(questionID)
     }
 
+    func dismissPermission(_ permission: Permission) {
+        dismissedPermissionIDs.insert(permission.id)
+        permissionStore?.saveDismissedPermissions(dismissedPermissionIDs)
+        refreshPendingStateForSelectedSession()
+    }
+
+    func dismissQuestion(_ question: Question) {
+        dismissedQuestionIDs.insert(question.id)
+        permissionStore?.saveDismissedQuestions(dismissedQuestionIDs)
+        refreshPendingStateForSelectedSession()
+    }
+
+    func dismissAllPermissions(for sessionID: String) {
+        let ids = permissionsBySession[sessionID]?.map(\.id) ?? []
+        dismissedPermissionIDs.formUnion(ids)
+        permissionStore?.saveDismissedPermissions(dismissedPermissionIDs)
+        refreshPendingStateForSelectedSession()
+    }
+
+    func dismissAllQuestions(for sessionID: String) {
+        let ids = questionsBySession[sessionID]?.map(\.id) ?? []
+        dismissedQuestionIDs.formUnion(ids)
+        permissionStore?.saveDismissedQuestions(dismissedQuestionIDs)
+        refreshPendingStateForSelectedSession()
+    }
+
     func pendingQuestionCount(for sessionID: String) -> Int {
         pendingQuestions.filter { $0.sessionID == sessionID && !respondedQuestionIDs.contains($0.id) }.count
     }
@@ -306,7 +336,9 @@ final class ChatViewModel {
         guard let store = permissionStore else { return }
         respondedPermissionIDs = store.loadPermissions()
         respondedQuestionIDs = store.loadQuestions()
-        logger.info("Loaded \(self.respondedPermissionIDs.count) persisted permissions, \(self.respondedQuestionIDs.count) questions")
+        dismissedPermissionIDs = store.loadDismissedPermissions()
+        dismissedQuestionIDs = store.loadDismissedQuestions()
+        logger.info("Loaded \(self.respondedPermissionIDs.count) persisted permissions, \(self.respondedQuestionIDs.count) questions, \(self.dismissedPermissionIDs.count) dismissed permissions, \(self.dismissedQuestionIDs.count) dismissed questions")
     }
 
     func loadProjectInfo() async {
@@ -998,16 +1030,7 @@ final class ChatViewModel {
                 guard let self, self.isSending, self.selectedSessionId == sessionId,
                     self.currentSendOperationID == sendOperationID
                 else { return }
-                self.isSending = false
-                self.isStreamingDeltas = false
-                let stale = self.pendingOptimisticMessages.filter {
-                    $0.value.sessionID == sessionId
-                }
-                for (id, _) in stale {
-                    self.messages.removeAll { $0.id == id }
-                    self.pendingOptimisticMessages[id] = nil
-                    self.optimisticToServerMessageIds.removeValue(forKey: id)
-                }
+                self.resetSendingState(for: sessionId)
                 self.errorMessage = "Server took too long to respond. Check connection and try again."
                 let timeoutError = NSError(
                     domain: "ChatViewModel", code: -2,
@@ -1413,8 +1436,8 @@ final class ChatViewModel {
     }
 
     private func refreshPendingStateForSelectedSession() {
-        pendingPermissions = permissionsBySession.values.flatMap { $0 }.filter { !respondedPermissionIDs.contains($0.id) }
-        pendingQuestions = questionsBySession.values.flatMap { $0 }
+        pendingPermissions = permissionsBySession.values.flatMap { $0 }.filter { !respondedPermissionIDs.contains($0.id) && !dismissedPermissionIDs.contains($0.id) }
+        pendingQuestions = questionsBySession.values.flatMap { $0 }.filter { !respondedQuestionIDs.contains($0.id) && !dismissedQuestionIDs.contains($0.id) }
     }
 
     // MARK: - Todos
@@ -1623,20 +1646,8 @@ final class ChatViewModel {
                 sessionStatuses[eventSessionID] = SessionStatus(status: statusType)
                 if eventSessionID == selectedSessionId && statusType == "idle" {
                     let wasStillSending = isSending
-                    sendTimeoutTask?.cancel()
-                    sendTimeoutTask = nil
-                    isSending = false
-                    currentSendOperationID = nil
-                    let stale = pendingOptimisticMessages.filter {
-                        $0.value.sessionID == eventSessionID
-                    }
-                    for (id, _) in stale {
-                        messages.removeAll { $0.id == id }
-                        pendingOptimisticMessages[id] = nil
-                        optimisticToServerMessageIds.removeValue(forKey: id)
-                    }
                     let wasStreaming = isStreamingDeltas
-                    isStreamingDeltas = false
+                    resetSendingState(for: eventSessionID)
                     Task {
                         if wasStreaming {
                             try? await Task.sleep(for: .milliseconds(150))
@@ -1666,18 +1677,7 @@ final class ChatViewModel {
             if let eventSessionID = event.sessionID,
                 eventSessionID == selectedSessionId
             {
-                isSending = false
-                isStreamingDeltas = false
-                currentSendOperationID = nil
-                sendTimeoutTask?.cancel()
-                sendTimeoutTask = nil
-                let stale = pendingOptimisticMessages.filter {
-                    $0.value.sessionID == eventSessionID
-                }
-                for (id, _) in stale {
-                    messages.removeAll { $0.id == id }
-                    pendingOptimisticMessages[id] = nil
-                }
+                resetSendingState(for: eventSessionID)
                 errorMessage = extractErrorMessage(from: event)
                 let errorForSentry = NSError(
                     domain: "ChatViewModel", code: -1,
@@ -1831,14 +1831,10 @@ final class ChatViewModel {
                 "applyMessageUpdate: created new message \(resolvedMessageID) with empty parts")
         }
 
-        if let error = info.error, info.sessionID == selectedSessionId {
+        if let error = info.error, let sessionId = info.sessionID, sessionId == selectedSessionId {
             errorMessage = error.displayMessage
             if isSending {
-                isSending = false
-                isStreamingDeltas = false
-                sendTimeoutTask?.cancel()
-                sendTimeoutTask = nil
-                currentSendOperationID = nil
+                resetSendingState(for: sessionId)
             }
         }
     }
@@ -2037,6 +2033,20 @@ final class ChatViewModel {
             multiple: false,
             custom: true
         )
+    }
+
+    private func resetSendingState(for sessionId: String) {
+        isSending = false
+        isStreamingDeltas = false
+        currentSendOperationID = nil
+        sendTimeoutTask?.cancel()
+        sendTimeoutTask = nil
+        let stale = pendingOptimisticMessages.filter { $0.value.sessionID == sessionId }
+        for (id, _) in stale {
+            messages.removeAll { $0.id == id }
+            pendingOptimisticMessages[id] = nil
+            optimisticToServerMessageIds.removeValue(forKey: id)
+        }
     }
 
     private func extractErrorMessage(from event: SSEEvent) -> String {
