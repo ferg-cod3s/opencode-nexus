@@ -195,6 +195,7 @@ final class PureFunctionTests: XCTestCase {
             XCTAssertLessThan(lastCleared, after)
         }
     }
+
 }
 
 private func decodeTestMsg(id: String, text: String) throws -> MessageEnvelope {

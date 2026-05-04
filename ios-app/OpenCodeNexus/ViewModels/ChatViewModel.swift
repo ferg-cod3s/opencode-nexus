@@ -341,6 +341,20 @@ final class ChatViewModel {
         pendingQuestions.filter { $0.sessionID == sessionID && !respondedQuestionIDs.contains($0.id) }.count
     }
 
+    var lastClearedDate: Date? {
+        permissionStore?.loadLastCleared()
+    }
+
+    func clearAllPersistedResponses() {
+        permissionStore?.clear()
+        respondedPermissionIDs.removeAll()
+        respondedQuestionIDs.removeAll()
+        dismissedPermissionIDs.removeAll()
+        dismissedQuestionIDs.removeAll()
+        refreshPendingStateForSelectedSession()
+        logger.info("Cleared all persisted responses")
+    }
+
     // MARK: - Configuration
 
     func configure(with client: OpenCodeClient?, serverURL: String? = nil) {

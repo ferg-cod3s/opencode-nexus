@@ -119,7 +119,7 @@ struct ChatView: View {
             )
         }
         .sheet(isPresented: $showSettings) {
-            SettingsView(viewModel: settingsVM)
+            SettingsView(viewModel: settingsVM, chatVM: chatVM)
         }
         .environment(settingsVM)
     }
