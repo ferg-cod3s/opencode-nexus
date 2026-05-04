@@ -1650,25 +1650,7 @@ final class ChatViewModel {
                     messages.removeAll { $0.id == id }
                     pendingOptimisticMessages[id] = nil
                 }
-                if let errorString = event.properties?["error"]?.stringValue {
-                    errorMessage = errorString
-                } else if let errorObj = event.properties?["error"]?.objectValue {
-                    if let dataObj = errorObj["data"]?.objectValue,
-                        let msg = dataObj["message"]?.stringValue
-                    {
-                        errorMessage = msg
-                    } else if let name = errorObj["name"]?.stringValue {
-                        errorMessage = name
-                    } else {
-                        logger.error("session.error: unrecognized error structure: \(errorObj)")
-                        errorMessage = "Session error occurred"
-                    }
-                } else if let messageString = event.properties?["message"]?.stringValue {
-                    errorMessage = messageString
-                } else {
-                    logger.error("session.error: missing error payload in properties: \(String(describing: event.properties))")
-                    errorMessage = "Session error occurred"
-                }
+                errorMessage = extractErrorMessage(from: event)
                 let errorForSentry = NSError(
                     domain: "ChatViewModel", code: -1,
                     userInfo: [NSLocalizedDescriptionKey: errorMessage ?? "Session error occurred"])
@@ -2016,6 +1998,29 @@ final class ChatViewModel {
             multiple: false,
             custom: true
         )
+    }
+
+    private func extractErrorMessage(from event: SSEEvent) -> String {
+        if let errorString = event.properties?["error"]?.stringValue {
+            return errorString
+        }
+        if let errorObj = event.properties?["error"]?.objectValue {
+            if let dataObj = errorObj["data"]?.objectValue,
+                let msg = dataObj["message"]?.stringValue
+            {
+                return msg
+            }
+            if let name = errorObj["name"]?.stringValue {
+                return name
+            }
+            logger.error("session.error: unrecognized error structure: \(errorObj)")
+            return "Session error occurred"
+        }
+        if let messageString = event.properties?["message"]?.stringValue {
+            return messageString
+        }
+        logger.error("session.error: missing error payload in properties: \(String(describing: event.properties))")
+        return "Session error occurred"
     }
 }
 
