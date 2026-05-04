@@ -44,6 +44,12 @@ if [ ! -d "$PROJECT_FILE" ]; then
     cd "$PROJECT_DIR" && xcodegen generate
 fi
 
+# Update GitHash in Info.plist
+GIT_HASH="$(cd "$PROJECT_DIR" && git rev-parse --short HEAD)"
+/usr/libexec/PlistBuddy -c "Set :GitHash $GIT_HASH" "$PROJECT_DIR/OpenCodeNexus/Info.plist" 2>/dev/null || \
+/usr/libexec/PlistBuddy -c "Add :GitHash string $GIT_HASH" "$PROJECT_DIR/OpenCodeNexus/Info.plist"
+echo "Updated GitHash in Info.plist to: $GIT_HASH"
+
 # Step 2: Archive
 echo "Archiving..."
 xcodebuild archive \

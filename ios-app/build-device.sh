@@ -6,7 +6,7 @@ script_name="${0:t}"
 project="$script_dir/OpenCodeNexus.xcodeproj"
 scheme="${SCHEME:-OpenCodeNexus}"
 configuration="${CONFIGURATION:-Debug}"
-device_id="${DEVICE_ID:-00008140-000518440C7B001C}"
+device_id="${DEVICE_ID:-EC5AE99F-061E-5456-B307-0FB640D2C3B6}"
 bundle_id="${BUNDLE_ID:-ai.v1truv1us.opencode-mobile}"
 derived_data="${DERIVED_DATA_PATH:-$script_dir/build/DerivedData}"
 developer_dir="${DEVELOPER_DIR:-/Applications/Xcode-beta.app/Contents/Developer}"
@@ -17,6 +17,9 @@ disable_debug_dylib="${DISABLE_DEBUG_DYLIB:-1}"
 git_hash="${GIT_HASH:-$(git -C "$script_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")}"
 build_number="${BUILD_NUMBER:-$(date +%Y%m%d%H%M%S)}"
 allow_provisioning_updates=1
+
+# Update GitHash in Info.plist before build
+/usr/libexec/PlistBuddy -c "Set :GitHash $git_hash" "$script_dir/OpenCodeNexus/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Add :GitHash string $git_hash" "$script_dir/OpenCodeNexus/Info.plist"
 prepare_signing=0
 install_app=1
 launch_app=1
