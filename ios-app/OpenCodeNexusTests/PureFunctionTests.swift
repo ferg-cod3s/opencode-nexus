@@ -132,8 +132,68 @@ final class PureFunctionTests: XCTestCase {
         let models: [(providerID: String, modelID: String, name: String)] = [
             ("unknown", "m1", "Model"),
         ]
-        let groups = groupedModels(models, providers: [])
+        let providers: [ProviderInfo] = []
+        let groups = groupedModels(models, providers: providers)
         XCTAssertEqual(groups[0].providerName, "unknown")
+    }
+
+    // MARK: - PermissionStore
+
+    private func makeTestStore(serverURL: String = "http://localhost:4096") -> PermissionStore {
+        let suiteName = "test-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suiteName) }
+        return PermissionStore(serverURL: serverURL, defaults: defaults)
+    }
+
+    func testPermissionStoreLoadReturnsEmptySetForNonExistentKey() {
+        let store = makeTestStore()
+        XCTAssertTrue(store.loadPermissions().isEmpty)
+    }
+
+    func testPermissionStoreSaveLoadRoundtrip() {
+        let store = makeTestStore()
+        let ids: Set<String> = ["perm-1", "perm-2", "perm-3"]
+        store.savePermissions(ids)
+        let loaded = store.loadPermissions()
+        XCTAssertEqual(loaded, ids)
+    }
+
+    func testPermissionStorePerServerIsolation() {
+        let store1 = makeTestStore(serverURL: "http://server1:4096")
+        let store2 = makeTestStore(serverURL: "http://server2:4096")
+
+        store1.savePermissions(["perm-1"])
+        store2.savePermissions(["perm-2"])
+
+        XCTAssertEqual(store1.loadPermissions(), ["perm-1"])
+        XCTAssertEqual(store2.loadPermissions(), ["perm-2"])
+    }
+
+    func testPermissionStoreClearRemovesAllData() {
+        let store = makeTestStore()
+        store.savePermissions(["p1"])
+        store.saveQuestions(["q1"])
+        store.saveDismissedPermissions(["dp1"])
+        store.saveDismissedQuestions(["dq1"])
+        store.clear()
+        XCTAssertTrue(store.loadPermissions().isEmpty)
+        XCTAssertTrue(store.loadQuestions().isEmpty)
+        XCTAssertTrue(store.loadDismissedPermissions().isEmpty)
+        XCTAssertTrue(store.loadDismissedQuestions().isEmpty)
+    }
+
+    func testPermissionStoreLastClearedTimestamp() {
+        let store = makeTestStore()
+        XCTAssertNil(store.loadLastCleared())
+        store.clear()
+        XCTAssertNotNil(store.loadLastCleared())
+        let before = Date().addingTimeInterval(-1)
+        let after = Date().addingTimeInterval(1)
+        if let lastCleared = store.loadLastCleared() {
+            XCTAssertGreaterThan(lastCleared, before)
+            XCTAssertLessThan(lastCleared, after)
+        }
     }
 }
 

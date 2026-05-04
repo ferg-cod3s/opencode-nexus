@@ -1,18 +1,27 @@
-# Session: Built-in Slash Commands (ses_224844d7affeglwuyhftpxufWn)
+# Session: Built-in Slash Commands + Test Fixes
 
-## Done
-- 12 built-in commands: `/sessions`, `/models`, `/export`, `/help`, `/themes`, `/connect`, etc.
-- `sendCommand()` routes built-in commands before server API
-- 25 new tests + 3 flaky test fixes
-- **142 tests, 0 failures**
+## Commits
+- `07ea11c` — feat(ios): implement built-in slash commands for iOS client
+- `39b156c` — fix(ios): add ModelRefBody init and shareExportedMarkdown helper  
+- `39d2607` — fix(ios): wire up shareExportedMarkdown() in ChatView
+- `02719c1` — fix(ios): restore lost work from pre-deploy stash
+- `534c8d9` — docs: add session summary for built-in slash commands
+- `562343a` — test(ios): fix 3 pre-existing flaky tests + add shareURL feature
+- `f623573` — feat(ios): implement PermissionStore with UserDefaults persistence
 
-## Key Files
-- `ChatViewModel.swift` — `handleBuiltInCommand()` dispatcher
-- `ChatView.swift` — sheet bindings
-- `HelpView.swift`, `SessionPickerView.swift`, `ModelPickerView.swift` — new views
-- `ChatViewModelTests.swift` — +25 tests
+## Features Implemented
+- `/sessions`, `/resume`, `/continue` → SessionPickerView
+- `/models` → ModelPickerView  
+- `/export` → Markdown + iOS share sheet
+- `/help` → HelpView
+- `/share` → Share sheet (was silently copying to clipboard)
+- `/themes`, `/connect` → placeholder sheets
+- `/editor`, `/exit`, `/quit`, `/q` → "not available" message
 
-## Next
+## Test Results
+- **110 tests, 0 failures** ✅ (ChatViewModelTests)
+
+## Next Steps
 1. Real `ConnectionSettingsView` UI
-2. Actual `/themes` picker
+2. Actual `/themes` picker  
 3. More commands: `/undo`, `/redo`
